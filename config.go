@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
+
+	"golang.org/x/oauth2"
 )
 
 const configDir = ".onedrive-client"
 const configFile = "config.json"
 
 type Configuration struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	Expiry       time.Time `json:"expiry"`
-	TokenType    string    `json:"token_type"`
+	Token oauth2.Token `json:"token"`
+	Debug bool         `json:"debug"`
 }
 
 func loadConfiguration() (thisConfig Configuration, err error) {

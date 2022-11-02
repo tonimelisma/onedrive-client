@@ -2,27 +2,43 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/tonimelisma/onedrive-sdk-go"
 )
 
 func main() {
-	onedrive.Hello()
-
+	// Load configuration, and initialize OAuth2 tokens
 	config, err := loadConfiguration()
-	if !os.IsNotExist(err) && err != nil {
+	config.Debug = true
+	if os.IsNotExist(err) {
+		fmt.Println("No configuration file found.")
+	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "couldn't load configuration: %v\n", err)
 		os.Exit(1)
 	}
 
-	if config.AccessToken == "" {
-		_, err = authenticate(&config)
+	var client *http.Client
+
+	if config.Token.AccessToken == "" {
+		debug(config, "No access token found.")
+		client, err = authenticate(&config)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "couldn't authenticate: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
-		validateToken(&config)
+		debug(config, "Access token found.")
+		client, err = validateToken(&config)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Couldn't validate token: %v\n", err)
+			os.Exit(1)
+		}
 	}
+
+	// OAuth2 tokens ready
+	fmt.Println("client:", client)
+
+	onedrive.Hello()
 }
