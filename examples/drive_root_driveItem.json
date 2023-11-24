@@ -1,0 +1,48 @@
+{
+    "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#drive/root/$entity",
+    "createdDateTime": "2019-09-15T21:06:39.733Z",
+    "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITEwMS42MzgwMzA0ODQwNzg5MzAwMDA",
+    "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExMDEuODY",
+    "id": "73CAE265EE026C69!101",
+    "lastModifiedDateTime": "2022-11-03T05:00:07.893Z",
+    "name": "root",
+    "size": 841664741319,
+    "webUrl": "https://onedrive.live.com/?cid=73cae265ee026c69",
+    "createdBy": {
+        "application": {
+            "displayName": "OneDrive website",
+            "id": "44048800"
+        },
+        "user": {
+            "displayName": "Toni Melisma",
+            "id": "73cae265ee026c69"
+        }
+    },
+    "lastModifiedBy": {
+        "application": {
+            "displayName": "OneDrive website",
+            "id": "44048800"
+        },
+        "user": {
+            "displayName": "Toni Melisma",
+            "id": "73cae265ee026c69"
+        }
+    },
+    "parentReference": {
+        "driveId": "73cae265ee026c69",
+        "driveType": "personal"
+    },
+    "fileSystemInfo": {
+        "createdDateTime": "2019-09-15T21:06:39.733Z",
+        "lastModifiedDateTime": "2022-10-30T20:41:38.72Z"
+    },
+    "folder": {
+        "childCount": 12,
+        "view": {
+            "viewType": "thumbnails",
+            "sortBy": "name",
+            "sortOrder": "ascending"
+        }
+    },
+    "root": {}
+}

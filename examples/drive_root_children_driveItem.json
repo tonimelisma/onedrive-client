@@ -1,0 +1,637 @@
+{
+    "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users('toni.melisma%40iki.fi')/drive/root/children",
+    "@odata.count": 12,
+    "value": [
+        {
+            "createdDateTime": "2022-10-27T06:06:24.47Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE2Mjc1OS42MzgwMjc2OTIwNTc4MDAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExNjI3NTkuMA",
+            "id": "73CAE265EE026C69!162759",
+            "lastModifiedDateTime": "2022-10-30T23:26:45.78Z",
+            "name": "Archive",
+            "size": 199771293551,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzifdH",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-27T06:06:24.47Z",
+                "lastModifiedDateTime": "2022-10-27T06:06:24.47Z"
+            },
+            "folder": {
+                "childCount": 19,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2022-10-27T05:50:49.897Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE2MjUwNS42MzgwMjQ0ODc0OTE2MDAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExNjI1MDUuMA",
+            "id": "73CAE265EE026C69!162505",
+            "lastModifiedDateTime": "2022-10-27T06:25:49.16Z",
+            "name": "Backup",
+            "size": 6479013847,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzifVJ",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-27T05:50:49.896Z",
+                "lastModifiedDateTime": "2022-10-27T05:50:49.896Z"
+            },
+            "folder": {
+                "childCount": 3,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2020-11-17T10:17:01.437Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE1NjkyMi42MzgwMjQ0MDExNDk2MzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExNTY5MjIuMA",
+            "id": "73CAE265EE026C69!156922",
+            "lastModifiedDateTime": "2022-10-27T04:01:54.963Z",
+            "name": "Documents",
+            "size": 55454,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzicl6",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "Office.com",
+                    "id": "4804ec1e"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "Office.com",
+                    "id": "4804ec1e"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2020-11-17T10:17:01.436Z",
+                "lastModifiedDateTime": "2020-11-17T10:17:01.436Z"
+            },
+            "folder": {
+                "childCount": 4,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            },
+            "specialFolder": {
+                "name": "documents"
+            }
+        },
+        {
+            "createdDateTime": "2022-10-29T02:23:28.753Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITI0NTM5Ny42MzgwMjk3OTEwOTk0NzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSEyNDUzOTcuMQ",
+            "id": "73CAE265EE026C69!245397",
+            "lastModifiedDateTime": "2022-11-02T09:45:09.947Z",
+            "name": "Family Pictures",
+            "size": 606154294406,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzjv0V",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "MSOffice15",
+                    "id": "480728c5"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                },
+                "oneDriveSync": {
+                    "@odata.type": "#microsoft.graph.identity",
+                    "id": "9773dd22-6508-4243-b4b2-ffff0d000000"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive",
+                    "id": "481710a4"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-29T02:23:28.753Z",
+                "lastModifiedDateTime": "2022-10-30T20:28:58.02Z"
+            },
+            "folder": {
+                "childCount": 6,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2022-10-28T03:39:55.48Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITIyMjUzNS42MzgwMzEwMDQ4NTc0MzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSEyMjI1MzUuOA",
+            "id": "73CAE265EE026C69!222535",
+            "lastModifiedDateTime": "2022-11-03T19:28:05.743Z",
+            "name": "Jonna's Pictures",
+            "webUrl": "https://1drv.ms/u/s!AEFUC5DdbVmsaQ",
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive",
+                    "id": "481710a4"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "user": {
+                    "displayName": "Jonna Melisma",
+                    "id": "ac596ddd900b5441"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "remoteItem": {
+                "id": "AC596DDD900B5441!105",
+                "size": 109084336,
+                "webUrl": "https://1drv.ms/u/s!AEFUC5DdbVmsaQ",
+                "fileSystemInfo": {
+                    "createdDateTime": "2022-10-28T03:32:00.28Z",
+                    "lastModifiedDateTime": "2022-10-28T03:32:00.28Z"
+                },
+                "folder": {
+                    "childCount": 1,
+                    "view": {
+                        "viewType": "thumbnails",
+                        "sortBy": "takenOrCreatedDateTime",
+                        "sortOrder": "ascending"
+                    }
+                },
+                "parentReference": {
+                    "driveId": "ac596ddd900b5441",
+                    "driveType": "personal"
+                },
+                "shared": {
+                    "sharedDateTime": "2022-10-28T03:38:56.6772645Z"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2022-10-27T03:46:58.173Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE1NzUwNy42MzgwMjc1ODE2MjkwNzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExNTc1MDcuMA",
+            "id": "73CAE265EE026C69!157507",
+            "lastModifiedDateTime": "2022-10-30T20:22:42.907Z",
+            "name": "Personal",
+            "size": 195025016,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzic5D",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-27T03:46:58.173Z",
+                "lastModifiedDateTime": "2022-10-27T03:46:58.173Z"
+            },
+            "folder": {
+                "childCount": 7,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2022-10-27T02:41:12.4Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE1NjkyNy42MzgwMzEyNjY1ODE5NzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExNTY5MjcuMA",
+            "id": "73CAE265EE026C69!156927",
+            "lastModifiedDateTime": "2022-11-04T02:44:18.197Z",
+            "name": "Pictures",
+            "size": 1729975821,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzicl_",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive",
+                    "id": "480f7c59"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive",
+                    "id": "480f7c59"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-27T02:41:12.4Z",
+                "lastModifiedDateTime": "2022-10-27T02:41:12.4Z"
+            },
+            "folder": {
+                "childCount": 1,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "takenOrCreatedDateTime",
+                    "sortOrder": "ascending"
+                }
+            },
+            "specialFolder": {
+                "name": "photos"
+            }
+        },
+        {
+            "createdDateTime": "2022-10-30T21:58:01.137Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITM1NDg4Mi42MzgwMjc2NDIwNjk4NzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSEzNTQ4ODIuMQ",
+            "id": "73CAE265EE026C69!354882",
+            "lastModifiedDateTime": "2022-10-30T22:03:26.987Z",
+            "name": "Sein\u00e4lle",
+            "size": 213594593,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzldRC",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-30T21:58:01.136Z",
+                "lastModifiedDateTime": "2022-10-30T21:58:01.136Z"
+            },
+            "folder": {
+                "childCount": 30,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "takenOrCreatedDateTime",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2022-10-27T06:03:22.033Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE2MjU4NS42MzgwMjc1MjIxNjUyMzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExNjI1ODUuMA",
+            "id": "73CAE265EE026C69!162585",
+            "lastModifiedDateTime": "2022-10-30T18:43:36.523Z",
+            "name": "Torrents",
+            "size": 15276676,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzifYZ",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-27T06:03:22.033Z",
+                "lastModifiedDateTime": "2022-10-27T06:03:22.033Z"
+            },
+            "folder": {
+                "childCount": 173,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2022-10-27T06:03:17.163Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE2MjU4MS42MzgwMzEyOTY2MDM1MzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExNjI1ODEuMA",
+            "id": "73CAE265EE026C69!162581",
+            "lastModifiedDateTime": "2022-11-04T03:34:20.353Z",
+            "name": "Weather",
+            "size": 15899732,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzifYV",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-27T06:03:17.163Z",
+                "lastModifiedDateTime": "2022-10-27T06:03:17.163Z"
+            },
+            "folder": {
+                "childCount": 6,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "createdDateTime": "2022-10-27T19:17:28.64Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITE5OTcxMi42MzgwMjY4ODc2MzgwNzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSExOTk3MTIuMA",
+            "id": "73CAE265EE026C69!199712",
+            "lastModifiedDateTime": "2022-10-30T01:06:03.807Z",
+            "name": "World Weather",
+            "size": 28080346080,
+            "webUrl": "https://1drv.ms/f/s!AGlsAu5l4spzjJgg",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "OneDrive Client for Linux",
+                    "id": "4035b959"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-27T19:17:28.64Z",
+                "lastModifiedDateTime": "2022-10-27T19:17:28.64Z"
+            },
+            "folder": {
+                "childCount": 20,
+                "view": {
+                    "viewType": "thumbnails",
+                    "sortBy": "name",
+                    "sortOrder": "ascending"
+                }
+            }
+        },
+        {
+            "@microsoft.graph.downloadUrl": "https://public.dm.files.1drv.com/y4mTBV5KcaofhDt7iRGaKanMj3PiWizIzm5H0k0B0Ggakg_LHncQFsXBtmfsQekrGnUkvhGkjJOVTpHEulPPStaifvZg_jFZQCmYbDuA2sY9r8lddGmr1TyusX-4eK9PFFc1HwuIiGl29BpJbZP7ISVqpQZZhE2ukpwAiwbGibLyL4MH_eJ-NldkAICbVNkWBAKxLuYsQ2dAO6Ln8GSresgiUsdm_ocGizidUNMSzxUYA2ohENM6UimKLnhQ2ciwBay",
+            "createdDateTime": "2022-10-31T21:18:58.237Z",
+            "cTag": "aYzo3M0NBRTI2NUVFMDI2QzY5ITM1OTc1MC4yNTc",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSEzNTk3NTAuMA",
+            "id": "73CAE265EE026C69!359750",
+            "lastModifiedDateTime": "2022-10-31T21:18:58.237Z",
+            "name": "-Toni\u2019s MacBook Pro.DS_Store",
+            "size": 6148,
+            "webUrl": "https://1drv.ms/u/s!AGlsAu5l4spzlfpG",
+            "reactions": {
+                "commentCount": 0
+            },
+            "createdBy": {
+                "application": {
+                    "displayName": "MSOffice15",
+                    "id": "480728c5"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                },
+                "oneDriveSync": {
+                    "@odata.type": "#microsoft.graph.identity",
+                    "id": "932f43a8-d3df-4820-8cda-ffff98350000"
+                }
+            },
+            "lastModifiedBy": {
+                "application": {
+                    "displayName": "MSOffice15",
+                    "id": "480728c5"
+                },
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                },
+                "oneDriveSync": {
+                    "@odata.type": "#microsoft.graph.identity",
+                    "id": "932f43a8-d3df-4820-8cda-ffff98350000"
+                }
+            },
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal",
+                "id": "73CAE265EE026C69!101",
+                "path": "/drive/root:"
+            },
+            "file": {
+                "mimeType": "application/octet-stream",
+                "hashes": {
+                    "quickXorHash": "aZS0oyyboFAD5unhbzo5vnM7md8=",
+                    "sha1Hash": "2FEFBD55CDE423126965381A1289E27293E07529",
+                    "sha256Hash": "C675BF49AD7618B6A059E84296374BD9585F2F730C6406D427581A18803A7E9D"
+                }
+            },
+            "fileSystemInfo": {
+                "createdDateTime": "2022-10-31T21:18:58.236Z",
+                "lastModifiedDateTime": "2022-10-28T16:43:24Z"
+            }
+        }
+    ]
+}

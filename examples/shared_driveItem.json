@@ -1,0 +1,66 @@
+{
+    "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#Collection(driveItem)",
+    "value": [
+        {
+            "@odata.type": "#microsoft.graph.driveItem",
+            "createdDateTime": "2022-10-28T03:39:08.833Z",
+            "cTag": "adDo3M0NBRTI2NUVFMDI2QzY5ITIyMjQ5OC42MzgwMzA0MTk0MzI3MzAwMDA",
+            "eTag": "aNzNDQUUyNjVFRTAyNkM2OSEyMjI0OTguNA",
+            "id": "73CAE265EE026C69!222498",
+            "lastModifiedDateTime": "2022-11-03T03:12:23.273Z",
+            "name": "Pictures",
+            "webUrl": "https://1drv.ms/u/s!AEFUC5DdbVmsaQ",
+            "parentReference": {
+                "driveId": "73cae265ee026c69",
+                "driveType": "personal"
+            },
+            "remoteItem": {
+                "id": "AC596DDD900B5441!105",
+                "lastModifiedDateTime": "2022-11-03T03:12:19.18Z",
+                "name": "Pictures",
+                "size": 10079638,
+                "webUrl": "https://1drv.ms/u/s!AEFUC5DdbVmsaQ",
+                "createdBy": {
+                    "application": {
+                        "id": "480f7c59"
+                    },
+                    "user": {
+                        "displayName": "Jonna Melisma",
+                        "id": "ac596ddd900b5441"
+                    }
+                },
+                "fileSystemInfo": {
+                    "createdDateTime": "2022-10-28T03:32:00.28Z",
+                    "lastModifiedDateTime": "2022-10-28T03:32:00.28Z"
+                },
+                "folder": {
+                    "childCount": 1,
+                    "view": {
+                        "viewType": "thumbnails",
+                        "sortBy": "takenOrCreatedDateTime",
+                        "sortOrder": "ascending"
+                    }
+                },
+                "lastModifiedBy": {
+                    "user": {
+                        "displayName": "Jonna Melisma",
+                        "id": "ac596ddd900b5441"
+                    }
+                },
+                "parentReference": {
+                    "driveId": "ac596ddd900b5441",
+                    "driveType": "personal"
+                },
+                "shared": {
+                    "sharedDateTime": "2022-10-28T03:39:08.833Z",
+                    "owner": {
+                        "user": {
+                            "displayName": "Jonna Melisma",
+                            "id": "ac596ddd900b5441"
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}

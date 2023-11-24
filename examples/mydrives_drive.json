@@ -1,0 +1,25 @@
+{
+    "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#drives",
+    "value": [
+        {
+            "driveType": "personal",
+            "id": "73cae265ee026c69",
+            "owner": {
+                "user": {
+                    "displayName": "Toni Melisma",
+                    "id": "73cae265ee026c69"
+                }
+            },
+            "quota": {
+                "deleted": 24866253951,
+                "remaining": 263215595577,
+                "state": "normal",
+                "total": 1104880336896,
+                "used": 841664741319,
+                "storagePlanInformation": {
+                    "upgradeAvailable": false
+                }
+            }
+        }
+    ]
+}
