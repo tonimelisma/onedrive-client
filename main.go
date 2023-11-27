@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -35,7 +36,14 @@ func main() {
 	fmt.Println("Getting drives...")
 	err = onedrive.GetMyDrives(client)
 	if err != nil {
-		log.Fatalf("Error getting drives: %v\n", err)
+		if errors.Is(err, onedrive.ErrReauthRequired) {
+			log.Fatalf("Re-authenticate: %v\n", err)
+		} else if errors.Is(err, onedrive.ErrRetryLater) {
+			// Do retry logic
+			log.Fatalf("Retry later: %v\n", err)
+		} else {
+			log.Fatalf("Unknown error: %v\n", err)
+		}
 	}
 }
 
