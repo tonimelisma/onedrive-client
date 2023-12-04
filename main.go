@@ -17,6 +17,7 @@ import (
 
 const configDir = ".onedrive-client"
 const configFile = "config.json"
+const clientID = "71ae7ad2-0207-4618-90d3-d21db38f9f7a"
 
 // Logging
 
@@ -65,8 +66,7 @@ func main() {
 	}
 }
 
-func authenticateOnedriveClient(
-	config *Configuration,
+func authenticateOnedriveClient(config *Configuration,
 	ctx context.Context, oauthConfig *oauth2.Config) (err error) {
 
 	authURL, codeVerifier, err := onedrive.StartAuthentication(ctx, oauthConfig)
@@ -108,14 +108,16 @@ func authenticateOnedriveClient(
 	return nil
 }
 
+func tokenRefreshCallback(token *oauth2.Token) {
+	// TODO: Save the token to the configuration file
+}
+
 func initializeOnedriveClient(config *Configuration) (*http.Client, error) {
 	if config == nil {
 		return nil, errors.New("configuration is nil")
 	}
 
-	ctx, oauthConfig := onedrive.GetOauth2Config(
-		"71ae7ad2-0207-4618-90d3-d21db38f9f7a",
-	)
+	ctx, oauthConfig := onedrive.GetOauth2Config(clientID)
 
 	if config.Token.AccessToken == "" {
 		err := authenticateOnedriveClient(config, ctx, oauthConfig)
@@ -124,7 +126,7 @@ func initializeOnedriveClient(config *Configuration) (*http.Client, error) {
 		}
 	}
 
-	client := onedrive.NewClient(ctx, oauthConfig, config.Token)
+	client := onedrive.NewClient(ctx, oauthConfig, config.Token, tokenRefreshCallback)
 	if client == nil {
 		return nil, errors.New("client is nil")
 	} else {
