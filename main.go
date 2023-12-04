@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,15 +12,36 @@ import (
 	"path/filepath"
 
 	"github.com/tonimelisma/onedrive-sdk-go"
+	"golang.org/x/oauth2"
 )
 
 const configDir = ".onedrive-client"
 const configFile = "config.json"
 
+// Logging
+
+type StdLogger struct{}
+
+func (l StdLogger) Debug(v ...interface{}) {
+	log.Println(v...)
+}
+
+func (l StdLogger) Info(v ...interface{}) {
+	log.Println(v...)
+}
+
+func (l StdLogger) Error(v ...interface{}) {
+	log.Println(v...)
+}
+
+// Config
+
 type Configuration struct {
 	Token onedrive.OAuthToken `json:"token"`
 	Debug bool                `json:"debug"`
 }
+
+// Main
 
 func main() {
 	config, err := loadConfiguration()
@@ -28,9 +50,13 @@ func main() {
 	}
 
 	config.Debug = true
-	client, err := initializeOneDriveClient(&config)
+	client, err := initializeOnedriveClient(&config)
 	if err != nil {
 		log.Fatalf("Error during OneDrive client initialization: %v\n", err)
+	}
+
+	if config.Debug {
+		onedrive.SetLogger(StdLogger{})
 	}
 
 	fmt.Println("Getting drives...")
@@ -47,42 +73,71 @@ func main() {
 	}
 }
 
-func initializeOneDriveClient(config *Configuration) (*http.Client, error) {
+func authenticateOnedriveClient(
+	config *Configuration,
+) (ctx context.Context, oauthConfig *oauth2.Config, err error) {
+	ctx, oauthConfig, authURL, codeVerifier, err := onedrive.StartAuthentication(
+		"71ae7ad2-0207-4618-90d3-d21db38f9f7a",
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fmt.Println("Visit the following URL in your browser and authorize the app:", authURL)
+	fmt.Print("Enter the authorization code: ")
+
+	var redirectURL string
+	fmt.Scan(&redirectURL)
+
+	parsedUrl, err := url.Parse(redirectURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing redirect URL: %v", err)
+	}
+
+	code := parsedUrl.Query().Get("code")
+	if code == "" {
+		return nil, nil, fmt.Errorf("authorization code not found in the URL")
+	}
+
+	token, err := onedrive.CompleteAuthentication(
+		ctx, oauthConfig,
+		code,
+		codeVerifier,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	config.Token = *token
+	err = saveConfiguration(*config)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return ctx, oauthConfig, nil
+}
+
+func initializeOnedriveClient(config *Configuration) (*http.Client, error) {
+	if config == nil {
+		return nil, errors.New("configuration is nil")
+	}
+
+	var ctx context.Context
+	var oauthConfig *oauth2.Config
 	if config.Token.AccessToken == "" {
-		authURL, codeVerifier, err := onedrive.StartAuthentication()
-		if err != nil {
-			return nil, err
-		}
-
-		fmt.Println("Visit the following URL in your browser and authorize the app:", authURL)
-		fmt.Print("Enter the authorization code: ")
-
-		var redirectURL string
-		fmt.Scan(&redirectURL)
-
-		parsedUrl, err := url.Parse(redirectURL)
-		if err != nil {
-			return nil, fmt.Errorf("parsing redirect URL: %v", err)
-		}
-
-		code := parsedUrl.Query().Get("code")
-		if code == "" {
-			return nil, fmt.Errorf("authorization code not found in the URL")
-		}
-
-		token, err := onedrive.CompleteAuthentication(code, codeVerifier)
-		if err != nil {
-			return nil, err
-		}
-
-		config.Token = *token
-		err = saveConfiguration(*config)
+		var err error
+		ctx, oauthConfig, err = authenticateOnedriveClient(config)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return onedrive.NewClient(config.Token), nil
+	client := onedrive.NewClient(ctx, oauthConfig, config.Token)
+	if client == nil {
+		return nil, errors.New("client is nil")
+	} else {
+		return client, nil
+	}
 }
 
 func loadConfiguration() (Configuration, error) {
