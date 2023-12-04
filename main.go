@@ -26,14 +26,6 @@ func (l StdLogger) Debug(v ...interface{}) {
 	log.Println(v...)
 }
 
-func (l StdLogger) Info(v ...interface{}) {
-	log.Println(v...)
-}
-
-func (l StdLogger) Error(v ...interface{}) {
-	log.Println(v...)
-}
-
 // Config
 
 type Configuration struct {
