@@ -97,7 +97,7 @@ func main() {
 }
 
 func authenticateOnedriveClient(config *configuration,
-	ctx context.Context, oauthConfig *oauth2.Config) (err error) {
+	ctx context.Context, oauthConfig *onedrive.OAuthConfig) (err error) {
 
 	authURL, codeVerifier, err := onedrive.StartAuthentication(ctx, oauthConfig)
 	if err != nil {
@@ -121,7 +121,8 @@ func authenticateOnedriveClient(config *configuration,
 	}
 
 	token, err := onedrive.CompleteAuthentication(
-		ctx, oauthConfig,
+		ctx,
+		oauthConfig,
 		code,
 		codeVerifier,
 	)
