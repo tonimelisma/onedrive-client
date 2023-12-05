@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"github.com/tonimelisma/onedrive-sdk-go"
-	"golang.org/x/oauth2"
 )
 
 const configDir = ".onedrive-client"
@@ -139,8 +138,8 @@ func authenticateOnedriveClient(config *configuration,
 	return nil
 }
 
-func tokenRefreshCallback(config *configuration, token *oauth2.Token) {
-	config.Token = onedrive.OAuthToken(*token)
+func tokenRefreshCallback(config *configuration, token onedrive.OAuthToken) {
+	config.Token = token
 	if err := config.save(); err != nil {
 		log.Fatalf("Error saving updated token to configuration on disk: %v\n", err)
 	}
@@ -160,8 +159,8 @@ func initializeOnedriveClient(config *configuration) (*http.Client, error) {
 		}
 	}
 
-	tokenRefreshCallbackFunc := func(token *oauth2.Token) {
-		tokenRefreshCallback(config, token)
+	tokenRefreshCallbackFunc := func(token *onedrive.OAuthToken) {
+		tokenRefreshCallback(config, *token)
 	}
 
 	client := onedrive.NewClient(ctx, oauthConfig, config.Token, tokenRefreshCallbackFunc)
