@@ -29,13 +29,38 @@ func (l StdLogger) Debug(v ...interface{}) {
 
 // Config
 
-type Configuration struct {
+type configuration struct {
 	Token onedrive.OAuthToken `json:"token"`
 	Debug bool                `json:"debug"`
 }
 
-// Main
+func (c *configuration) save() error {
+	jsonData, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshalling config to JSON: %v", err)
+	}
 
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("getting home directory: %v", err)
+	}
+
+	configDirPath := filepath.Join(homeDir, configDir)
+	if _, err := os.Stat(configDirPath); os.IsNotExist(err) {
+		if err := os.Mkdir(configDirPath, 0700); err != nil {
+			return fmt.Errorf("creating config directory: %v", err)
+		}
+	}
+
+	configFilePath := filepath.Join(configDirPath, configFile)
+	if err := os.WriteFile(configFilePath, jsonData, 0600); err != nil {
+		return fmt.Errorf("writing configuration file: %v", err)
+	}
+
+	return nil
+}
+
+// Main
 func main() {
 	config, err := loadConfiguration()
 	if err != nil {
@@ -66,7 +91,7 @@ func main() {
 	}
 }
 
-func authenticateOnedriveClient(config *Configuration,
+func authenticateOnedriveClient(config *configuration,
 	ctx context.Context, oauthConfig *oauth2.Config) (err error) {
 
 	authURL, codeVerifier, err := onedrive.StartAuthentication(ctx, oauthConfig)
@@ -100,7 +125,7 @@ func authenticateOnedriveClient(config *Configuration,
 	}
 
 	config.Token = *token
-	err = saveConfiguration(*config)
+	err = config.save()
 	if err != nil {
 		return err
 	}
@@ -108,11 +133,14 @@ func authenticateOnedriveClient(config *Configuration,
 	return nil
 }
 
-func tokenRefreshCallback(token *oauth2.Token) {
-	// TODO: Save the token to the configuration file
+func tokenRefreshCallback(config *configuration, token *oauth2.Token) {
+	config.Token = onedrive.OAuthToken(*token)
+	if err := config.save(); err != nil {
+		log.Fatalf("Error saving updated token to configuration on disk: %v\n", err)
+	}
 }
 
-func initializeOnedriveClient(config *Configuration) (*http.Client, error) {
+func initializeOnedriveClient(config *configuration) (*http.Client, error) {
 	if config == nil {
 		return nil, errors.New("configuration is nil")
 	}
@@ -126,7 +154,11 @@ func initializeOnedriveClient(config *Configuration) (*http.Client, error) {
 		}
 	}
 
-	client := onedrive.NewClient(ctx, oauthConfig, config.Token, tokenRefreshCallback)
+	tokenRefreshCallbackFunc := func(token *oauth2.Token) {
+		tokenRefreshCallback(config, token)
+	}
+
+	client := onedrive.NewClient(ctx, oauthConfig, config.Token, tokenRefreshCallbackFunc)
 	if client == nil {
 		return nil, errors.New("client is nil")
 	} else {
@@ -134,8 +166,8 @@ func initializeOnedriveClient(config *Configuration) (*http.Client, error) {
 	}
 }
 
-func loadConfiguration() (Configuration, error) {
-	var config Configuration
+func loadConfiguration() (configuration, error) {
+	var config configuration
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return config, fmt.Errorf("getting home directory: %v", err)
@@ -155,33 +187,7 @@ func loadConfiguration() (Configuration, error) {
 	return config, nil
 }
 
-func saveConfiguration(config Configuration) error {
-	jsonData, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling config to JSON: %v", err)
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("getting home directory: %v", err)
-	}
-
-	configDirPath := filepath.Join(homeDir, configDir)
-	if _, err := os.Stat(configDirPath); os.IsNotExist(err) {
-		if err := os.Mkdir(configDirPath, 0700); err != nil {
-			return fmt.Errorf("creating config directory: %v", err)
-		}
-	}
-
-	configFilePath := filepath.Join(configDirPath, configFile)
-	if err := os.WriteFile(configFilePath, jsonData, 0600); err != nil {
-		return fmt.Errorf("writing configuration file: %v", err)
-	}
-
-	return nil
-}
-
-func handleConfigurationError(err error, config *Configuration) {
+func handleConfigurationError(err error, config *configuration) {
 	if os.IsNotExist(err) {
 		fmt.Println("No configuration file found. Proceeding with authentication.")
 		config.Token = onedrive.OAuthToken{} // Reset the token
