@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/tonimelisma/onedrive-sdk-go"
 	"golang.org/x/oauth2"
@@ -32,9 +33,13 @@ func (l StdLogger) Debug(v ...interface{}) {
 type configuration struct {
 	Token onedrive.OAuthToken `json:"token"`
 	Debug bool                `json:"debug"`
+	mu    sync.RWMutex        // Add mutex for thread-safe writes
 }
 
 func (c *configuration) save() error {
+	c.mu.Lock() // Lock for writing
+	defer c.mu.Unlock()
+
 	jsonData, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshalling config to JSON: %v", err)
@@ -64,11 +69,11 @@ func (c *configuration) save() error {
 func main() {
 	config, err := loadConfiguration()
 	if err != nil {
-		handleConfigurationError(err, &config)
+		handleConfigurationError(err, config)
 	}
 
 	config.Debug = true
-	client, err := initializeOnedriveClient(&config)
+	client, err := initializeOnedriveClient(config)
 	if err != nil {
 		log.Fatalf("Error during OneDrive client initialization: %v\n", err)
 	}
@@ -166,22 +171,22 @@ func initializeOnedriveClient(config *configuration) (*http.Client, error) {
 	}
 }
 
-func loadConfiguration() (configuration, error) {
-	var config configuration
+func loadConfiguration() (*configuration, error) {
+	config := &configuration{} // Create a pointer to a new configuration
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return config, fmt.Errorf("getting home directory: %v", err)
+		return nil, fmt.Errorf("getting home directory: %v", err)
 	}
 
 	configPath := filepath.Join(homeDir, configDir, configFile)
 	fileHandle, err := os.ReadFile(configPath)
 	if err != nil {
-		return config, err
+		return nil, err
 	}
 
-	err = json.Unmarshal(fileHandle, &config)
+	err = json.Unmarshal(fileHandle, config)
 	if err != nil {
-		return config, fmt.Errorf("unmarshalling json: %v", err)
+		return nil, fmt.Errorf("unmarshalling json: %v", err)
 	}
 
 	return config, nil
