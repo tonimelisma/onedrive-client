@@ -159,8 +159,8 @@ func initializeOnedriveClient(config *configuration) (*http.Client, error) {
 		}
 	}
 
-	tokenRefreshCallbackFunc := func(token *onedrive.OAuthToken) {
-		tokenRefreshCallback(config, *token)
+	tokenRefreshCallbackFunc := func(token onedrive.OAuthToken) {
+		tokenRefreshCallback(config, token)
 	}
 
 	client := onedrive.NewClient(ctx, oauthConfig, config.Token, tokenRefreshCallbackFunc)
