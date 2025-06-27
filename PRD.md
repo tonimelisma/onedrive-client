@@ -106,6 +106,19 @@ As a user, I want to see and manage content that has been shared with me.
 *   **[ ] User Story 3.1:** I want to list all the files and folders that have been shared with me.
     *   **Proposed Command:** `onedrive-client shared list`
 
+---
+
+### `[x]` Epic 4: Authentication Management
+
+As a user, I want to explicitly manage my authentication state.
+
+*   **[x] User Story 4.1:** I want to log in using a non-interactive flow suitable for CLI applications.
+    *   **Proposed Commands:** `onedrive-client auth login`, `onedrive-client auth confirm`
+*   **[x] User Story 4.2:** I want to check if I am currently logged in and see my user information.
+    *   **Proposed Command:** `onedrive-client auth status`
+*   **[x] User Story 4.3:** I want to log out, clearing my local credentials.
+    *   **Proposed Command:** `onedrive-client auth logout`
+
 - **US-4: Upload Large Files**: As a developer, I want to upload files larger than 4MB, so that I can transfer large assets to my cloud storage. (Status: **Complete**)
   - *Acceptance Criteria*:
     - The `upload` command works for files up to 100MB.

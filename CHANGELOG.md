@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `drives list` command to show all available user drives.
 - `drives list` command to list all available OneDrive drives.
 - `drives quota` command to display storage quota for the default drive.
+- New `auth` command group (`login`, `confirm`, `status`, `logout`) to manage authentication.
 
 ### Changed
 - The underlying SDK now uses path-based addressing to look up items in OneDrive, allowing access to any file/folder, not just those in the root.
@@ -27,12 +28,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Large file uploads now use a session-based approach instead of a single request.
 - Renamed `LiveSDK` to `OneDriveSDK` for better clarity.
 - Refactored test suite to use a shared `test_helpers_test.go` to avoid duplicated code and fix the build.
-
-### Removed
-- Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.
+- Replaced the interactive, browser-based authentication with a non-interactive OAuth 2.0 Device Code Flow.
+- The app no longer performs authentication automatically; users must explicitly run `auth login`.
+- The local configuration file path can now be overridden with the `ONEDRIVE_CONFIG_PATH` environment variable for easier testing.
 
 ### Fixed
 - Resolved persistent build and test failures caused by Go module inconsistencies. This required manual adjustments to `go.mod` and repeated `go mod tidy` commands to correctly vendor a new dependency (`progressbar`).
+- The build process was fixed by removing duplicated test helper code.
+
+### Removed
+- Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.
+- Removed the old, interactive authentication flow that required pasting a URL back into the terminal.
 
 ## [0.1.0] - 2024-05-20
 

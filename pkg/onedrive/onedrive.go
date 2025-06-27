@@ -32,13 +32,16 @@ type OAuthConfig oauth2.Config
 
 // Sentinel errors
 var (
-	ErrReauthRequired   = errors.New("re-authentication required")
-	ErrAccessDenied     = errors.New("access denied")
-	ErrRetryLater       = errors.New("retry later")
-	ErrInvalidRequest   = errors.New("invalid request")
-	ErrResourceNotFound = errors.New("resource not found")
-	ErrConflict         = errors.New("conflict")
-	ErrQuotaExceeded    = errors.New("quota exceeded")
+	ErrReauthRequired        = errors.New("re-authentication required")
+	ErrAccessDenied          = errors.New("access denied")
+	ErrRetryLater            = errors.New("retry later")
+	ErrInvalidRequest        = errors.New("invalid request")
+	ErrResourceNotFound      = errors.New("resource not found")
+	ErrConflict              = errors.New("conflict")
+	ErrQuotaExceeded         = errors.New("quota exceeded")
+	ErrAuthorizationPending  = errors.New("authorization pending")
+	ErrAuthorizationDeclined = errors.New("authorization declined")
+	ErrTokenExpired          = errors.New("token expired")
 )
 
 // Custom token source to allow for caching refreshed tokens
@@ -615,4 +618,100 @@ func GetOauth2Config(clientID string) (context.Context, *OAuthConfig) {
 		},
 	}
 	return context.Background(), (*OAuthConfig)(&oauth2Config)
+}
+
+// GetMe retrieves the profile of the currently signed-in user.
+func GetMe(client *http.Client) (User, error) {
+	logger.Debug("GetMe called")
+	var user User
+
+	url := rootUrl + "me"
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return user, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&user); err != nil {
+		return user, fmt.Errorf("decoding user failed: %v", err)
+	}
+
+	return user, nil
+}
+
+// InitiateDeviceCodeFlow starts the device code authentication process.
+func InitiateDeviceCodeFlow(clientID string) (*DeviceCodeResponse, error) {
+	endpoint := "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+	data := url.Values{}
+	data.Set("client_id", clientID)
+	data.Set("scope", strings.Join(oAuthScopes, " "))
+
+	res, err := http.Post(endpoint, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("device code request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading device code response failed: %w", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("device code request returned status %s: %s", res.Status, string(body))
+	}
+
+	var deviceCodeResponse DeviceCodeResponse
+	if err := json.Unmarshal(body, &deviceCodeResponse); err != nil {
+		return nil, fmt.Errorf("decoding device code response failed: %w", err)
+	}
+
+	return &deviceCodeResponse, nil
+}
+
+// VerifyDeviceCode polls the token endpoint to complete the device code flow.
+func VerifyDeviceCode(clientID string, deviceCode string) (*OAuthToken, error) {
+	endpoint := "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+	data := url.Values{}
+	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
+	data.Set("client_id", clientID)
+	data.Set("device_code", deviceCode)
+
+	res, err := http.Post(endpoint, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("token request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading token response failed: %w", err)
+	}
+
+	// Handle specific OAuth errors for device flow
+	if res.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error            string `json:"error"`
+			ErrorDescription string `json:"error_description"`
+		}
+		if json.Unmarshal(body, &errResp) == nil {
+			if errResp.Error == "authorization_pending" {
+				return nil, ErrAuthorizationPending
+			}
+			if errResp.Error == "authorization_declined" {
+				return nil, ErrAuthorizationDeclined
+			}
+			if errResp.Error == "expired_token" {
+				return nil, ErrTokenExpired
+			}
+		}
+		return nil, fmt.Errorf("token request returned status %s: %s", res.Status, string(body))
+	}
+
+	var token OAuthToken
+	if err := json.Unmarshal(body, &token); err != nil {
+		return nil, fmt.Errorf("decoding token failed: %w", err)
+	}
+
+	return &token, nil
 }

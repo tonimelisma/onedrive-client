@@ -76,6 +76,7 @@ The project is organized into packages, each with a distinct role.
 
 #### `pkg/onedrive/` (The SDK Layer)
 *   **Responsibility:** This package is the **only** component that knows how to communicate with the Microsoft Graph API. It handles creating API requests, parsing responses, and defining the data models (`DriveItem`, etc.).
+*   **Authentication**: Implements both the legacy interactive OAuth2 flow and the modern, non-interactive Device Code Flow for CLI applications.
 
 ### 2.3. How to Add a New Command (Example: `files list`)
 
@@ -146,6 +147,16 @@ To evolve into a full sync client, the application must run as a persistent, bac
         *   `watcher.go`: Uses a library like `fsnotify` to watch the local filesystem for changes, triggering the sync engine.
         *   `resolver.go`: A crucial component for handling sync conflicts (e.g., a file modified in both places).
     *   `cmd/sync.go`: A new command to `start`, `stop`, and check the `status` of the sync daemon.
+
+### 3.3. Authentication Flow (Device Code)
+
+The application uses the OAuth 2.0 Device Code Flow, which is designed for headless applications like CLIs. This provides a non-interactive and secure user experience. The flow is managed by the `auth` command group.
+
+1.  **`auth login`**: The user initiates the login. The CLI calls the Microsoft Identity endpoint to get a `user_code` and a `device_code`. It displays the `user_code` and a verification URL to the user. The `device_code` is saved to a temporary session file in `~/.config/onedrive-client/sessions/auth_session.json`.
+2.  **User Action**: The user opens the verification URL on any browser-enabled device (phone, laptop) and enters the `user_code` to approve the sign-in.
+3.  **`auth confirm`**: The user runs this command after approving. The CLI reads the `device_code` from the session file and polls the token endpoint. Upon success, it receives the access and refresh tokens, saves them to the main `config.json`, and deletes the temporary session file.
+
+This two-step, non-blocking process ensures that no command waits for user input, making the CLI suitable for both interactive and scripted use. The refresh token is then used automatically for subsequent API calls.
 
 The `onedrive` package is a self-contained SDK for interacting with the Microsoft Graph API. It has no dependencies on the rest of the application. It handles API calls, error wrapping, and OAuth2 logic. All models specific to the OneDrive API are defined here.
 

@@ -16,3 +16,8 @@
 
 # Mac
 .DS_Store
+
+# Local configuration file for testing
+config.json
+
+onedrive-client

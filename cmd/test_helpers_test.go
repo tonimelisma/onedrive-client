@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -14,6 +15,9 @@ import (
 type MockSDK struct {
 	GetDrivesFunc                  func() (onedrive.DriveList, error)
 	GetDefaultDriveFunc            func() (onedrive.Drive, error)
+	GetMeFunc                      func() (onedrive.User, error)
+	InitiateDeviceCodeFlowFunc     func() (*onedrive.DeviceCodeResponse, error)
+	VerifyDeviceCodeFunc           func(deviceCode string) (*onedrive.OAuthToken, error)
 	CreateFolderFunc               func(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFileFunc               func(remotePath, localPath string) error
 	GetDriveItemByPathFunc         func(path string) (onedrive.DriveItem, error)
@@ -36,6 +40,27 @@ func (m *MockSDK) GetDefaultDrive() (onedrive.Drive, error) {
 		return m.GetDefaultDriveFunc()
 	}
 	return onedrive.Drive{}, nil
+}
+
+func (m *MockSDK) GetMe() (onedrive.User, error) {
+	if m.GetMeFunc != nil {
+		return m.GetMeFunc()
+	}
+	return onedrive.User{}, nil
+}
+
+func (m *MockSDK) InitiateDeviceCodeFlow() (*onedrive.DeviceCodeResponse, error) {
+	if m.InitiateDeviceCodeFlowFunc != nil {
+		return m.InitiateDeviceCodeFlowFunc()
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *MockSDK) VerifyDeviceCode(deviceCode string) (*onedrive.OAuthToken, error) {
+	if m.VerifyDeviceCodeFunc != nil {
+		return m.VerifyDeviceCodeFunc(deviceCode)
+	}
+	return nil, errors.New("not implemented")
 }
 
 func (m *MockSDK) CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error) {

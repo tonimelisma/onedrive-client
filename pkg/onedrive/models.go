@@ -106,3 +106,20 @@ type Drive struct {
 		State     string `json:"state"`
 	} `json:"quota"`
 }
+
+// DeviceCodeResponse holds the response from the device code endpoint.
+type DeviceCodeResponse struct {
+	UserCode        string `json:"user_code"`
+	DeviceCode      string `json:"device_code"`
+	VerificationURI string `json:"verification_uri"`
+	ExpiresIn       int    `json:"expires_in"`
+	Interval        int    `json:"interval"`
+	Message         string `json:"message"`
+}
+
+// User represents a user resource in OneDrive.
+type User struct {
+	DisplayName       string `json:"displayName"`
+	UserPrincipalName string `json:"userPrincipalName"`
+	ID                string `json:"id"`
+}

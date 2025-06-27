@@ -51,10 +51,10 @@ func (a *App) initializeOnedriveClient() (*http.Client, error) {
 	ctx, oauthConfig := onedrive.GetOauth2Config(config.ClientID)
 
 	if a.Config.Token.AccessToken == "" {
-		err := a.authenticateOnedriveClient(ctx, oauthConfig)
-		if err != nil {
-			return nil, err
-		}
+		// The user is not logged in.
+		// We return a specific error to indicate that re-authentication is required.
+		// The command layer can then instruct the user to run 'auth login'.
+		return nil, onedrive.ErrReauthRequired
 	}
 
 	tokenRefreshCallbackFunc := func(token onedrive.OAuthToken) {

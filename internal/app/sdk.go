@@ -14,6 +14,7 @@ type SDK interface {
 	GetDriveItemChildrenByPath(path string) (onedrive.DriveItemList, error)
 	GetDrives() (onedrive.DriveList, error)
 	GetDefaultDrive() (onedrive.Drive, error)
+	GetMe() (onedrive.User, error)
 	CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFile(remotePath, localPath string) error
 	CreateUploadSession(remotePath string) (onedrive.UploadSession, error)
@@ -50,6 +51,11 @@ func (s *OneDriveSDK) GetDrives() (onedrive.DriveList, error) {
 // GetDefaultDrive calls the real onedrive.GetDefaultDrive function.
 func (s *OneDriveSDK) GetDefaultDrive() (onedrive.Drive, error) {
 	return onedrive.GetDefaultDrive(s.client)
+}
+
+// GetMe calls the real onedrive.GetMe function.
+func (s *OneDriveSDK) GetMe() (onedrive.User, error) {
+	return onedrive.GetMe(s.client)
 }
 
 // CreateFolder calls the real onedrive.CreateFolder function.
