@@ -1,0 +1,147 @@
+# Architecture Document: onedrive-client (v2)
+
+## 1. Purpose and Guiding Principles
+
+This document outlines the technical architecture for the `onedrive-client` application. Its purpose is to provide a clear and consistent guide for developers, ensuring that the project remains maintainable, testable, and extensible as it evolves.
+
+All development should adhere to these core principles:
+
+1.  **Separation of Concerns:** Each component has a single, well-defined responsibility.
+2.  **Testability:** Application logic should be testable without live network calls.
+3.  **Extensibility:** Adding new commands should be simple and not require major refactoring.
+
+This document is divided into two parts:
+*   **Current Architecture:** Describes the application as it is currently built.
+*   **Future Architecture:** Outlines the vision for improving the design and adding a background sync engine.
+
+---
+
+## 2. Current Architecture: CLI Primitives
+
+The application functions as a stateless, command-driven utility. The user executes a command, the action is performed, and the application exits.
+
+### 2.1. High-Level Data Flow
+
+The flow for any given command is as follows:
+
+```
+[User] -> [main.go] -> [Cobra CLI (cmd/)] -> [App Core (internal/app)] -> [SDK (pkg/onedrive)] -> [MS Graph API]
+  ^
+  |                                                                                             |
+  +----------------------- [UI (internal/ui)] <----------------- [Cobra CLI (cmd/)] <-----------+
+```
+
+### 2.2. Component Breakdown
+
+The project is organized into packages, each with a distinct role.
+
+```
+/onedrive-client/
+├── main.go               // Application entry point. Executes the root command.
+├── go.mod                // Manages project dependencies.
+├── cmd/                  // All CLI command definitions (using Cobra).
+│   ├── root.go
+│   └── drives.go
+└── internal/
+    ├── app/              // Core application logic (initialization, auth).
+    │   └── app.go
+    ├── config/           // Configuration loading and saving.
+    │   └── config.go
+    └── ui/               // User interface formatting and output.
+        └── display.go
+└── pkg/
+    └── onedrive/         // The Go SDK for interacting with the OneDrive API.
+        ├── onedrive.go
+        └── models.go
+```
+
+#### `cmd/` (The Command Layer)
+*   **Technology:** [Cobra](https://cobra.dev/).
+*   **Responsibility:** Defines the command structure (`drives`, etc.), arguments, and flags. The `Run` function for each command is responsible for:
+    1.  Initializing the App Core (`internal/app`).
+    2.  Calling the appropriate SDK function via the App Core client.
+    3.  Passing the results (or errors) to the UI Layer (`internal/ui`) for display.
+*   **Constraint:** This layer contains **no business logic**. It only orchestrates calls.
+
+#### `internal/app/` (The App Core)
+*   **Responsibility:** Acts as the central hub for the application. It initializes the configuration and the OneDrive HTTP client (handling the authentication flow if necessary). It provides a fully configured client to the command layer.
+*   **Implementation:** The `app.NewApp()` function returns an `App` struct containing the loaded configuration and a ready-to-use `*http.Client`.
+
+#### `internal/config/` (Configuration Management)
+*   **Responsibility:** Handles all logic for loading, parsing, and saving the `config.json` file, including the OAuth token.
+
+#### `internal/ui/` (The Presentation Layer)
+*   **Responsibility:** Handles all user-facing output. This includes printing tables of files, success messages, and formatted errors. Separating this logic ensures display format changes don't affect other layers.
+
+#### `pkg/onedrive/` (The SDK Layer)
+*   **Responsibility:** This package is the **only** component that knows how to communicate with the Microsoft Graph API. It handles creating API requests, parsing responses, and defining the data models (`DriveItem`, etc.).
+
+### 2.3. How to Add a New Command (Example: `files list`)
+
+An intern should follow these steps:
+
+1.  **SDK Layer (`pkg/onedrive`):** Check if a function already exists to get the data you need (e.g., `GetRootDriveItems`). If not, add a new function that calls the required Microsoft Graph API endpoint. For listing files in a specific folder, you might need a new `GetFolderItems(folderID string)` function.
+2.  **Command Layer (`cmd/`):** Create a new file, `cmd/files.go`.
+3.  **Command Layer:** In `files.go`, create a `filesCmd` and a `filesListCmd`. Add the `filesListCmd` to the `filesCmd`, and add `filesCmd` to `root.go`.
+4.  **Command Layer:** In the `Run` function for `filesListCmd`:
+    *   Call `app.NewApp()` to get the initialized application struct.
+    *   Call the appropriate SDK function, passing it the app's HTTP client: `items, err := onedrive.GetRootDriveItems(a.Client)`.
+    *   Handle any errors, logging them to the console.
+5.  **UI Layer (`internal/ui`):** Pass the data returned from the SDK to a display function. If a good one like `DisplayDriveItems` already exists, use it. Otherwise, create a new function in `display.go` to format and print the output.
+
+---
+
+## 3. Future Architecture
+
+This section outlines planned improvements to the architecture and the long-term vision for a sync client.
+
+### 3.1. Architectural Refinements for Testability and Reusability
+
+To make the application more robust and the SDK truly reusable, two key changes should be implemented.
+
+#### A. Isolate the SDK into its own Repository
+*   **Goal:** Allow other projects to use the OneDrive Go SDK without depending on the `onedrive-client` CLI.
+*   **Why:** True modularity. The SDK gets its own versioning, tests, and release cycle.
+*   **How-To:**
+    1.  Create a new, public Git repository (e.g., `github.com/your-org/onedrive-sdk-go`).
+    2.  Move the entire `pkg/onedrive` directory into the root of this new repository.
+    3.  In the `onedrive-client` project, delete the `pkg/` directory.
+    4.  Run `go get github.com/your-org/onedrive-sdk-go` to add the new, external SDK as a dependency.
+    5.  Update all import paths from `.../pkg/onedrive` to `github.com/your-org/onedrive-sdk-go`.
+
+#### B. Abstract the SDK for Testability
+*   **Goal:** Enable true unit testing of CLI commands without making live network calls.
+*   **Why:** Currently, testing a command like `drives` requires a live, authenticated `http.Client`. By using an interface, we can provide a "mock" SDK during tests that returns predefined data.
+*   **How-To:**
+    1.  **Define an Interface:** In `internal/app`, create a new `sdk.go` file with an interface:
+        ```go
+        package app
+        
+        type SDK interface {
+            GetRootDriveItems(client *http.Client) (onedrive.DriveItemList, error)
+            // ... other SDK methods the app needs
+        }
+        ```
+    2.  **Create a Concrete Wrapper:** Create a struct that implements this interface and wraps the real SDK calls.
+        ```go
+        type LiveSDK struct{}
+
+        func (s *LiveSDK) GetRootDriveItems(client *http.Client) (onedrive.DriveItemList, error) {
+            return onedrive.GetRootDriveItems(client) // The real call
+        }
+        ```
+    3.  **Update App Core:** The `App` struct in `internal/app/app.go` should hold an instance of the `SDK` interface, not the concrete `*http.Client`.
+    4.  **Update Commands:** Commands will now call `a.SDK.GetRootDriveItems()` instead of the package-level function. In tests, you can create an `App` with a mock SDK implementation.
+
+### 3.2. The Sync Engine (v1.0+ Vision)
+
+To evolve into a full sync client, the application must run as a persistent, background process (a daemon).
+
+*   **High-Level Plan:** The application will shift to a stateful client-server model. A background daemon will handle all synchronization logic, and the `onedrive-client` CLI will become a controller for that daemon (`onedrive-client sync start`, `onedrive-client sync status`).
+*   **New Components:**
+    *   `internal/sync/`: A new package containing the core sync logic.
+        *   `engine.go`: Orchestrates the main sync loop, using the SDK's `delta` functionality to check for remote changes.
+        *   `state.go`: Manages a local database (e.g., SQLite) to store the `deltaToken` and track the state of every synced file.
+        *   `watcher.go`: Uses a library like `fsnotify` to watch the local filesystem for changes, triggering the sync engine.
+        *   `resolver.go`: A crucial component for handling sync conflicts (e.g., a file modified in both places).
+    *   `cmd/sync.go`: A new command to `start`, `stop`, and check the `status` of the sync daemon.
