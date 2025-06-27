@@ -30,6 +30,22 @@ var drivesListCmd = &cobra.Command{
 	},
 }
 
+var drivesQuotaCmd = &cobra.Command{
+	Use:   "quota",
+	Short: "Get storage quota for the default drive",
+	Long:  "Displays the total, used, and remaining storage quota for the default drive.",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		a, err := app.NewApp()
+		if err != nil {
+			log.Fatalf("Error creating app: %v", err)
+		}
+		if err := drivesQuotaLogic(a); err != nil {
+			log.Fatalf("Error: %v", err)
+		}
+	},
+}
+
 func drivesListLogic(a *app.App) error {
 	drives, err := a.SDK.GetDrives()
 	if err != nil {
@@ -39,7 +55,17 @@ func drivesListLogic(a *app.App) error {
 	return nil
 }
 
+func drivesQuotaLogic(a *app.App) error {
+	drive, err := a.SDK.GetDefaultDrive()
+	if err != nil {
+		return err
+	}
+	ui.DisplayQuota(drive)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(drivesCmd)
 	drivesCmd.AddCommand(drivesListCmd)
+	drivesCmd.AddCommand(drivesQuotaCmd)
 }

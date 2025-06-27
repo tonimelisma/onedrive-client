@@ -250,7 +250,7 @@ func GetDriveItemChildrenByPath(client *http.Client, path string) (DriveItemList
 	return items, nil
 }
 
-// GetDrives retrieves the list of drives available to the user.
+// GetDrives retrieves the list of available drives for the user.
 func GetDrives(client *http.Client) (DriveList, error) {
 	logger.Debug("GetDrives called")
 	var drives DriveList
@@ -269,7 +269,27 @@ func GetDrives(client *http.Client) (DriveList, error) {
 	return drives, nil
 }
 
-// GetRootDriveItems retrieves the items in the root of the user's main drive.
+// GetDefaultDrive retrieves the default drive for the user, including quota information.
+func GetDefaultDrive(client *http.Client) (Drive, error) {
+	logger.Debug("GetDefaultDrive called")
+	var drive Drive
+
+	url := rootUrl + "me/drive"
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return drive, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
+		return drive, fmt.Errorf("decoding drive failed: %v", err)
+	}
+
+	return drive, nil
+}
+
+// GetRootDriveItems is deprecated and will be removed.
+// Use GetDriveItemChildrenByPath(client, "/") instead.
 func GetRootDriveItems(client *http.Client) (DriveItemList, error) {
 	logger.Debug("GetRootDriveItems called")
 	var items DriveItemList

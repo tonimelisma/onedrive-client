@@ -46,15 +46,14 @@ func DisplayDrives(drives onedrive.DriveList) {
 		return
 	}
 
-	fmt.Printf("%-25s %-15s %-25s %s\n", "Drive Name", "Drive Type", "Owner", "Quota")
+	fmt.Printf("%-35s %-15s %s\n", "Drive Name", "Drive Type", "Owner")
 	fmt.Println(strings.Repeat("-", 80))
 	for _, drive := range drives.Value {
 		ownerName := "N/A"
 		if drive.Owner.User.DisplayName != "" {
 			ownerName = drive.Owner.User.DisplayName
 		}
-		quotaStr := fmt.Sprintf("%s / %s", formatBytes(drive.Quota.Used), formatBytes(drive.Quota.Total))
-		fmt.Printf("%-25s %-15s %-25s %s\n", drive.Name, drive.DriveType, ownerName, quotaStr)
+		fmt.Printf("%-35s %-15s %s\n", drive.Name, drive.DriveType, ownerName)
 	}
 }
 
@@ -70,6 +69,15 @@ func formatBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %ciB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// DisplayQuota prints detailed information about drive quota.
+func DisplayQuota(drive onedrive.Drive) {
+	fmt.Println("Drive Quota Information:")
+	fmt.Printf("  Total:     %s\n", formatBytes(drive.Quota.Total))
+	fmt.Printf("  Used:      %s\n", formatBytes(drive.Quota.Used))
+	fmt.Printf("  Remaining: %s\n", formatBytes(drive.Quota.Remaining))
+	fmt.Printf("  State:     %s\n", drive.Quota.State)
 }
 
 // DisplayDriveItem prints detailed information about a single DriveItem.

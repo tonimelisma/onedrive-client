@@ -31,7 +31,7 @@ This initial release focuses on providing the most essential file management com
 **Features:**
 *   User authentication via OAuth 2.0. `[x]`
 *   Ability to list files and folders in the root directory. `[x]`
-*   Ability to list all available drives. `[ ]`
+*   Ability to list all available drives. `[x]`
 *   Ability to view metadata for items (`stat`). `[x]`
 *   Ability to download files (`download`). `[x]`
 *   Ability to upload files (`upload`). `[x]`
@@ -68,7 +68,7 @@ As a user, I want to get basic information about my OneDrive account and storage
 
 *   **[x] User Story 1.1:** I want to list all OneDrive drives (personal, business, etc.) available to my account so I can see what I can interact with.
     *   **Proposed Command:** `onedrive-client drives list`
-*   **[ ] User Story 1.2:** I want to check my storage quota (total, used, remaining space) so I can manage my storage consumption.
+*   **[x] User Story 1.2:** I want to check my storage quota (total, used, remaining space) so I can manage my storage consumption.
     *   **Proposed Command:** `onedrive-client drives quota`
 
 ---

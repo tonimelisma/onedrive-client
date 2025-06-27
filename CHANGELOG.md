@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `files stat <path>` command to view detailed metadata for a specific file or folder.
 - Resumable large file uploads with progress bar and interrupt handling.
 - New `drives list` command to show all available user drives.
+- `drives list` command to list all available OneDrive drives.
+- `drives quota` command to display storage quota for the default drive.
 
 ### Changed
 - The underlying SDK now uses path-based addressing to look up items in OneDrive, allowing access to any file/folder, not just those in the root.
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to using `log` for user-facing success/error messages.
 - Large file uploads now use a session-based approach instead of a single request.
 - Renamed `LiveSDK` to `OneDriveSDK` for better clarity.
+- Refactored test suite to use a shared `test_helpers_test.go` to avoid duplicated code and fix the build.
 
 ### Removed
 - Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.
@@ -36,4 +39,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release with basic `files list` and `files stat` commands.
 - OAuth2 authentication flow.
-- Configuration file management for storing tokens. 
+- Configuration file management for storing tokens.
+
+### Changed
+- Refactored SDK into an interface for testability.
+
+### Fixed
+- Test suite now uses a mock SDK to avoid live network calls.
+- Build process is now more reliable.
+
+## [0.1.1] - 2024-05-21
+
+### Added
+- Initial implementation of the CLI.
+- `files list`: List files in the root directory.
+- `files stat`: View metadata for items.
+- `files download`: Download files.
+- `files upload`: Upload files (including large files via session).
+- `files mkdir`: Create new folders.
+
+### Changed
+- Refactored SDK into an interface for testability.
+
+### Fixed
+- Test suite now uses a mock SDK to avoid live network calls.
+- Build process is now more reliable. 
