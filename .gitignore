@@ -16,6 +16,3 @@
 
 # Mac
 .DS_Store
-
-# Session state
-.sessions/
