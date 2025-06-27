@@ -213,7 +213,8 @@ func TestFilesUploadLogic(t *testing.T) {
 	assert.Contains(t, output, "File '"+tmpFile.Name()+"' uploaded successfully")
 
 	// Verify session file was deleted
-	sessionFilePath, err := session.GetSessionFilePath(tmpFile.Name(), "/remote/dest/"+filepath.Base(tmpFile.Name()))
+	remoteFilePath := filepath.Join("/remote/dest", filepath.Base(tmpFile.Name()))
+	sessionFilePath, err := session.GetSessionFilePath(tmpFile.Name(), remoteFilePath)
 	assert.NoError(t, err)
 	_, err = os.Stat(sessionFilePath)
 	assert.True(t, os.IsNotExist(err), "Expected session file to be deleted after successful upload")

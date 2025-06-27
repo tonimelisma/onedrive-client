@@ -22,12 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored core application to use an SDK interface for better testability.
 - Switched to using `log` for user-facing success/error messages.
 - Large file uploads now use a session-based approach instead of a single request.
+- Renamed `LiveSDK` to `OneDriveSDK` for better clarity.
 
 ### Removed
 - Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.
 
 ### Fixed
-- Build failures due to incorrect test setup.
+- Resolved persistent build and test failures caused by Go module inconsistencies. This required manual adjustments to `go.mod` and repeated `go mod tidy` commands to correctly vendor a new dependency (`progressbar`).
 
 ## [0.1.0] - 2024-05-20
 

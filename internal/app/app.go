@@ -38,7 +38,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("initializing onedrive client: %w", err)
 	}
 	app.Client = client
-	app.SDK = &LiveSDK{client: client}
+	app.SDK = NewOneDriveSDK(client)
 
 	return app, nil
 }

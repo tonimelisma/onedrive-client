@@ -20,47 +20,52 @@ type SDK interface {
 	CancelUploadSession(uploadURL string) error
 }
 
-// LiveSDK is the concrete implementation of the SDK interface that makes real API calls.
-type LiveSDK struct {
+// OneDriveSDK implements the SDK interface by calling the real OneDrive API.
+type OneDriveSDK struct {
 	client *http.Client
 }
 
+// NewOneDriveSDK creates a new LiveSDK instance.
+func NewOneDriveSDK(client *http.Client) SDK {
+	return &OneDriveSDK{client: client}
+}
+
 // GetDriveItemByPath calls the real onedrive.GetDriveItemByPath function.
-func (s *LiveSDK) GetDriveItemByPath(path string) (onedrive.DriveItem, error) {
+func (s *OneDriveSDK) GetDriveItemByPath(path string) (onedrive.DriveItem, error) {
 	return onedrive.GetDriveItemByPath(s.client, path)
 }
 
 // GetDriveItemChildrenByPath calls the real onedrive.GetDriveItemChildrenByPath function.
-func (s *LiveSDK) GetDriveItemChildrenByPath(path string) (onedrive.DriveItemList, error) {
+func (s *OneDriveSDK) GetDriveItemChildrenByPath(path string) (onedrive.DriveItemList, error) {
 	return onedrive.GetDriveItemChildrenByPath(s.client, path)
 }
 
 // CreateFolder calls the real onedrive.CreateFolder function.
-func (s *LiveSDK) CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error) {
+func (s *OneDriveSDK) CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error) {
 	return onedrive.CreateFolder(s.client, parentPath, folderName)
 }
 
 // DownloadFile calls the real onedrive.DownloadFile function.
-func (s *LiveSDK) DownloadFile(remotePath, localPath string) error {
+func (s *OneDriveSDK) DownloadFile(remotePath, localPath string) error {
 	return onedrive.DownloadFile(s.client, remotePath, localPath)
 }
 
 // CreateUploadSession calls the real onedrive.CreateUploadSession function.
-func (s *LiveSDK) CreateUploadSession(remotePath string) (onedrive.UploadSession, error) {
+func (s *OneDriveSDK) CreateUploadSession(remotePath string) (onedrive.UploadSession, error) {
 	return onedrive.CreateUploadSession(s.client, remotePath)
 }
 
 // UploadChunk calls the real onedrive.UploadChunk function.
-func (s *LiveSDK) UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error) {
+func (s *OneDriveSDK) UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error) {
 	return onedrive.UploadChunk(uploadURL, startByte, endByte, totalSize, chunkData)
 }
 
 // GetUploadSessionStatus calls the real onedrive.GetUploadSessionStatus function.
-func (s *LiveSDK) GetUploadSessionStatus(uploadURL string) (onedrive.UploadSession, error) {
+func (s *OneDriveSDK) GetUploadSessionStatus(uploadURL string) (onedrive.UploadSession, error) {
 	return onedrive.GetUploadSessionStatus(uploadURL)
 }
 
 // CancelUploadSession calls the real onedrive.CancelUploadSession function.
-func (s *LiveSDK) CancelUploadSession(uploadURL string) error {
+func (s *OneDriveSDK) CancelUploadSession(uploadURL string) error {
 	return onedrive.CancelUploadSession(uploadURL)
 }
