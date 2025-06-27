@@ -250,6 +250,25 @@ func GetDriveItemChildrenByPath(client *http.Client, path string) (DriveItemList
 	return items, nil
 }
 
+// GetDrives retrieves the list of drives available to the user.
+func GetDrives(client *http.Client) (DriveList, error) {
+	logger.Debug("GetDrives called")
+	var drives DriveList
+
+	url := rootUrl + "me/drives"
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return drives, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&drives); err != nil {
+		return drives, fmt.Errorf("decoding drive list failed: %v", err)
+	}
+
+	return drives, nil
+}
+
 // GetRootDriveItems retrieves the items in the root of the user's main drive.
 func GetRootDriveItems(client *http.Client) (DriveItemList, error) {
 	logger.Debug("GetRootDriveItems called")

@@ -12,6 +12,7 @@ import (
 type SDK interface {
 	GetDriveItemByPath(path string) (onedrive.DriveItem, error)
 	GetDriveItemChildrenByPath(path string) (onedrive.DriveItemList, error)
+	GetDrives() (onedrive.DriveList, error)
 	CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFile(remotePath, localPath string) error
 	CreateUploadSession(remotePath string) (onedrive.UploadSession, error)
@@ -38,6 +39,11 @@ func (s *OneDriveSDK) GetDriveItemByPath(path string) (onedrive.DriveItem, error
 // GetDriveItemChildrenByPath calls the real onedrive.GetDriveItemChildrenByPath function.
 func (s *OneDriveSDK) GetDriveItemChildrenByPath(path string) (onedrive.DriveItemList, error) {
 	return onedrive.GetDriveItemChildrenByPath(s.client, path)
+}
+
+// GetDrives calls the real onedrive.GetDrives function.
+func (s *OneDriveSDK) GetDrives() (onedrive.DriveList, error) {
+	return onedrive.GetDrives(s.client)
 }
 
 // CreateFolder calls the real onedrive.CreateFolder function.

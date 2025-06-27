@@ -83,3 +83,26 @@ type UploadSession struct {
 type FolderFacet struct {
 	ChildCount int `json:"childCount"`
 }
+
+// DriveList represents a collection of Drives.
+type DriveList struct {
+	Value []Drive `json:"value"`
+}
+
+// Drive represents a drive resource in OneDrive.
+type Drive struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	DriveType string `json:"driveType"`
+	Owner     struct {
+		User struct {
+			DisplayName string `json:"displayName"`
+		} `json:"user"`
+	} `json:"owner"`
+	Quota struct {
+		Total     int64  `json:"total"`
+		Used      int64  `json:"used"`
+		Remaining int64  `json:"remaining"`
+		State     string `json:"state"`
+	} `json:"quota"`
+}

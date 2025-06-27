@@ -41,6 +41,7 @@ The project is organized into packages, each with a distinct role.
 ├── go.mod                // Manages project dependencies.
 ├── cmd/                  // All CLI command definitions (using Cobra).
 │   ├── root.go
+│   ├── files.go
 │   └── drives.go
 └── internal/
     ├── app/              // Core application logic (initialization, auth).

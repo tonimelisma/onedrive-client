@@ -66,7 +66,7 @@ This release will build on the core by adding destructive and modifying operatio
 
 As a user, I want to get basic information about my OneDrive account and storage.
 
-*   **[ ] User Story 1.1:** I want to list all OneDrive drives (personal, business, etc.) available to my account so I can see what I can interact with.
+*   **[x] User Story 1.1:** I want to list all OneDrive drives (personal, business, etc.) available to my account so I can see what I can interact with.
     *   **Proposed Command:** `onedrive-client drives list`
 *   **[ ] User Story 1.2:** I want to check my storage quota (total, used, remaining space) so I can manage my storage consumption.
     *   **Proposed Command:** `onedrive-client drives quota`

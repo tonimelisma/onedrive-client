@@ -1,4 +1,4 @@
-Read @PRD.md  @ARCHITECTURE.md
+Read @PRD.md  @ARCHITECTURE.md @CHANGELOG.md
 
 What's a reasonable increment of work to do next?
 

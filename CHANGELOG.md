@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `files list [path]` command to list contents of a directory. Defaults to root if no path is provided.
 - New `files stat <path>` command to view detailed metadata for a specific file or folder.
 - Resumable large file uploads with progress bar and interrupt handling.
+- New `drives list` command to show all available user drives.
 
 ### Changed
 - The underlying SDK now uses path-based addressing to look up items in OneDrive, allowing access to any file/folder, not just those in the root.

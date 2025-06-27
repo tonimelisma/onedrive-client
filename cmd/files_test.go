@@ -20,6 +20,7 @@ import (
 
 // MockSDK is a mock implementation of the SDK interface for testing.
 type MockSDK struct {
+	GetDrivesFunc                  func() (onedrive.DriveList, error)
 	CreateFolderFunc               func(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFileFunc               func(remotePath, localPath string) error
 	GetDriveItemByPathFunc         func(path string) (onedrive.DriveItem, error)
@@ -28,6 +29,13 @@ type MockSDK struct {
 	UploadChunkFunc                func(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
 	GetUploadSessionStatusFunc     func(uploadURL string) (onedrive.UploadSession, error)
 	CancelUploadSessionFunc        func(uploadURL string) error
+}
+
+func (m *MockSDK) GetDrives() (onedrive.DriveList, error) {
+	if m.GetDrivesFunc != nil {
+		return m.GetDrivesFunc()
+	}
+	return onedrive.DriveList{}, nil
 }
 
 func (m *MockSDK) CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error) {
