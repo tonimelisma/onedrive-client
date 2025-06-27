@@ -109,29 +109,29 @@ To make the application more robust and the SDK truly reusable, two key changes 
     4.  Run `go get github.com/your-org/onedrive-sdk-go` to add the new, external SDK as a dependency.
     5.  Update all import paths from `.../pkg/onedrive` to `github.com/your-org/onedrive-sdk-go`.
 
-#### B. Abstract the SDK for Testability
+#### B. Abstract the SDK for Testability (Implemented)
 *   **Goal:** Enable true unit testing of CLI commands without making live network calls.
-*   **Why:** Currently, testing a command like `drives` requires a live, authenticated `http.Client`. By using an interface, we can provide a "mock" SDK during tests that returns predefined data.
+*   **Why:** Previously, testing a command like `drives` required a live, authenticated `http.Client`. By using an interface, we can provide a "mock" SDK during tests that returns predefined data.
 *   **How-To:**
-    1.  **Define an Interface:** In `internal/app`, create a new `sdk.go` file with an interface:
+    1.  **Define an Interface:** In `internal/app`, a new `sdk.go` file was created with an `SDK` interface:
         ```go
         package app
         
         type SDK interface {
-            GetRootDriveItems(client *http.Client) (onedrive.DriveItemList, error)
-            // ... other SDK methods the app needs
+            GetDriveItemChildrenByPath(client *http.Client, path string) (onedrive.DriveItemList, error)
+            // ... other SDK methods
         }
         ```
-    2.  **Create a Concrete Wrapper:** Create a struct that implements this interface and wraps the real SDK calls.
+    2.  **Create a Concrete Wrapper:** A struct `LiveSDK` was created that implements this interface and wraps the real SDK calls.
         ```go
         type LiveSDK struct{}
 
-        func (s *LiveSDK) GetRootDriveItems(client *http.Client) (onedrive.DriveItemList, error) {
-            return onedrive.GetRootDriveItems(client) // The real call
+        func (s *LiveSDK) GetDriveItemChildrenByPath(client *http.Client) (onedrive.DriveItemList, error) {
+            return onedrive.GetDriveItemChildrenByPath(client) // The real call
         }
         ```
-    3.  **Update App Core:** The `App` struct in `internal/app/app.go` should hold an instance of the `SDK` interface, not the concrete `*http.Client`.
-    4.  **Update Commands:** Commands will now call `a.SDK.GetRootDriveItems()` instead of the package-level function. In tests, you can create an `App` with a mock SDK implementation.
+    3.  **Update App Core:** The `App` struct in `internal/app/app.go` now holds an instance of the `SDK` interface.
+    4.  **Update Commands:** Commands now call `a.SDK.GetDriveItemChildrenByPath()` instead of the package-level function. In tests, an `App` can be created with a mock SDK implementation.
 
 ### 3.2. The Sync Engine (v1.0+ Vision)
 

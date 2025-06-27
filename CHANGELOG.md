@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- New `files mkdir <path>` command to create a directory.
+- New `files upload <local-file> [remote-path]` command to upload files.
+- New `files download <remote-path> [local-path]` command to download files.
+- Added an SDK interface abstraction to allow for mock-based testing of commands.
 - New `files` command to serve as the main entrypoint for file operations.
 - New `files list [path]` command to list contents of a directory. Defaults to root if no path is provided.
 - New `files stat <path>` command to view detailed metadata for a specific file or folder.

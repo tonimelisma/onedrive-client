@@ -16,6 +16,7 @@ import (
 type App struct {
 	Config *config.Configuration
 	Client *http.Client
+	SDK    SDK
 }
 
 func NewApp() (*App, error) {
@@ -26,6 +27,7 @@ func NewApp() (*App, error) {
 
 	app := &App{
 		Config: cfg,
+		SDK:    &LiveSDK{},
 	}
 
 	if app.Config.Debug {

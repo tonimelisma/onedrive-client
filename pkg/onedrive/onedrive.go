@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	cv "github.com/nirasan/go-oauth-pkce-code-verifier"
@@ -88,17 +89,20 @@ func SetLogger(l Logger) {
 	logger = l
 }
 
-// apiCall handles the HTTP GET request and categorizes common errors.
-func apiCall(client *http.Client, method, url string) (*http.Response, error) {
+// apiCall handles the HTTP request and categorizes common errors.
+func apiCall(client *http.Client, method, url, contentType string, body io.Reader) (*http.Response, error) {
 	logger.Debug("apiCall invoked with method: ", method, ", URL: ", url)
 
 	if client == nil {
 		return nil, errors.New("HTTP client is nil, please provide a valid HTTP client")
 	}
 
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("creating request failed: %v", err)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 
 	logger.Debug("Request created, sending request...")
@@ -207,7 +211,7 @@ func GetDriveItemByPath(client *http.Client, path string) (DriveItem, error) {
 	var item DriveItem
 
 	url := buildPathURL(path)
-	res, err := apiCall(client, "GET", url)
+	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return item, err
 	}
@@ -233,7 +237,7 @@ func GetDriveItemChildrenByPath(client *http.Client, path string) (DriveItemList
 		url += "/children"
 	}
 
-	res, err := apiCall(client, "GET", url)
+	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return items, err
 	}
@@ -251,7 +255,7 @@ func GetRootDriveItems(client *http.Client) (DriveItemList, error) {
 	logger.Debug("GetRootDriveItems called")
 	var items DriveItemList
 
-	res, err := apiCall(client, "GET", rootUrl+"me/drive/root/children")
+	res, err := apiCall(client, "GET", rootUrl+"me/drive/root/children", "", nil)
 	if err != nil {
 		return items, err
 	}
@@ -268,6 +272,93 @@ func GetRootDriveItems(client *http.Client) (DriveItemList, error) {
 	}
 
 	return items, nil
+}
+
+// CreateFolder creates a new folder in the specified parent path.
+func CreateFolder(client *http.Client, parentPath string, folderName string) (DriveItem, error) {
+	logger.Debug("CreateFolder called with parentPath: ", parentPath, " folderName: ", folderName)
+	var item DriveItem
+
+	url := buildPathURL(parentPath)
+	if url == rootUrl+"me/drive/root" {
+		url += "/children"
+	} else {
+		url += "/children"
+	}
+
+	requestBody := map[string]interface{}{
+		"name":                              folderName,
+		"folder":                            map[string]interface{}{},
+		"@microsoft.graph.conflictBehavior": "rename",
+	}
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return item, fmt.Errorf("marshalling create folder request: %w", err)
+	}
+
+	res, err := apiCall(client, "POST", url, "application/json", strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return item, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
+		return item, fmt.Errorf("decoding item failed: %v", err)
+	}
+
+	return item, nil
+}
+
+// UploadFile uploads a local file to the specified remote path.
+func UploadFile(client *http.Client, localPath, remotePath string) (DriveItem, error) {
+	logger.Debug("UploadFile called with localPath: ", localPath, ", remotePath: ", remotePath)
+	var item DriveItem
+
+	file, err := os.Open(localPath)
+	if err != nil {
+		return item, fmt.Errorf("opening local file: %w", err)
+	}
+	defer file.Close()
+
+	// The URL for upload is /root:/path/to/folder/filename:/content
+	url := buildPathURL(remotePath) + ":/content"
+
+	res, err := apiCall(client, "PUT", url, "application/octet-stream", file)
+	if err != nil {
+		return item, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
+		return item, fmt.Errorf("decoding item failed: %v", err)
+	}
+
+	return item, nil
+}
+
+// DownloadFile downloads a remote file to the specified local path.
+func DownloadFile(client *http.Client, remotePath, localPath string) error {
+	logger.Debug("DownloadFile called with remotePath: ", remotePath, ", localPath: ", localPath)
+
+	url := buildPathURL(remotePath) + "/content"
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	outFile, err := os.Create(localPath)
+	if err != nil {
+		return fmt.Errorf("creating local file: %w", err)
+	}
+	defer outFile.Close()
+
+	_, err = io.Copy(outFile, res.Body)
+	if err != nil {
+		return fmt.Errorf("copying content to local file: %w", err)
+	}
+
+	return nil
 }
 
 // StartAuthentication initiates the OAuth authentication process.

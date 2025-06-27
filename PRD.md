@@ -33,9 +33,9 @@ This initial release focuses on providing the most essential file management com
 *   Ability to list files and folders in the root directory. `[x]`
 *   Ability to list all available drives. `[ ]`
 *   Ability to view metadata for items (`stat`). `[x]`
-*   Ability to download files (`download`). `[ ]`
-*   Ability to upload files (`upload`). `[ ]`
-*   Ability to create folders (`mkdir`). `[ ]`
+*   Ability to download files (`download`). `[x]`
+*   Ability to upload files (`upload`). `[x]`
+*   Ability to create folders (`mkdir`). `[x]`
 
 ### 3.2. Release v0.2: Advanced Management and Sharing
 
@@ -82,11 +82,11 @@ As a user, I want to perform standard file and folder operations from the comman
     *   **Proposed Command:** `onedrive-client files list [remote-path]` (If `remote-path` is omitted, defaults to root `/`).
 *   **[x] User Story 2.2:** I want to view detailed metadata (like size, creation date) for a specific file or folder.
     *   **Proposed Command:** `onedrive-client files stat <remote-path>`
-*   **[ ] User Story 2.3:** I want to download a file from my OneDrive to my local machine.
+*   **[x] User Story 2.3:** I want to download a file from my OneDrive to my local machine.
     *   **Proposed Command:** `onedrive-client files download <remote-path> [local-path]`
-*   **[ ] User Story 2.4:** I want to upload a file from my local machine to a specific folder in my OneDrive.
+*   **[x] User Story 2.4:** I want to upload a file from my local machine to a specific folder in my OneDrive.
     *   **Proposed Command:** `onedrive-client files upload <local-file> [remote-path]`
-*   **[ ] User Story 2.5:** I want to create a new, empty folder at a specified path in my OneDrive.
+*   **[x] User Story 2.5:** I want to create a new, empty folder at a specified path in my OneDrive.
     *   **Proposed Command:** `onedrive-client files mkdir <remote-path>`
 *   **[ ] User Story 2.6:** I want to delete a file or folder from my OneDrive.
     *   **Proposed Command:** `onedrive-client files rm <remote-path>`
