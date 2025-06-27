@@ -71,3 +71,15 @@ type DriveItem struct {
 		} `json:"fileSystemInfo"`
 	} `json:"remoteItem,omitempty"`
 }
+
+// UploadSession represents the response from creating an upload session.
+type UploadSession struct {
+	UploadURL          string   `json:"uploadUrl"`
+	ExpirationDateTime string   `json:"expirationDateTime"`
+	NextExpectedRanges []string `json:"nextExpectedRanges"`
+}
+
+// FolderFacet provides information about the folder metadata of an item.
+type FolderFacet struct {
+	ChildCount int `json:"childCount"`
+}

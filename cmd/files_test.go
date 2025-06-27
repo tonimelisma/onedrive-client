@@ -2,62 +2,88 @@ package cmd
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/tonimelisma/onedrive-client/internal/app"
+	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 // MockSDK is a mock implementation of the SDK interface for testing.
 type MockSDK struct {
-	CreateFolderFunc               func(client *http.Client, parentPath string, folderName string) (onedrive.DriveItem, error)
-	UploadFileFunc                 func(client *http.Client, localPath, remotePath string) (onedrive.DriveItem, error)
-	DownloadFileFunc               func(client *http.Client, remotePath, localPath string) error
-	GetDriveItemByPathFunc         func(client *http.Client, path string) (onedrive.DriveItem, error)
-	GetDriveItemChildrenByPathFunc func(client *http.Client, path string) (onedrive.DriveItemList, error)
+	CreateFolderFunc               func(parentPath string, folderName string) (onedrive.DriveItem, error)
+	DownloadFileFunc               func(remotePath, localPath string) error
+	GetDriveItemByPathFunc         func(path string) (onedrive.DriveItem, error)
+	GetDriveItemChildrenByPathFunc func(path string) (onedrive.DriveItemList, error)
+	CreateUploadSessionFunc        func(remotePath string) (onedrive.UploadSession, error)
+	UploadChunkFunc                func(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
+	GetUploadSessionStatusFunc     func(uploadURL string) (onedrive.UploadSession, error)
+	CancelUploadSessionFunc        func(uploadURL string) error
 }
 
-func (m *MockSDK) CreateFolder(client *http.Client, parentPath string, folderName string) (onedrive.DriveItem, error) {
+func (m *MockSDK) CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error) {
 	if m.CreateFolderFunc != nil {
-		return m.CreateFolderFunc(client, parentPath, folderName)
+		return m.CreateFolderFunc(parentPath, folderName)
 	}
 	return onedrive.DriveItem{}, nil
 }
 
-func (m *MockSDK) UploadFile(client *http.Client, localPath, remotePath string) (onedrive.DriveItem, error) {
-	if m.UploadFileFunc != nil {
-		return m.UploadFileFunc(client, localPath, remotePath)
-	}
-	return onedrive.DriveItem{}, nil
-}
-
-func (m *MockSDK) DownloadFile(client *http.Client, remotePath, localPath string) error {
+func (m *MockSDK) DownloadFile(remotePath, localPath string) error {
 	if m.DownloadFileFunc != nil {
-		return m.DownloadFileFunc(client, remotePath, localPath)
+		return m.DownloadFileFunc(remotePath, localPath)
 	}
 	return nil
 }
 
-func (m *MockSDK) GetDriveItemByPath(client *http.Client, path string) (onedrive.DriveItem, error) {
+func (m *MockSDK) GetDriveItemByPath(path string) (onedrive.DriveItem, error) {
 	if m.GetDriveItemByPathFunc != nil {
-		return m.GetDriveItemByPathFunc(client, path)
+		return m.GetDriveItemByPathFunc(path)
 	}
 	return onedrive.DriveItem{}, nil
 }
 
-func (m *MockSDK) GetDriveItemChildrenByPath(client *http.Client, path string) (onedrive.DriveItemList, error) {
+func (m *MockSDK) GetDriveItemChildrenByPath(path string) (onedrive.DriveItemList, error) {
 	if m.GetDriveItemChildrenByPathFunc != nil {
-		return m.GetDriveItemChildrenByPathFunc(client, path)
+		return m.GetDriveItemChildrenByPathFunc(path)
 	}
 	return onedrive.DriveItemList{}, nil
+}
+
+func (m *MockSDK) CreateUploadSession(remotePath string) (onedrive.UploadSession, error) {
+	if m.CreateUploadSessionFunc != nil {
+		return m.CreateUploadSessionFunc(remotePath)
+	}
+	return onedrive.UploadSession{}, nil
+}
+
+func (m *MockSDK) UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error) {
+	if m.UploadChunkFunc != nil {
+		return m.UploadChunkFunc(uploadURL, startByte, endByte, totalSize, chunkData)
+	}
+	return onedrive.UploadSession{}, nil
+}
+
+func (m *MockSDK) GetUploadSessionStatus(uploadURL string) (onedrive.UploadSession, error) {
+	if m.GetUploadSessionStatusFunc != nil {
+		return m.GetUploadSessionStatusFunc(uploadURL)
+	}
+	return onedrive.UploadSession{}, nil
+}
+
+func (m *MockSDK) CancelUploadSession(uploadURL string) error {
+	if m.CancelUploadSessionFunc != nil {
+		return m.CancelUploadSessionFunc(uploadURL)
+	}
+	return nil
 }
 
 // newTestApp creates a new app instance with a mock SDK for testing.
@@ -86,7 +112,7 @@ func captureOutput(f func()) string {
 
 func TestFilesListLogic(t *testing.T) {
 	mockSDK := &MockSDK{
-		GetDriveItemChildrenByPathFunc: func(client *http.Client, path string) (onedrive.DriveItemList, error) {
+		GetDriveItemChildrenByPathFunc: func(path string) (onedrive.DriveItemList, error) {
 			assert.Equal(t, "/test", path)
 			return onedrive.DriveItemList{
 				Value: []onedrive.DriveItem{
@@ -98,7 +124,7 @@ func TestFilesListLogic(t *testing.T) {
 							SortBy    string `json:"sortBy"`
 							SortOrder string `json:"sortOrder"`
 						} `json:"view"`
-					}{}},
+					}{ChildCount: 1}},
 				},
 			}, nil
 		},
@@ -116,7 +142,7 @@ func TestFilesListLogic(t *testing.T) {
 
 func TestFilesMkdirLogic(t *testing.T) {
 	mockSDK := &MockSDK{
-		CreateFolderFunc: func(client *http.Client, parentPath, folderName string) (onedrive.DriveItem, error) {
+		CreateFolderFunc: func(parentPath, folderName string) (onedrive.DriveItem, error) {
 			assert.Equal(t, "/test", parentPath)
 			assert.Equal(t, "new-folder", folderName)
 			return onedrive.DriveItem{Name: folderName}, nil
@@ -133,26 +159,64 @@ func TestFilesMkdirLogic(t *testing.T) {
 }
 
 func TestFilesUploadLogic(t *testing.T) {
+	// Create a dummy file for upload
 	tmpFile, err := ioutil.TempFile("", "test-upload-*.txt")
 	assert.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
-	tmpFile.WriteString("hello world")
+	// Write more than one chunk
+	content := strings.Repeat("a", int(chunkSize)+100)
+	_, err = tmpFile.WriteString(content)
+	assert.NoError(t, err)
 	tmpFile.Close()
 
+	// Setup mock
+	createSessionCalled := false
+	uploadChunkCalled := 0
 	mockSDK := &MockSDK{
-		UploadFileFunc: func(client *http.Client, localPath, remotePath string) (onedrive.DriveItem, error) {
-			assert.Equal(t, tmpFile.Name(), localPath)
+		CreateUploadSessionFunc: func(remotePath string) (onedrive.UploadSession, error) {
+			createSessionCalled = true
 			assert.True(t, strings.HasSuffix(remotePath, filepath.Base(tmpFile.Name())))
-			return onedrive.DriveItem{Name: filepath.Base(remotePath)}, nil
+			return onedrive.UploadSession{
+				UploadURL:          "http://mock-upload-url.com",
+				ExpirationDateTime: time.Now().Add(1 * time.Hour).Format(time.RFC3339),
+			}, nil
+		},
+		UploadChunkFunc: func(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error) {
+			uploadChunkCalled++
+			assert.Equal(t, "http://mock-upload-url.com", uploadURL)
+			// Read the chunk to verify content if needed, for now just drain it
+			io.Copy(ioutil.Discard, chunkData)
+			return onedrive.UploadSession{
+				NextExpectedRanges: []string{
+					"12345-",
+				},
+			}, nil
 		},
 	}
 	a := newTestApp(mockSDK)
+
+	// Override session functions to use a temp directory
+	oldGetConfigDir := session.GetConfigDir
+	tmpDir, err := ioutil.TempDir("", "test-session-*")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	session.GetConfigDir = func() (string, error) { return tmpDir, nil }
+	defer func() { session.GetConfigDir = oldGetConfigDir }()
 
 	output := captureOutput(func() {
 		err := filesUploadLogic(a, &cobra.Command{}, []string{tmpFile.Name(), "/remote/dest"})
 		assert.NoError(t, err)
 	})
+
+	assert.True(t, createSessionCalled)
+	assert.Equal(t, 2, uploadChunkCalled, "Expected UploadChunk to be called twice for a file > 1 chunk size")
 	assert.Contains(t, output, "File '"+tmpFile.Name()+"' uploaded successfully")
+
+	// Verify session file was deleted
+	sessionFilePath, err := session.GetSessionFilePath(tmpFile.Name(), "/remote/dest/"+filepath.Base(tmpFile.Name()))
+	assert.NoError(t, err)
+	_, err = os.Stat(sessionFilePath)
+	assert.True(t, os.IsNotExist(err), "Expected session file to be deleted after successful upload")
 }
 
 func TestFilesDownloadLogic(t *testing.T) {
@@ -162,7 +226,7 @@ func TestFilesDownloadLogic(t *testing.T) {
 	localPath := filepath.Join(tmpDir, "downloaded-file.txt")
 
 	mockSDK := &MockSDK{
-		DownloadFileFunc: func(client *http.Client, remotePath, localDestPath string) error {
+		DownloadFileFunc: func(remotePath, localDestPath string) error {
 			assert.Equal(t, "/remote/source/file.txt", remotePath)
 			assert.Equal(t, localPath, localDestPath)
 			return ioutil.WriteFile(localDestPath, []byte("downloaded content"), 0644)

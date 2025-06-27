@@ -105,3 +105,11 @@ As a user, I want to see and manage content that has been shared with me.
 
 *   **[ ] User Story 3.1:** I want to list all the files and folders that have been shared with me.
     *   **Proposed Command:** `onedrive-client shared list`
+
+- **US-4: Upload Large Files**: As a developer, I want to upload files larger than 4MB, so that I can transfer large assets to my cloud storage. (Status: **Complete**)
+  - *Acceptance Criteria*:
+    - The `upload` command works for files up to 100MB.
+    - The upload process is resumable if interrupted.
+    - Progress is displayed to the user during the upload.
+
+- **US-5: Download Large Files**: As a developer, I want to download files larger than 4MB. (Status: **Not Started**)

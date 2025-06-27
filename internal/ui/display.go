@@ -3,7 +3,10 @@ package ui
 import (
 	"fmt"
 	"log"
+	"os"
+	"time"
 
+	"github.com/schollz/progressbar/v3"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
@@ -50,4 +53,22 @@ func DisplayDriveItem(item onedrive.DriveItem) {
 	} else {
 		fmt.Printf("           Type: File\n")
 	}
+}
+
+// NewProgressBar creates and returns a new progress bar.
+func NewProgressBar(maxBytes int) *progressbar.ProgressBar {
+	return progressbar.NewOptions(
+		maxBytes,
+		progressbar.OptionSetDescription("Uploading..."),
+		progressbar.OptionSetWriter(os.Stderr),
+		progressbar.OptionShowBytes(true),
+		progressbar.OptionSetWidth(15),
+		progressbar.OptionThrottle(65*time.Millisecond),
+		progressbar.OptionShowCount(),
+		progressbar.OptionOnCompletion(func() {
+			fmt.Fprint(os.Stderr, "\n")
+		}),
+		progressbar.OptionSpinnerType(14),
+		progressbar.OptionFullWidth(),
+	)
 }

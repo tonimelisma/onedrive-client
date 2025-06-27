@@ -27,7 +27,6 @@ func NewApp() (*App, error) {
 
 	app := &App{
 		Config: cfg,
-		SDK:    &LiveSDK{},
 	}
 
 	if app.Config.Debug {
@@ -39,6 +38,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("initializing onedrive client: %w", err)
 	}
 	app.Client = client
+	app.SDK = &LiveSDK{client: client}
 
 	return app, nil
 }

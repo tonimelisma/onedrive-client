@@ -336,6 +336,127 @@ func UploadFile(client *http.Client, localPath, remotePath string) (DriveItem, e
 	return item, nil
 }
 
+// CreateUploadSession creates a new upload session for a large file.
+func CreateUploadSession(client *http.Client, remotePath string) (UploadSession, error) {
+	logger.Debug("CreateUploadSession called with remotePath: ", remotePath)
+	var session UploadSession
+
+	url := buildPathURL(remotePath) + ":/createUploadSession"
+
+	requestBody := map[string]interface{}{
+		"item": map[string]interface{}{
+			"@microsoft.graph.conflictBehavior": "rename",
+		},
+	}
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return session, fmt.Errorf("marshalling create session request: %w", err)
+	}
+
+	res, err := apiCall(client, "POST", url, "application/json", strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return session, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&session); err != nil {
+		return session, fmt.Errorf("decoding session failed: %v", err)
+	}
+
+	return session, nil
+}
+
+// UploadChunk uploads a chunk of a file to the given upload URL.
+// This function uses a standard http.Client because the upload URL is pre-authenticated
+// and the Graph API expects no Authorization header on this request.
+func UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (UploadSession, error) {
+	logger.Debug("UploadChunk called for URL: ", uploadURL)
+	var session UploadSession
+	client := &http.Client{} // Use a standard client
+
+	req, err := http.NewRequest("PUT", uploadURL, chunkData)
+	if err != nil {
+		return session, fmt.Errorf("creating upload chunk request failed: %v", err)
+	}
+
+	contentRange := fmt.Sprintf("bytes %d-%d/%d", startByte, endByte, totalSize)
+	req.Header.Set("Content-Range", contentRange)
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", endByte-startByte+1))
+
+	res, err := client.Do(req)
+	if err != nil {
+		return session, fmt.Errorf("uploading chunk failed: %v", err)
+	}
+	defer res.Body.Close()
+
+	// On success, the response can be 202 Accepted (more chunks to come),
+	// 201 Created (final chunk for a new file), or 200 OK (final chunk for an existing file).
+	if res.StatusCode < 200 || res.StatusCode > 202 {
+		resBody, _ := io.ReadAll(res.Body)
+		return session, fmt.Errorf("upload chunk failed with status %s: %s", res.Status, string(resBody))
+	}
+
+	// The response on success contains the nextExpectedRanges
+	if err := json.NewDecoder(res.Body).Decode(&session); err != nil {
+		// For the very last chunk, the response body is the completed DriveItem,
+		// not an UploadSession. We can treat this as a non-fatal error.
+		return session, nil
+	}
+
+	return session, nil
+}
+
+// GetUploadSessionStatus gets the status of an existing upload session.
+func GetUploadSessionStatus(uploadURL string) (UploadSession, error) {
+	logger.Debug("GetUploadSessionStatus called for URL: ", uploadURL)
+	var session UploadSession
+	client := &http.Client{} // Use a standard client
+
+	req, err := http.NewRequest("GET", uploadURL, nil)
+	if err != nil {
+		return session, fmt.Errorf("creating get status request failed: %v", err)
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return session, fmt.Errorf("getting upload status failed: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return session, fmt.Errorf("get upload status failed with status %s", res.Status)
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&session); err != nil {
+		return session, fmt.Errorf("decoding session status failed: %v", err)
+	}
+
+	return session, nil
+}
+
+// CancelUploadSession cancels an existing upload session.
+func CancelUploadSession(uploadURL string) error {
+	logger.Debug("CancelUploadSession called for URL: ", uploadURL)
+	client := &http.Client{} // Use a standard client
+
+	req, err := http.NewRequest("DELETE", uploadURL, nil)
+	if err != nil {
+		return fmt.Errorf("creating cancel request failed: %v", err)
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("cancelling upload session failed: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("cancel upload session failed with status %s", res.Status)
+	}
+
+	return nil
+}
+
 // DownloadFile downloads a remote file to the specified local path.
 func DownloadFile(client *http.Client, remotePath, localPath string) error {
 	logger.Debug("DownloadFile called with remotePath: ", remotePath, ", localPath: ", localPath)

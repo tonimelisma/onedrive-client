@@ -145,3 +145,17 @@ To evolve into a full sync client, the application must run as a persistent, bac
         *   `watcher.go`: Uses a library like `fsnotify` to watch the local filesystem for changes, triggering the sync engine.
         *   `resolver.go`: A crucial component for handling sync conflicts (e.g., a file modified in both places).
     *   `cmd/sync.go`: A new command to `start`, `stop`, and check the `status` of the sync daemon.
+
+The `onedrive` package is a self-contained SDK for interacting with the Microsoft Graph API. It has no dependencies on the rest of the application. It handles API calls, error wrapping, and OAuth2 logic. All models specific to the OneDrive API are defined here.
+
+### Session State Management
+
+For features that require state to be maintained across multiple command invocations (e.g., resumable file uploads), a session management system is used.
+
+- **Location**: Session files are stored in `~/.config/onedrive-client/sessions/`.
+- **Mechanism**: When a resumable operation begins, a session file is created. This file contains the necessary information to resume the operation (like the `uploadUrl` for a file upload). The file is named using a SHA256 hash of the local and remote file paths to ensure uniqueness.
+- **Lifecycle**: The session file is created when the operation starts and deleted upon successful completion. If the operation is interrupted, the file remains, and the application will detect and use it to resume the next time the same command is run.
+
+## UI
+
+The `ui` package is responsible for all console output. It provides functions for displaying tables, progress bars, and formatted success/error messages. It also contains the logger implementation that can be passed to the `onedrive` SDK for debug output.

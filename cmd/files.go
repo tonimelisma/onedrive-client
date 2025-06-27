@@ -2,12 +2,21 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"os"
+	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/app"
+	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
+	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 var filesCmd = &cobra.Command{
@@ -102,7 +111,7 @@ func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		path = args[0]
 	}
 
-	items, err := a.SDK.GetDriveItemChildrenByPath(a.Client, path)
+	items, err := a.SDK.GetDriveItemChildrenByPath(path)
 	if err != nil {
 		return fmt.Errorf("getting drive items: %w", err)
 	}
@@ -112,7 +121,7 @@ func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 
 func filesStatLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	path := args[0]
-	item, err := a.SDK.GetDriveItemByPath(a.Client, path)
+	item, err := a.SDK.GetDriveItemByPath(path)
 	if err != nil {
 		return fmt.Errorf("getting drive item metadata: %w", err)
 	}
@@ -125,7 +134,7 @@ func filesMkdirLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	parentDir := filepath.Dir(remotePath)
 	newDirName := filepath.Base(remotePath)
 
-	_, err := a.SDK.CreateFolder(a.Client, parentDir, newDirName)
+	_, err := a.SDK.CreateFolder(parentDir, newDirName)
 	if err != nil {
 		return fmt.Errorf("creating folder: %w", err)
 	}
@@ -133,19 +142,129 @@ func filesMkdirLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+const (
+	chunkSize = 320 * 1024 * 10 // 3.2MB, a multiple of 320KB
+)
+
 func filesUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	localPath := args[0]
-	remotePath := "/"
+	remoteDir := "/"
 	if len(args) == 2 {
-		remotePath = args[1]
+		remoteDir = args[1]
 	}
-	remoteFile := filepath.Join(remotePath, filepath.Base(localPath))
+	remotePath := filepath.Join(remoteDir, filepath.Base(localPath))
 
-	_, err := a.SDK.UploadFile(a.Client, localPath, remoteFile)
+	// Handle graceful interruption
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		fmt.Println("\nUpload interrupted. Run the command again to resume.")
+		os.Exit(0)
+	}()
+
+	// Check for existing session
+	state, err := session.Load(localPath, remotePath)
 	if err != nil {
-		return fmt.Errorf("uploading file: %w", err)
+		return fmt.Errorf("loading session state: %w", err)
 	}
-	ui.PrintSuccess("File '%s' uploaded successfully to '%s'.\n", localPath, remoteFile)
+
+	var uploadSession onedrive.UploadSession
+	if state != nil {
+		fmt.Println("Resuming previous upload session.")
+		// Get the latest status in case more bytes were uploaded
+		sessionStatus, err := a.SDK.GetUploadSessionStatus(state.UploadURL)
+		if err != nil {
+			// If session expired or is invalid, start a new one
+			fmt.Println("Could not get session status, starting a new upload.")
+			return startNewUpload(a, localPath, remotePath)
+		}
+		uploadSession = sessionStatus
+	} else {
+		fmt.Println("Starting new upload.")
+		return startNewUpload(a, localPath, remotePath)
+	}
+
+	return uploadFileInChunks(a, localPath, remotePath, uploadSession)
+}
+
+func startNewUpload(a *app.App, localPath, remotePath string) error {
+	uploadSession, err := a.SDK.CreateUploadSession(remotePath)
+	if err != nil {
+		return fmt.Errorf("creating upload session: %w", err)
+	}
+
+	expTime, err := time.Parse(time.RFC3339, uploadSession.ExpirationDateTime)
+	if err != nil {
+		return fmt.Errorf("parsing expiration time: %w", err)
+	}
+
+	state := &session.State{
+		UploadURL:          uploadSession.UploadURL,
+		ExpirationDateTime: expTime,
+		LocalPath:          localPath,
+		RemotePath:         remotePath,
+	}
+	if err := session.Save(state); err != nil {
+		return fmt.Errorf("saving session state: %w", err)
+	}
+
+	return uploadFileInChunks(a, localPath, remotePath, uploadSession)
+}
+
+func uploadFileInChunks(a *app.App, localPath, remotePath string, uploadSession onedrive.UploadSession) error {
+	file, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("opening local file: %w", err)
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("getting file info: %w", err)
+	}
+	totalSize := fileInfo.Size()
+
+	startByte := int64(0)
+	if len(uploadSession.NextExpectedRanges) > 0 {
+		rangeStart, _ := strconv.ParseInt(strings.Split(uploadSession.NextExpectedRanges[0], "-")[0], 10, 64)
+		startByte = rangeStart
+	}
+
+	if _, err := file.Seek(startByte, io.SeekStart); err != nil {
+		return fmt.Errorf("seeking file: %w", err)
+	}
+
+	bar := ui.NewProgressBar(int(totalSize))
+	bar.Set(int(startByte))
+
+	reader := io.TeeReader(file, bar)
+
+	for startByte < totalSize {
+		endByte := startByte + chunkSize - 1
+		if endByte >= totalSize {
+			endByte = totalSize - 1
+		}
+
+		// Use a LimitedReader to ensure we only read the chunk size
+		chunkReader := io.LimitReader(reader, chunkSize)
+
+		_, err := a.SDK.UploadChunk(uploadSession.UploadURL, startByte, endByte, totalSize, chunkReader)
+		if err != nil {
+			// Save session and exit, allowing resume
+			return fmt.Errorf("uploading chunk: %w. Run command again to resume", err)
+		}
+
+		startByte = endByte + 1
+	}
+
+	// Clean up session file on success
+	if err := session.Delete(localPath, remotePath); err != nil {
+		// Log this as a warning, as the upload itself was successful
+		log.Printf("Warning: failed to delete session file %s: %v", remotePath, err)
+	}
+
+	ui.PrintSuccess("File '%s' uploaded successfully to '%s'.\n", localPath, remotePath)
 	return nil
 }
 
@@ -156,7 +275,7 @@ func filesDownloadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		localPath = args[1]
 	}
 
-	err := a.SDK.DownloadFile(a.Client, remotePath, localPath)
+	err := a.SDK.DownloadFile(remotePath, localPath)
 	if err != nil {
 		return fmt.Errorf("downloading file: %w", err)
 	}
