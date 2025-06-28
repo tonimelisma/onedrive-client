@@ -12,7 +12,7 @@ import (
 
 const configDir = ".onedrive-client"
 const configFile = "config.json"
-const ClientID = "71ae7ad2-0207-4618-90d3-d21db38f9f7a"
+const ClientID = "57caa7f2-c679-440c-8de2-f8ec86510722"
 
 // Configuration struct holds all the application's persisted settings.
 // It includes the OAuth token and a debug flag.
