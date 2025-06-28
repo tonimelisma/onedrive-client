@@ -229,21 +229,46 @@ func DisplayRecentItems(items onedrive.DriveItemList) {
 	}
 }
 
-// DisplaySpecialFolder prints information about a special folder.
+// DisplaySpecialFolder prints detailed information about a special folder.
 func DisplaySpecialFolder(item onedrive.DriveItem, folderName string) {
-	fmt.Printf("Special folder '%s':\n", folderName)
+	fmt.Printf("Special Folder: %s\n", folderName)
 	fmt.Printf("           Name: %s\n", item.Name)
 	fmt.Printf("             ID: %s\n", item.ID)
-	fmt.Printf("        Created: %s\n", item.CreatedDateTime.Format("2006-01-02 15:04:05"))
-	fmt.Printf(" Last Modified: %s\n", item.LastModifiedDateTime.Format("2006-01-02 15:04:05"))
+	fmt.Printf("           Size: %d bytes\n", item.Size)
+	fmt.Printf("        Created: %s\n", item.CreatedDateTime)
+	fmt.Printf(" Last Modified: %s\n", item.LastModifiedDateTime)
 	fmt.Printf("        Web URL: %s\n", item.WebURL)
 
 	if item.Folder != nil {
 		fmt.Printf("           Type: Folder\n")
 		fmt.Printf("   Child Count: %d\n", item.Folder.ChildCount)
+	} else {
+		fmt.Printf("           Type: File\n")
+	}
+}
+
+// DisplaySharingLink prints information about a created sharing link.
+func DisplaySharingLink(link onedrive.SharingLink) {
+	fmt.Printf("Sharing Link Created Successfully!\n")
+	fmt.Printf("           ID: %s\n", link.ID)
+	fmt.Printf("         Type: %s\n", link.Link.Type)
+	fmt.Printf("        Scope: %s\n", link.Link.Scope)
+	fmt.Printf("        Roles: %s\n", strings.Join(link.Roles, ", "))
+	fmt.Printf("          URL: %s\n", link.Link.WebUrl)
+
+	if link.HasPassword {
+		fmt.Printf("     Password: Protected\n")
 	}
 
-	if item.SpecialFolder != nil {
-		fmt.Printf("  Special Type: %s\n", item.SpecialFolder.Name)
+	if link.ExpirationDateTime != "" {
+		fmt.Printf("      Expires: %s\n", link.ExpirationDateTime)
+	}
+
+	if link.Link.WebHtml != "" {
+		fmt.Printf("    Embed HTML: %s\n", link.Link.WebHtml)
+	}
+
+	if link.Link.Application.DisplayName != "" {
+		fmt.Printf("  Application: %s\n", link.Link.Application.DisplayName)
 	}
 }

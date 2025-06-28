@@ -572,36 +572,33 @@ func TestFilesRecentLogic(t *testing.T) {
 
 func TestFilesSpecialLogic(t *testing.T) {
 	tests := []struct {
-		name        string
-		folderName  string
-		mockItem    onedrive.DriveItem
-		mockError   error
-		expectError bool
+		name           string
+		args           []string
+		mockReturn     onedrive.DriveItem
+		mockError      error
+		expectError    bool
+		expectedOutput string
 	}{
 		{
-			name:       "successful special folder",
-			folderName: "documents",
-			mockItem: onedrive.DriveItem{
+			name: "successful special folder",
+			args: []string{"documents"},
+			mockReturn: onedrive.DriveItem{
 				Name: "Documents",
-				ID:   "12345",
-				SpecialFolder: &struct {
-					Name string `json:"name"`
-				}{Name: "documents"},
+				ID:   "doc123",
+				Folder: &struct {
+					ChildCount int `json:"childCount"`
+					View       struct {
+						ViewType  string `json:"viewType"`
+						SortBy    string `json:"sortBy"`
+						SortOrder string `json:"sortOrder"`
+					} `json:"view"`
+				}{ChildCount: 5},
 			},
-			mockError:   nil,
 			expectError: false,
 		},
 		{
-			name:        "empty folder name",
-			folderName:  "",
-			mockItem:    onedrive.DriveItem{},
-			mockError:   nil,
-			expectError: true,
-		},
-		{
 			name:        "special folder error",
-			folderName:  "documents",
-			mockItem:    onedrive.DriveItem{},
+			args:        []string{"documents"},
 			mockError:   errors.New("special folder failed"),
 			expectError: true,
 		},
@@ -611,22 +608,126 @@ func TestFilesSpecialLogic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockSDK := &MockSDK{
 				GetSpecialFolderFunc: func(folderName string) (onedrive.DriveItem, error) {
-					if folderName == tt.folderName {
-						return tt.mockItem, tt.mockError
+					if tt.mockError != nil {
+						return onedrive.DriveItem{}, tt.mockError
 					}
-					return onedrive.DriveItem{}, errors.New("unexpected folder name")
+					return tt.mockReturn, nil
 				},
 			}
 
 			app := newTestApp(mockSDK)
 			cmd := &cobra.Command{}
 
-			err := filesSpecialLogic(app, cmd, []string{tt.folderName})
+			err := filesSpecialLogic(app, cmd, tt.args)
 
-			if tt.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestFilesShareLogic(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		mockReturn  onedrive.SharingLink
+		mockError   error
+		expectError bool
+	}{
+		{
+			name: "successful view link creation",
+			args: []string{"/test.txt", "view", "anonymous"},
+			mockReturn: onedrive.SharingLink{
+				ID:    "share123",
+				Roles: []string{"read"},
+				Link: struct {
+					Type        string `json:"type"`
+					Scope       string `json:"scope"`
+					WebUrl      string `json:"webUrl"`
+					WebHtml     string `json:"webHtml,omitempty"`
+					Application struct {
+						Id          string `json:"id"`
+						DisplayName string `json:"displayName"`
+					} `json:"application,omitempty"`
+				}{
+					Type:   "view",
+					Scope:  "anonymous",
+					WebUrl: "https://1drv.ms/test-link",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "successful edit link creation",
+			args: []string{"/folder", "edit", "organization"},
+			mockReturn: onedrive.SharingLink{
+				ID:    "share456",
+				Roles: []string{"write"},
+				Link: struct {
+					Type        string `json:"type"`
+					Scope       string `json:"scope"`
+					WebUrl      string `json:"webUrl"`
+					WebHtml     string `json:"webHtml,omitempty"`
+					Application struct {
+						Id          string `json:"id"`
+						DisplayName string `json:"displayName"`
+					} `json:"application,omitempty"`
+				}{
+					Type:   "edit",
+					Scope:  "organization",
+					WebUrl: "https://1drv.ms/edit-link",
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:        "empty remote path",
+			args:        []string{"", "view", "anonymous"},
+			expectError: true,
+		},
+		{
+			name:        "empty link type",
+			args:        []string{"/test.txt", "", "anonymous"},
+			expectError: true,
+		},
+		{
+			name:        "empty scope",
+			args:        []string{"/test.txt", "view", ""},
+			expectError: true,
+		},
+		{
+			name:        "sharing link creation error",
+			args:        []string{"/test.txt", "view", "anonymous"},
+			mockError:   errors.New("sharing link creation failed"),
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSDK := &MockSDK{
+				CreateSharingLinkFunc: func(path, linkType, scope string) (onedrive.SharingLink, error) {
+					if tt.mockError != nil {
+						return onedrive.SharingLink{}, tt.mockError
+					}
+					return tt.mockReturn, nil
+				},
+			}
+
+			app := newTestApp(mockSDK)
+			cmd := &cobra.Command{}
+
+			err := filesShareLogic(app, cmd, tt.args)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
 			}
 		})
 	}

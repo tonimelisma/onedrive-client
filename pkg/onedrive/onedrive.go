@@ -1168,3 +1168,54 @@ func GetSpecialFolder(client *http.Client, folderName string) (DriveItem, error)
 
 	return item, nil
 }
+
+// CreateSharingLink creates a sharing link for a DriveItem.
+// linkType can be "view", "edit", or "embed"
+// scope can be "anonymous" or "organization"
+func CreateSharingLink(client *http.Client, path, linkType, scope string) (SharingLink, error) {
+	logger.Debug("CreateSharingLink called with path: ", path, " linkType: ", linkType, " scope: ", scope)
+	var link SharingLink
+
+	// Validate link type
+	validTypes := map[string]bool{
+		"view":  true,
+		"edit":  true,
+		"embed": true,
+	}
+	if !validTypes[linkType] {
+		return link, fmt.Errorf("invalid link type: %s. Valid types are: view, edit, embed", linkType)
+	}
+
+	// Validate scope
+	validScopes := map[string]bool{
+		"anonymous":    true,
+		"organization": true,
+	}
+	if !validScopes[scope] {
+		return link, fmt.Errorf("invalid scope: %s. Valid scopes are: anonymous, organization", scope)
+	}
+
+	url := BuildPathURL(path) + ":/createLink"
+
+	requestBody := CreateLinkRequest{
+		Type:  linkType,
+		Scope: scope,
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return link, fmt.Errorf("marshalling create link request: %w", err)
+	}
+
+	res, err := apiCall(client, "POST", url, "application/json", strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return link, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&link); err != nil {
+		return link, fmt.Errorf("decoding sharing link failed: %v", err)
+	}
+
+	return link, nil
+}

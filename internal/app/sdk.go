@@ -33,6 +33,7 @@ type SDK interface {
 	GetSharedWithMe() (onedrive.DriveItemList, error)
 	GetRecentItems() (onedrive.DriveItemList, error)
 	GetSpecialFolder(folderName string) (onedrive.DriveItem, error)
+	CreateSharingLink(path, linkType, scope string) (onedrive.SharingLink, error)
 }
 
 // OneDriveSDK implements the SDK interface by calling the real OneDrive API.
@@ -158,4 +159,9 @@ func (s *OneDriveSDK) GetRecentItems() (onedrive.DriveItemList, error) {
 // GetSpecialFolder calls the real onedrive.GetSpecialFolder function.
 func (s *OneDriveSDK) GetSpecialFolder(folderName string) (onedrive.DriveItem, error) {
 	return onedrive.GetSpecialFolder(s.client, folderName)
+}
+
+// CreateSharingLink calls the real onedrive.CreateSharingLink function.
+func (s *OneDriveSDK) CreateSharingLink(path, linkType, scope string) (onedrive.SharingLink, error) {
+	return onedrive.CreateSharingLink(s.client, path, linkType, scope)
 }

@@ -622,3 +622,105 @@ func TestSpecialFolderOperations(t *testing.T) {
 		}
 	})
 }
+
+func TestSharingLinkOperations(t *testing.T) {
+	helper := NewE2ETestHelper(t)
+	helper.LogTestInfo(t)
+
+	t.Run("create sharing links", func(t *testing.T) {
+		// Create a test file first
+		testFileName := "test-share-file.txt"
+		testContent := []byte("This is a test file for sharing")
+		testFilePath := helper.CreateTestFile(t, testFileName, testContent)
+
+		// Upload the test file
+		remotePath := helper.GetTestPath(testFileName)
+		item, err := helper.App.SDK.UploadFile(testFilePath, remotePath)
+		if err != nil {
+			t.Fatalf("Failed to upload test file: %v", err)
+		}
+		t.Logf("Uploaded test file: %s", item.Name)
+
+		// Test creating a view link with anonymous scope
+		t.Run("create view link anonymous", func(t *testing.T) {
+			link, err := helper.App.SDK.CreateSharingLink(remotePath, "view", "anonymous")
+			if err != nil {
+				t.Logf("CreateSharingLink returned error (this may be expected on some accounts): %v", err)
+				return
+			}
+
+			if link.ID == "" {
+				t.Error("Expected sharing link to have an ID")
+			}
+
+			if link.Link.Type != "view" {
+				t.Errorf("Expected link type 'view', got '%s'", link.Link.Type)
+			}
+
+			if link.Link.Scope != "anonymous" {
+				t.Errorf("Expected scope 'anonymous', got '%s'", link.Link.Scope)
+			}
+
+			if link.Link.WebUrl == "" {
+				t.Error("Expected sharing link to have a WebUrl")
+			}
+
+			t.Logf("Created view link: %s", link.Link.WebUrl)
+		})
+
+		// Test creating an edit link with organization scope
+		t.Run("create edit link organization", func(t *testing.T) {
+			link, err := helper.App.SDK.CreateSharingLink(remotePath, "edit", "organization")
+			if err != nil {
+				t.Logf("CreateSharingLink returned error (this may be expected on some accounts): %v", err)
+				return
+			}
+
+			if link.ID == "" {
+				t.Error("Expected sharing link to have an ID")
+			}
+
+			if link.Link.Type != "edit" {
+				t.Errorf("Expected link type 'edit', got '%s'", link.Link.Type)
+			}
+
+			if link.Link.Scope != "organization" {
+				t.Errorf("Expected scope 'organization', got '%s'", link.Link.Scope)
+			}
+
+			if link.Link.WebUrl == "" {
+				t.Error("Expected sharing link to have a WebUrl")
+			}
+
+			t.Logf("Created edit link: %s", link.Link.WebUrl)
+		})
+
+		// Test error cases
+		t.Run("invalid link type", func(t *testing.T) {
+			_, err := helper.App.SDK.CreateSharingLink(remotePath, "invalid", "anonymous")
+			if err == nil {
+				t.Error("Expected error for invalid link type")
+			}
+		})
+
+		t.Run("invalid scope", func(t *testing.T) {
+			_, err := helper.App.SDK.CreateSharingLink(remotePath, "view", "invalid")
+			if err == nil {
+				t.Error("Expected error for invalid scope")
+			}
+		})
+
+		t.Run("non-existent file", func(t *testing.T) {
+			_, err := helper.App.SDK.CreateSharingLink("/non-existent-file.txt", "view", "anonymous")
+			if err == nil {
+				t.Error("Expected error for non-existent file")
+			}
+		})
+
+		// Clean up: delete the test file
+		err = helper.App.SDK.DeleteDriveItem(remotePath)
+		if err != nil {
+			t.Logf("Warning: Failed to clean up test file: %v", err)
+		}
+	})
+}

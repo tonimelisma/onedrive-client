@@ -264,6 +264,29 @@ var filesSpecialCmd = &cobra.Command{
 	},
 }
 
+var filesShareCmd = &cobra.Command{
+	Use:   "share <remote-path> <link-type> <scope>",
+	Short: "Create a sharing link for a file or folder",
+	Long: `Creates a sharing link for a file or folder in your OneDrive.
+	
+Link types:
+  view  - Read-only access
+  edit  - Read and write access
+  embed - Embeddable link for web pages (OneDrive personal only)
+
+Scopes:
+  anonymous    - Anyone with the link can access
+  organization - Only people in your organization can access`,
+	Args: cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesShareLogic(a, cmd, args)
+	},
+}
+
 func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	path := "/"
 	if len(args) > 0 {
@@ -788,6 +811,32 @@ func filesSpecialLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func filesShareLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	linkType := args[1]
+	scope := args[2]
+
+	if remotePath == "" {
+		return fmt.Errorf("remote path cannot be empty")
+	}
+
+	if linkType == "" {
+		return fmt.Errorf("link type cannot be empty")
+	}
+
+	if scope == "" {
+		return fmt.Errorf("scope cannot be empty")
+	}
+
+	link, err := a.SDK.CreateSharingLink(remotePath, linkType, scope)
+	if err != nil {
+		return fmt.Errorf("creating sharing link: %w", err)
+	}
+
+	ui.DisplaySharingLink(link)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(filesCmd)
 	filesCmd.AddCommand(filesListCmd)
@@ -807,6 +856,7 @@ func init() {
 	filesCmd.AddCommand(filesSearchCmd)
 	filesCmd.AddCommand(filesRecentCmd)
 	filesCmd.AddCommand(filesSpecialCmd)
+	filesCmd.AddCommand(filesShareCmd)
 
 	// Add flags
 	filesCopyCmd.Flags().Bool("wait", false, "Wait for copy operation to complete instead of returning immediately")

@@ -156,6 +156,21 @@ The application provides full CRUD operations for OneDrive files and folders thr
 
 **Error Handling:** Leverages existing `apiCall()` function for standardized OneDrive API error categorization and retry logic.
 
+#### Sharing Link Management
+The application provides comprehensive sharing link functionality for OneDrive files and folders through the Microsoft Graph API's createLink endpoint:
+
+1. **`CreateSharingLink()`**: Uses POST to `:/createLink` endpoint to generate sharing links
+   - **Supported Link Types**: "view" (read-only), "edit" (read-write), "embed" (embeddable for web pages)
+   - **Supported Scopes**: "anonymous" (anyone with link), "organization" (organization members only)
+   - **Input Validation**: Built-in validation for link types and scopes with descriptive error messages
+   - **Response Handling**: Parses complete sharing link response including URL, permissions, expiration, and embed HTML
+
+**CLI Interface:** `files share <remote-path> <link-type> <scope>` command provides user-friendly access to sharing functionality.
+
+**Error Handling:** Uses standard `apiCall()` function for consistent error handling and categorization.
+
+**Display Integration:** `DisplaySharingLink()` function provides formatted output of sharing link details consistent with application UI patterns.
+
 #### E2E Testing Infrastructure
 The application includes a comprehensive end-to-end testing framework that validates functionality against real OneDrive accounts, ensuring API integration reliability and catching regressions that unit tests might miss.
 

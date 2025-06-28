@@ -136,3 +136,29 @@ type CopyOperationStatus struct {
 	} `json:"error,omitempty"`
 	ResourceLocation string `json:"resourceLocation,omitempty"` // URL of completed item
 }
+
+// CreateLinkRequest represents the request body for creating a sharing link.
+type CreateLinkRequest struct {
+	Type     string `json:"type"`               // "view", "edit", "embed"
+	Scope    string `json:"scope"`              // "anonymous", "organization"
+	Password string `json:"password,omitempty"` // Optional password
+}
+
+// SharingLink represents a sharing link returned by the createLink API.
+type SharingLink struct {
+	ID          string   `json:"id"`
+	Roles       []string `json:"roles"`
+	ShareId     string   `json:"shareId,omitempty"`
+	HasPassword bool     `json:"hasPassword,omitempty"`
+	Link        struct {
+		Type        string `json:"type"`              // "view", "edit", "embed"
+		Scope       string `json:"scope"`             // "anonymous", "organization"
+		WebUrl      string `json:"webUrl"`            // The sharing URL
+		WebHtml     string `json:"webHtml,omitempty"` // HTML for embedding (embed type only)
+		Application struct {
+			Id          string `json:"id"`
+			DisplayName string `json:"displayName"`
+		} `json:"application,omitempty"`
+	} `json:"link"`
+	ExpirationDateTime string `json:"expirationDateTime,omitempty"`
+}

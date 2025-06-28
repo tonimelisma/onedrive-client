@@ -118,10 +118,15 @@ As a user, I want to perform standard file and folder operations from the comman
 
 ### `[ ]` Epic 3: Sharing Management
 
-As a user, I want to see and manage content that has been shared with me.
+As a user, I want to see and manage content that has been shared with me, and create sharing links for my own content.
 
-*   **[ ] User Story 3.1:** I want to list all the files and folders that have been shared with me.
+*   **[x] User Story 3.1:** I want to list all the files and folders that have been shared with me.
     *   **Command:** `onedrive-client shared list`
+*   **[x] User Story 3.2:** I want to create sharing links for my files and folders to share them with others.
+    *   **Command:** `onedrive-client files share <remote-path> <link-type> <scope>`
+    *   **Link Types:** "view" (read-only), "edit" (read-write), "embed" (embeddable for web pages)
+    *   **Scopes:** "anonymous" (anyone with link), "organization" (organization members only)
+    *   **Features:** Input validation, comprehensive link details display, proper error handling
 
 ---
 

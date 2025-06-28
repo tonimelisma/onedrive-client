@@ -95,6 +95,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added fallback download logic that handles both 302 redirects and 401/404 errors gracefully.
 - Added comprehensive debug logging to download functions for better troubleshooting.
 - Made `CalculateFileHash` method public in E2E test helpers for broader test utility usage.
+- **Sharing Link Creation**: Implemented comprehensive sharing link functionality for OneDrive files and folders:
+  - `files share <remote-path> <link-type> <scope>` - Create sharing links for files and folders
+  - Support for all link types: "view" (read-only), "edit" (read-write), "embed" (embeddable for web pages)
+  - Support for scopes: "anonymous" (anyone with link), "organization" (organization members only)
+  - Proper input validation with helpful error messages for invalid link types and scopes
+  - Comprehensive display of sharing link details including URL, permissions, expiration, and embed HTML
+- **Enhanced SDK Layer**: Added `CreateSharingLink()` function to OneDrive SDK:
+  - Uses POST to `/createLink` endpoint following Microsoft Graph API specification
+  - Built-in validation for link types and scopes
+  - Proper error handling and response parsing
+  - Integration with existing `BuildPathURL()` pattern for consistent URL construction
+- **Enhanced UI Display**: Added `DisplaySharingLink()` function for formatted sharing link output:
+  - Shows link ID, type, scope, roles, and URL
+  - Displays optional information like password protection, expiration, and embed HTML
+  - Clean, user-friendly formatting consistent with existing UI patterns
+- **Comprehensive Testing**: Added extensive test coverage for sharing functionality:
+  - Unit tests for command logic with various scenarios and edge cases
+  - MockSDK implementation for isolated testing
+  - E2E tests for real OneDrive API integration with proper cleanup
+  - Error handling tests for invalid inputs and API failures
 
 ### Changed
 - **BREAKING**: Standardized error handling across all commands to use `RunE` pattern instead of `log.Fatalf()`.
