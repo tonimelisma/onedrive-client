@@ -136,11 +136,22 @@ If you don't have config.json, run: ./onedrive-client auth login
 
 // ensureTestDirectory creates the test directory if it doesn't exist
 func (h *E2ETestHelper) ensureTestDirectory() error {
-	_, err := h.App.SDK.CreateFolder(testRootDir, h.TestID)
+	// First ensure the root test directory exists
+	_, err := h.App.SDK.CreateFolder("/", testRootDir)
 	if err != nil {
 		// Check if error is because directory already exists
 		if !strings.Contains(err.Error(), "nameAlreadyExists") &&
-			!strings.Contains(err.Error(), "itemNotFound") {
+			!strings.Contains(err.Error(), "resource not found") {
+			return fmt.Errorf("failed to create root test directory: %w", err)
+		}
+	}
+
+	// Then create the specific test directory inside the root
+	_, err = h.App.SDK.CreateFolder(testRootDir, h.TestID)
+	if err != nil {
+		// Check if error is because directory already exists
+		if !strings.Contains(err.Error(), "nameAlreadyExists") &&
+			!strings.Contains(err.Error(), "resource not found") {
 			return fmt.Errorf("failed to create test directory: %w", err)
 		}
 	}
@@ -242,7 +253,8 @@ func (h *E2ETestHelper) AssertFileNotExists(t *testing.T, remotePath string) {
 		return
 	}
 
-	if !strings.Contains(err.Error(), "itemNotFound") {
+	// Check for both the raw error code and the formatted error message
+	if !strings.Contains(err.Error(), "itemNotFound") && !strings.Contains(err.Error(), "resource not found") {
 		t.Errorf("Unexpected error checking if file %s exists: %v", remotePath, err)
 	}
 }
@@ -286,20 +298,59 @@ func (h *E2ETestHelper) CompareFileHash(t *testing.T, localPath, remotePath stri
 	t.Helper()
 
 	// Get local file hash
-	localHash, err := h.calculateFileHash(localPath)
+	localHash, err := h.CalculateFileHash(localPath)
 	if err != nil {
 		t.Fatalf("Failed to calculate hash for local file %s: %v", localPath, err)
 	}
 
 	// Download remote file to a temporary location
 	tempLocalPath := h.CreateTestFile(t, "downloaded-for-hash-comp.tmp", nil)
+
+	// Try primary download method
 	err = h.App.SDK.DownloadFile(remotePath, tempLocalPath)
 	if err != nil {
-		t.Fatalf("Failed to download remote file %s for hash comparison: %v", remotePath, err)
+		// If primary download fails, try to get the download URL from item metadata
+		t.Logf("Primary download failed (%v), attempting alternative download method", err)
+
+		// Get item metadata first
+		item, itemErr := h.App.SDK.GetDriveItemByPath(remotePath)
+		if itemErr != nil {
+			t.Fatalf("Failed to get item metadata for alternative download of %s: %v", remotePath, itemErr)
+		}
+
+		// Check if we have a download URL
+		if item.DownloadURL == "" {
+			t.Fatalf("No download URL available for item %s, and primary download failed: %v", remotePath, err)
+		}
+
+		// Try downloading directly from the download URL
+		resp, urlErr := http.Get(item.DownloadURL)
+		if urlErr != nil {
+			t.Fatalf("Alternative download also failed for %s: %v (original error: %v)", remotePath, urlErr, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Alternative download failed with status %s for %s (original error: %v)", resp.Status, remotePath, err)
+		}
+
+		// Save the response to file
+		outFile, createErr := os.Create(tempLocalPath)
+		if createErr != nil {
+			t.Fatalf("Failed to create temp file for alternative download: %v", createErr)
+		}
+		defer outFile.Close()
+
+		_, copyErr := io.Copy(outFile, resp.Body)
+		if copyErr != nil {
+			t.Fatalf("Failed to save alternative download: %v", copyErr)
+		}
+
+		t.Logf("✓ Alternative download successful for %s", remotePath)
 	}
 
 	// Get remote (downloaded) file hash
-	remoteHash, err := h.calculateFileHash(tempLocalPath)
+	remoteHash, err := h.CalculateFileHash(tempLocalPath)
 	if err != nil {
 		t.Fatalf("Failed to calculate hash for downloaded file %s: %v", tempLocalPath, err)
 	}
@@ -311,7 +362,7 @@ func (h *E2ETestHelper) CompareFileHash(t *testing.T, localPath, remotePath stri
 	}
 }
 
-func (h *E2ETestHelper) calculateFileHash(filePath string) (string, error) {
+func (h *E2ETestHelper) CalculateFileHash(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", err

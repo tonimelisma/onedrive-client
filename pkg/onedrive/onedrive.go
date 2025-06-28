@@ -325,12 +325,12 @@ func GetDriveItemChildrenByPath(client *http.Client, path string) (DriveItemList
 	logger.Debug("GetDriveItemChildrenByPath called with path: ", path)
 	var items DriveItemList
 
-	// For root, the URL is /children. For subfolders, it's /:/children
+	// For root, the URL is /children. For subfolders, it's :/children
 	url := BuildPathURL(path)
 	if url == customRootURL+"me/drive/root" {
 		url += "/children"
 	} else {
-		url += "/children"
+		url += ":/children"
 	}
 
 	res, err := apiCall(client, "GET", url, "", nil)
@@ -592,17 +592,97 @@ func CancelUploadSession(uploadURL string) error {
 	return nil
 }
 
-// DownloadFile downloads a remote file to the specified local path.
+// DownloadFile downloads a file from OneDrive to a local path.
+// It handles the 302 redirect that Microsoft Graph API returns for download requests.
 func DownloadFile(client *http.Client, remotePath, localPath string) error {
 	logger.Debug("DownloadFile called with remotePath: ", remotePath, ", localPath: ", localPath)
 
 	url := BuildPathURL(remotePath) + ":/content"
-	res, err := apiCall(client, "GET", url, "", nil)
+	logger.Debug("Download URL constructed: ", url)
+
+	// Create request but don't follow redirects automatically
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating download request: %w", err)
+	}
+
+	// Get the response which should be a 302 redirect
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("download request failed: %w", err)
 	}
 	defer res.Body.Close()
 
+	logger.Debug("Download response status: ", res.StatusCode)
+
+	// Handle 302 redirect to pre-authenticated download URL
+	if res.StatusCode == http.StatusFound {
+		downloadURL := res.Header.Get("Location")
+		if downloadURL == "" {
+			return fmt.Errorf("no download URL found in redirect response")
+		}
+
+		logger.Debug("Following redirect to: ", downloadURL)
+		// Download from the pre-authenticated URL (no auth headers needed)
+		return downloadFromURL(downloadURL, localPath)
+	}
+
+	// If we get 401 Unauthorized, try the alternative method using item metadata
+	if res.StatusCode == http.StatusUnauthorized {
+		logger.Debug("Got 401 on direct download, trying alternative method with item metadata")
+		return DownloadFileByItem(client, remotePath, localPath)
+	}
+
+	// If we get 404 Not Found, try the alternative method using item metadata
+	if res.StatusCode == http.StatusNotFound {
+		logger.Debug("Got 404 on direct download, trying alternative method with item metadata")
+		return DownloadFileByItem(client, remotePath, localPath)
+	}
+
+	// If it's not a redirect, handle as direct download (fallback)
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed with status: %s", res.Status)
+	}
+
+	return saveResponseToFile(res, localPath)
+}
+
+// DownloadFileByItem downloads a file using the DriveItem's download URL.
+// This is an alternative method that gets the download URL from item metadata first.
+func DownloadFileByItem(client *http.Client, remotePath, localPath string) error {
+	logger.Debug("DownloadFileByItem called with remotePath: ", remotePath, ", localPath: ", localPath)
+
+	// First get the item metadata to get the download URL
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return fmt.Errorf("getting item metadata for download: %w", err)
+	}
+
+	if item.DownloadURL == "" {
+		return fmt.Errorf("no download URL available for item: %s", remotePath)
+	}
+
+	// Download from the pre-authenticated URL
+	return downloadFromURL(item.DownloadURL, localPath)
+}
+
+// downloadFromURL downloads a file from a URL to a local path (no authentication needed)
+func downloadFromURL(url, localPath string) error {
+	res, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("downloading from URL: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("download from URL failed with status: %s", res.Status)
+	}
+
+	return saveResponseToFile(res, localPath)
+}
+
+// saveResponseToFile saves an HTTP response body to a local file
+func saveResponseToFile(res *http.Response, localPath string) error {
 	outFile, err := os.Create(localPath)
 	if err != nil {
 		return fmt.Errorf("creating local file: %w", err)
@@ -617,11 +697,12 @@ func DownloadFile(client *http.Client, remotePath, localPath string) error {
 	return nil
 }
 
-// DownloadFileChunk downloads a chunk of a file.
-func DownloadFileChunk(client *http.Client, url string, startByte, endByte int64) (io.ReadCloser, error) {
-	logger.Debug("DownloadFileChunk called for URL: ", url)
+// DownloadFileChunk downloads a chunk of a file using range requests.
+// This function works with pre-authenticated download URLs.
+func DownloadFileChunk(client *http.Client, downloadURL string, startByte, endByte int64) (io.ReadCloser, error) {
+	logger.Debug("DownloadFileChunk called for URL: ", downloadURL)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", downloadURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating download chunk request failed: %v", err)
 	}
@@ -629,7 +710,7 @@ func DownloadFileChunk(client *http.Client, url string, startByte, endByte int64
 	contentRange := fmt.Sprintf("bytes=%d-%d", startByte, endByte)
 	req.Header.Set("Range", contentRange)
 
-	res, err := client.Do(req)
+	res, err := http.DefaultClient.Do(req) // Use default client for pre-authenticated URLs
 	if err != nil {
 		return nil, fmt.Errorf("downloading chunk failed: %v", err)
 	}

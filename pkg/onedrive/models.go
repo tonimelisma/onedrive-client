@@ -17,6 +17,7 @@ type DriveItem struct {
 	Name                 string    `json:"name"`
 	Size                 int64     `json:"size"`
 	WebURL               string    `json:"webUrl"`
+	DownloadURL          string    `json:"@microsoft.graph.downloadUrl"`
 	Reactions            struct {
 		CommentCount int `json:"commentCount"`
 	} `json:"reactions"`
