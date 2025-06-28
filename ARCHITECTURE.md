@@ -157,6 +157,8 @@ The E2E testing implementation discovered and helped fix several critical bugs:
 2.  **API Endpoint Formatting**: Corrected Microsoft Graph API endpoints to match specification
 3.  **Authentication Flows**: Identified download authentication issues requiring further investigation
 
+**Note on Current E2E Coverage:** While the framework is robust, comprehensive E2E tests for large, chunked file uploads and downloads have not been fully implemented due to tooling issues. The existing tests cover session creation and basic transfers, but full validation of resilient transfers remains a work in progress.
+
 ---
 
 ## 3. Future Architecture

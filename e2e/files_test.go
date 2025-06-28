@@ -3,6 +3,10 @@
 package e2e
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"path"
 	"testing"
 	"time"
 )
@@ -56,42 +60,89 @@ func TestFileOperations(t *testing.T) {
 	})
 
 	t.Run("UploadLargeFile", func(t *testing.T) {
-		// Create a large test file (10MB)
-		fileSize := int64(10 * 1024 * 1024) // 10MB
-		localFile := helper.CreateTestFileWithSize(t, "large-test.txt", fileSize)
-		remotePath := helper.GetTestPath("large-test.txt")
+		// Create a large test file (5MB) for a more realistic test
+		fileSize := int64(5 * 1024 * 1024)
+		localFile := helper.CreateTestFileWithSize(t, "large-upload-test.txt", fileSize)
+		remotePath := helper.GetTestPath("large-upload-test.txt")
 
-		t.Logf("Created test file: %s (%d bytes)", localFile, fileSize)
+		t.Logf("Created large test file: %s (%d bytes)", localFile, fileSize)
 
-		// Upload using resumable upload
+		// 1. Create upload session
 		session, err := helper.App.SDK.CreateUploadSession(remotePath)
 		if err != nil {
 			t.Fatalf("Failed to create upload session: %v", err)
 		}
-
 		if session.UploadURL == "" {
 			t.Fatal("Upload session URL is empty")
 		}
+		t.Logf("Upload session created: %s", session.UploadURL)
 
-		// For this test, we'll just verify the session was created
-		// A full upload test would require implementing the chunked upload logic
-		t.Logf("Upload session created successfully: %s", session.UploadURL)
-
-		// Check upload session status
-		status, err := helper.App.SDK.GetUploadSessionStatus(session.UploadURL)
+		// 2. Open local file for chunked upload
+		file, err := os.Open(localFile)
 		if err != nil {
-			t.Fatalf("Failed to get upload session status: %v", err)
+			t.Fatalf("Failed to open local file for upload: %v", err)
+		}
+		defer file.Close()
+
+		// 3. Upload file in chunks
+		chunkSize := int64(320 * 1024 * 4) // 1.25 MB chunks
+		buffer := make([]byte, chunkSize)
+		var offset int64
+
+		for {
+			bytesRead, readErr := file.Read(buffer)
+			if readErr != nil && readErr != io.EOF {
+				t.Fatalf("Error reading from local file: %v", readErr)
+			}
+			if bytesRead == 0 {
+				break
+			}
+
+			currentChunk := buffer[:bytesRead]
+			endByte := offset + int64(len(currentChunk)) - 1
+
+			t.Logf("Uploading chunk: bytes %d-%d/%d", offset, endByte, fileSize)
+			_, err = helper.App.SDK.UploadChunk(session.UploadURL, offset, endByte, fileSize, bytes.NewReader(currentChunk))
+			if err != nil {
+				// The SDK's UploadChunk doesn't properly handle the final response (a DriveItem).
+				// We'll ignore the error on the final chunk and verify the file exists after.
+				if endByte+1 >= fileSize {
+					t.Log("Ignoring potential error on final chunk, will verify file existence.")
+				} else {
+					t.Fatalf("Failed to upload chunk: %v", err)
+				}
+			}
+			offset += int64(len(currentChunk))
 		}
 
-		if status.UploadURL != session.UploadURL {
-			t.Errorf("Expected upload URL %s, got %s", session.UploadURL, status.UploadURL)
-		}
+		// 4. Verify file exists and content is correct
+		helper.WaitForFile(t, remotePath, 60*time.Second)
+		helper.AssertFileExists(t, remotePath)
+		helper.CompareFileHash(t, localFile, remotePath)
+	})
 
-		// Cancel the upload session
-		err = helper.App.SDK.CancelUploadSession(session.UploadURL)
+	t.Run("DownloadLargeFile", func(t *testing.T) {
+		// 1. Upload a file to be downloaded
+		fileSize := int64(2 * 1024 * 1024) // 2MB
+		localUploadFile := helper.CreateTestFileWithSize(t, "download-test.txt", fileSize)
+		remotePath := helper.GetTestPath("download-test.txt")
+
+		_, err := helper.App.SDK.UploadFile(localUploadFile, remotePath)
 		if err != nil {
-			t.Fatalf("Failed to cancel upload session: %v", err)
+			t.Fatalf("Setup for download test failed: could not upload file: %v", err)
 		}
+		helper.WaitForFile(t, remotePath, 30*time.Second)
+		t.Logf("Test file uploaded for download test: %s", remotePath)
+
+		// 2. Download the file
+		localDownloadPath := helper.CreateTestFile(t, "downloaded-file.txt", nil)
+		err = helper.App.SDK.DownloadFile(remotePath, localDownloadPath)
+		if err != nil {
+			t.Fatalf("Failed to download file: %v", err)
+		}
+
+		// 3. Verify the downloaded file's integrity
+		helper.CompareFileHash(t, localUploadFile, localDownloadPath)
 	})
 
 	t.Run("VerifyUploadedFile", func(t *testing.T) {
@@ -225,5 +276,83 @@ func TestErrorHandling(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for invalid upload session URL")
 		}
+	})
+}
+
+func TestDownloadOperations(t *testing.T) {
+	helper := NewE2ETestHelper(t)
+
+	t.Run("DeleteFile", func(t *testing.T) {
+		// 1. Upload a file to be deleted
+		localFile := helper.CreateTestFile(t, "delete-test.txt", []byte("delete me"))
+		remotePath := helper.GetTestPath("delete-test.txt")
+		_, err := helper.App.SDK.UploadFile(localFile, remotePath)
+		if err != nil {
+			t.Fatalf("Setup for delete test failed: could not upload file: %v", err)
+		}
+		helper.WaitForFile(t, remotePath, 30*time.Second)
+		helper.AssertFileExists(t, remotePath)
+
+		// 2. Delete the file
+		err = helper.App.SDK.DeleteDriveItem(remotePath)
+		if err != nil {
+			t.Fatalf("Failed to delete file: %v", err)
+		}
+
+		// 3. Verify the file is gone
+		helper.AssertFileNotExists(t, remotePath)
+	})
+
+	t.Run("RenameFile", func(t *testing.T) {
+		// 1. Upload a file to be renamed
+		localFile := helper.CreateTestFile(t, "rename-test.txt", []byte("rename me"))
+		remotePath := helper.GetTestPath("rename-test.txt")
+		_, err := helper.App.SDK.UploadFile(localFile, remotePath)
+		if err != nil {
+			t.Fatalf("Setup for rename test failed: could not upload file: %v", err)
+		}
+		helper.WaitForFile(t, remotePath, 30*time.Second)
+
+		// 2. Rename the file
+		newName := "renamed-file.txt"
+		newRemotePath := helper.GetTestPath(newName)
+		_, err = helper.App.SDK.RenameDriveItem(remotePath, newName)
+		if err != nil {
+			t.Fatalf("Failed to rename file: %v", err)
+		}
+
+		// 3. Verify old name is gone and new name exists
+		helper.AssertFileNotExists(t, remotePath)
+		helper.AssertFileExists(t, newRemotePath)
+	})
+
+	t.Run("MoveFile", func(t *testing.T) {
+		// 1. Create a subdirectory
+		subDirName := "move-subdir"
+		_, err := helper.App.SDK.CreateFolder(helper.TestDir, subDirName)
+		if err != nil {
+			t.Fatalf("Setup for move test failed: could not create subdir: %v", err)
+		}
+		subDirPath := helper.GetTestPath(subDirName)
+
+		// 2. Upload a file to the root of the test dir
+		localFile := helper.CreateTestFile(t, "move-test.txt", []byte("move me"))
+		originalPath := helper.GetTestPath("move-test.txt")
+		_, err = helper.App.SDK.UploadFile(localFile, originalPath)
+		if err != nil {
+			t.Fatalf("Setup for move test failed: could not upload file: %v", err)
+		}
+		helper.WaitForFile(t, originalPath, 30*time.Second)
+
+		// 3. Move the file into the subdirectory
+		newPath := path.Join(subDirPath, "move-test.txt")
+		_, err = helper.App.SDK.MoveDriveItem(originalPath, subDirPath)
+		if err != nil {
+			t.Fatalf("Failed to move file: %v", err)
+		}
+
+		// 4. Verify file is in the new location and not the old one
+		helper.AssertFileExists(t, newPath)
+		helper.AssertFileNotExists(t, originalPath)
 	})
 }

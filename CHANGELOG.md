@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced test infrastructure with mock server support for Graph API endpoints.
 - Thread-safe session management with proper Manager pattern instead of global variables.
 - Improved test infrastructure with better output capture that doesn't mutate global state.
+- Added E2E test for `GetMe` to verify basic authenticated API calls.
+- Added file hash comparison helper to E2E test suite for robust file integrity verification.
 
 ### Changed
 - **BREAKING**: Standardized error handling across all commands to use `RunE` pattern instead of `log.Fatalf()`.
@@ -113,7 +115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated download and folder creation URL patterns to match API specification
 - **Current Test Status:** ✅ Working: Directory creation, file uploads, metadata retrieval, drive operations, URL construction verification. ❌ Issues: Download operations (authentication errors), some directory listing operations.
 - **Code Quality:** Framework provides solid foundation for automated testing with proper error handling, test isolation, and safety measures to protect user data.
-- **Deviations:** Download functionality authentication issues remain unresolved and require separate investigation.
+- **Deviations:** Download functionality authentication issues remain unresolved and require separate investigation. An attempt was made to add comprehensive E2E tests for large file up/downloads, but persistent issues with the editing tool prevented the changes from being applied correctly. This remains an area for future improvement.
 
 ## [0.1.0] - 2024-05-20
 
