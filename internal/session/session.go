@@ -10,12 +10,14 @@ import (
 	"time"
 )
 
-// State represents the state of a resumable upload session.
+// State represents the state of a resumable session.
 type State struct {
-	UploadURL          string    `json:"uploadUrl"`
+	DownloadURL      string    `json:"downloadUrl,omitempty"`
+	UploadURL          string    `json:"uploadUrl,omitempty"`
 	ExpirationDateTime time.Time `json:"expirationDateTime"`
 	LocalPath          string    `json:"localPath"`
 	RemotePath         string    `json:"remotePath"`
+	CompletedBytes     int64     `json:"completedBytes"`
 }
 
 // Manager handles session file operations with configurable directory

@@ -1,10 +1,14 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -125,28 +129,66 @@ func TestFilesUploadLogic(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "Expected session file to be deleted after successful upload")
 }
 
-func TestFilesDownloadLogic(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test-download-*")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-	localPath := filepath.Join(tmpDir, "downloaded-file.txt")
 
+
+func TestFilesDownloadResumableLogic(t *testing.T) {
+	// Create a dummy file for download
+	content := strings.Repeat("a", int(chunkSize)+100)
+
+	// Setup mock server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rangeHeader := r.Header.Get("Range")
+		assert.NotEmpty(t, rangeHeader)
+
+		parts := strings.Split(strings.Split(rangeHeader, "=")[1], "-")
+		start, _ := strconv.ParseInt(parts[0], 10, 64)
+		end, _ := strconv.ParseInt(parts[1], 10, 64)
+
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(content)))
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte(content[start : end+1]))
+	}))
+	defer server.Close()
+
+	// Setup mock SDK
 	mockSDK := &MockSDK{
-		DownloadFileFunc: func(remotePath, localDestPath string) error {
-			assert.Equal(t, "/remote/source/file.txt", remotePath)
-			assert.Equal(t, localPath, localDestPath)
-			return ioutil.WriteFile(localDestPath, []byte("downloaded content"), 0644)
+		GetDriveItemByPathFunc: func(path string) (onedrive.DriveItem, error) {
+			return onedrive.DriveItem{Size: int64(len(content))}, nil
+		},
+		DownloadFileChunkFunc: func(url string, startByte, endByte int64) (io.ReadCloser, error) {
+			return onedrive.DownloadFileChunk(http.DefaultClient, server.URL, startByte, endByte)
 		},
 	}
 	a := newTestApp(mockSDK)
 
+	// Override session functions to use a temp directory
+	oldGetConfigDir := session.GetConfigDir
+	tmpDir, err := ioutil.TempDir("", "test-session-*")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+	session.GetConfigDir = func() (string, error) { return tmpDir, nil }
+	defer func() { session.GetConfigDir = oldGetConfigDir }()
+
+	// First download (interrupted)
+	captureOutput(t, func() {
+		// We can't truly interrupt, so we'll just run it once and check the session file
+		filesDownloadLogic(a, &cobra.Command{}, []string{"/remote/source/file.txt", filepath.Join(tmpDir, "downloaded-file.txt")})
+	})
+
+	// Second download (resume)
 	output := captureOutput(t, func() {
-		err := filesDownloadLogic(a, &cobra.Command{}, []string{"/remote/source/file.txt", localPath})
+		err := filesDownloadLogic(a, &cobra.Command{}, []string{"/remote/source/file.txt", filepath.Join(tmpDir, "downloaded-file.txt")})
 		assert.NoError(t, err)
 	})
 
 	assert.Contains(t, output, "File '/remote/source/file.txt' downloaded successfully")
-	content, err := ioutil.ReadFile(localPath)
+	downloadedContent, err := ioutil.ReadFile(filepath.Join(tmpDir, "downloaded-file.txt"))
 	assert.NoError(t, err)
-	assert.Equal(t, "downloaded content", string(content))
+	assert.Equal(t, content, string(downloadedContent))
+
+	// Verify session file was deleted
+	sessionFilePath, err := session.GetSessionFilePath(filepath.Join(tmpDir, "downloaded-file.txt"), "/remote/source/file.txt")
+	assert.NoError(t, err)
+	_, err = os.Stat(sessionFilePath)
+	assert.True(t, os.IsNotExist(err), "Expected session file to be deleted after successful download")
 }

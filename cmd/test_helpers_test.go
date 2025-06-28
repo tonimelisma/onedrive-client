@@ -20,6 +20,7 @@ type MockSDK struct {
 	VerifyDeviceCodeFunc           func(deviceCode string) (*onedrive.OAuthToken, error)
 	CreateFolderFunc               func(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFileFunc               func(remotePath, localPath string) error
+	DownloadFileChunkFunc          func(url string, startByte, endByte int64) (io.ReadCloser, error)
 	GetDriveItemByPathFunc         func(path string) (onedrive.DriveItem, error)
 	GetDriveItemChildrenByPathFunc func(path string) (onedrive.DriveItemList, error)
 	CreateUploadSessionFunc        func(remotePath string) (onedrive.UploadSession, error)
@@ -75,6 +76,13 @@ func (m *MockSDK) DownloadFile(remotePath, localPath string) error {
 		return m.DownloadFileFunc(remotePath, localPath)
 	}
 	return nil
+}
+
+func (m *MockSDK) DownloadFileChunk(url string, startByte, endByte int64) (io.ReadCloser, error) {
+	if m.DownloadFileChunkFunc != nil {
+		return m.DownloadFileChunkFunc(url, startByte, endByte)
+	}
+	return nil, errors.New("not implemented")
 }
 
 func (m *MockSDK) GetDriveItemByPath(path string) (onedrive.DriveItem, error) {

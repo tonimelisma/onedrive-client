@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Resumable large file downloads with progress bar and interrupt handling.
 - New `files mkdir <path>` command to create a directory.
 - New `files upload <local-file> [remote-path]` command to upload files.
 - New `files download <remote-path> [local-path]` command to download files.

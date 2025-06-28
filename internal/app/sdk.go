@@ -17,6 +17,7 @@ type SDK interface {
 	GetMe() (onedrive.User, error)
 	CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFile(remotePath, localPath string) error
+	DownloadFileChunk(url string, startByte, endByte int64) (io.ReadCloser, error)
 	CreateUploadSession(remotePath string) (onedrive.UploadSession, error)
 	UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
 	GetUploadSessionStatus(uploadURL string) (onedrive.UploadSession, error)
@@ -66,6 +67,11 @@ func (s *OneDriveSDK) CreateFolder(parentPath string, folderName string) (onedri
 // DownloadFile calls the real onedrive.DownloadFile function.
 func (s *OneDriveSDK) DownloadFile(remotePath, localPath string) error {
 	return onedrive.DownloadFile(s.client, remotePath, localPath)
+}
+
+// DownloadFileChunk calls the real onedrive.DownloadFileChunk function.
+func (s *OneDriveSDK) DownloadFileChunk(url string, startByte, endByte int64) (io.ReadCloser, error) {
+	return onedrive.DownloadFileChunk(s.client, url, startByte, endByte)
 }
 
 // CreateUploadSession calls the real onedrive.CreateUploadSession function.

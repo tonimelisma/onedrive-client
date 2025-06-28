@@ -4,15 +4,15 @@
 
 ### 1.1. Project Aim
 
-The primary goal of the `onedrive-client` project is to create a powerful, fast, and intuitive command-line interface (CLI) for interacting with Microsoft OneDrive. While the long-term vision is to build a full-fledged, bi-directional sync client, the initial focus is on providing a robust set of command-line primitives for manual file management.
+The primary goal of the `onedrive-client` project is to create a powerful, fast, and intuitive command-line interface (CLI) for interacting with Microsoft OneDrive. The long-term vision is to build a full-fledged, bi-directional sync client. The immediate focus is on providing a robust set of command-line primitives for manual file management, including resilient large file transfers.
 
-This tool will serve users who prefer to work in a terminal environment, enabling them to manage their OneDrive files and folders without needing a graphical user interface.
+This tool serves users who prefer to work in a terminal environment, enabling them to manage their OneDrive files and folders without needing a graphical user interface.
 
 ### 1.2. Target Audience
 
 *   Developers, System Administrators, and Power Users.
 *   Users who need to script interactions with their OneDrive storage.
-*   Users who want a lightweight, non-GUI alternative for managing their cloud files.
+*   Users who want a lightweight, non-GUI alternative for managing their cloud files, especially for large file transfers.
 
 ## 2. Technical Implementation Notes
 
@@ -20,28 +20,29 @@ The client is written in Go and uses the [Cobra](https://cobra.dev/) library for
 
 All interactions with the Microsoft Graph API are handled by an integrated **SDK package** located at `pkg/onedrive`. This package is responsible for authentication, request signing, and API call logic. The main application (`cmd/` and `internal/`) focuses on user interaction, command parsing, and orchestrating calls to this SDK.
 
-**Future Goal:** For better reusability, the SDK in `pkg/onedrive` should eventually be extracted into its own version-controlled Git repository. This will allow other applications to use the Go SDK for OneDrive without depending on the `onedrive-client` CLI application itself.
+**Future Goal:** For better reusability, the SDK in `pkg/onedrive` will be extracted into its own version-controlled Git repository. This will allow other applications to use the Go SDK for OneDrive without depending on the `onedrive-client` CLI application itself.
 
 ## 3. Release Plan
 
-### 3.1. Release v0.1: Core Operations (Partially Complete)
+### 3.1. Release v0.1: Core Operations (Complete)
 
 This initial release focuses on providing the most essential file management commands. It establishes the core authentication flow and command structure.
 
 **Features:**
-*   User authentication via OAuth 2.0. `[x]`
-*   Ability to list files and folders in the root directory. `[x]`
-*   Ability to list all available drives. `[x]`
+*   User authentication via OAuth 2.0 Device Code Flow. `[x]`
+*   Ability to list files and folders. `[x]`
+*   Ability to list all available drives and check quota. `[x]`
 *   Ability to view metadata for items (`stat`). `[x]`
 *   Ability to download files (`download`). `[x]`
-*   Ability to upload files (`upload`). `[x]`
+*   Ability to upload files, including large files via resumable sessions (`upload`). `[x]`
 *   Ability to create folders (`mkdir`). `[x]`
 
-### 3.2. Release v0.2: Advanced Management and Sharing
+### 3.2. Release v0.2: Advanced Management and Sharing (In Progress)
 
-This release will build on the core by adding destructive and modifying operations, as well as search and sharing capabilities.
+This release will build on the core by adding destructive operations, resumable downloads, and sharing capabilities.
 
 **Features:**
+*   Ability to download large files resiliently. `[x]`
 *   Ability to delete files and folders (`rm`). `[ ]`
 *   Ability to move files and folders (`mv`). `[ ]`
 *   Ability to rename items (`rename`). `[ ]`
@@ -62,14 +63,14 @@ This release will build on the core by adding destructive and modifying operatio
 
 ---
 
-### `[/]` Epic 1: Core Account and Drive Information
+### `[x]` Epic 1: Core Account and Drive Information
 
 As a user, I want to get basic information about my OneDrive account and storage.
 
 *   **[x] User Story 1.1:** I want to list all OneDrive drives (personal, business, etc.) available to my account so I can see what I can interact with.
-    *   **Proposed Command:** `onedrive-client drives list`
+    *   **Command:** `onedrive-client drives list`
 *   **[x] User Story 1.2:** I want to check my storage quota (total, used, remaining space) so I can manage my storage consumption.
-    *   **Proposed Command:** `onedrive-client drives quota`
+    *   **Command:** `onedrive-client drives quota`
 
 ---
 
@@ -78,24 +79,27 @@ As a user, I want to get basic information about my OneDrive account and storage
 As a user, I want to perform standard file and folder operations from the command line.
 
 *   **[x] User Story 2.1:** I want to list the files and folders within a specific directory in my OneDrive.
-    *   **Note:** This has been implemented via `files list`. The old `drives` command was removed.
-    *   **Proposed Command:** `onedrive-client files list [remote-path]` (If `remote-path` is omitted, defaults to root `/`).
+    *   **Command:** `onedrive-client files list [remote-path]`
 *   **[x] User Story 2.2:** I want to view detailed metadata (like size, creation date) for a specific file or folder.
-    *   **Proposed Command:** `onedrive-client files stat <remote-path>`
+    *   **Command:** `onedrive-client files stat <remote-path>`
 *   **[x] User Story 2.3:** I want to download a file from my OneDrive to my local machine.
-    *   **Proposed Command:** `onedrive-client files download <remote-path> [local-path]`
+    *   **Command:** `onedrive-client files download <remote-path> [local-path]`
 *   **[x] User Story 2.4:** I want to upload a file from my local machine to a specific folder in my OneDrive.
-    *   **Proposed Command:** `onedrive-client files upload <local-file> [remote-path]`
+    *   **Command:** `onedrive-client files upload <local-file> [remote-path]`
 *   **[x] User Story 2.5:** I want to create a new, empty folder at a specified path in my OneDrive.
-    *   **Proposed Command:** `onedrive-client files mkdir <remote-path>`
-*   **[ ] User Story 2.6:** I want to delete a file or folder from my OneDrive.
-    *   **Proposed Command:** `onedrive-client files rm <remote-path>`
-*   **[ ] User Story 2.7:** I want to move a file or folder from one location to another.
-    *   **Proposed Command:** `onedrive-client files mv <source-path> <destination-path>`
-*   **[ ] User Story 2.8:** I want to rename a file or folder.
-    *   **Proposed Command:** `onedrive-client files rename <remote-path> <new-name>`
-*   **[ ] User Story 2.9:** I want to search for files and folders across my entire drive by a query string.
-    *   **Proposed Command:** `onedrive-client files search "<query>"`
+    *   **Command:** `onedrive-client files mkdir <remote-path>`
+*   **[x] User Story 2.6 (Large Files):** I want to upload files larger than 4MB, so that I can transfer large assets to my cloud storage. The upload must be resumable.
+    *   **Status:** Complete. The `upload` command automatically uses a resumable session.
+*   **[ ] User Story 2.7 (Large Files):** I want to download files larger than 4MB without consuming excessive memory, and the download should be resumable.
+    *   **Status:** Not Started. The current download implementation is not suitable for large files.
+*   **[ ] User Story 2.8:** I want to delete a file or folder from my OneDrive.
+    *   **Command:** `onedrive-client files rm <remote-path>`
+*   **[ ] User Story 2.9:** I want to move a file or folder from one location to another.
+    *   **Command:** `onedrive-client files mv <source-path> <destination-path>`
+*   **[ ] User Story 2.10:** I want to rename a file or folder.
+    *   **Command:** `onedrive-client files rename <remote-path> <new-name>`
+*   **[ ] User Story 2.11:** I want to search for files and folders across my entire drive by a query string.
+    *   **Command:** `onedrive-client files search "<query>"`
 
 ---
 
@@ -104,7 +108,7 @@ As a user, I want to perform standard file and folder operations from the comman
 As a user, I want to see and manage content that has been shared with me.
 
 *   **[ ] User Story 3.1:** I want to list all the files and folders that have been shared with me.
-    *   **Proposed Command:** `onedrive-client shared list`
+    *   **Command:** `onedrive-client shared list`
 
 ---
 
@@ -113,16 +117,8 @@ As a user, I want to see and manage content that has been shared with me.
 As a user, I want to explicitly manage my authentication state.
 
 *   **[x] User Story 4.1:** I want to log in using a non-interactive flow suitable for CLI applications.
-    *   **Proposed Commands:** `onedrive-client auth login`
+    *   **Command:** `onedrive-client auth login`
 *   **[x] User Story 4.2:** I want to check if I am currently logged in and see my user information.
-    *   **Proposed Command:** `onedrive-client auth status`
+    *   **Command:** `onedrive-client auth status`
 *   **[x] User Story 4.3:** I want to log out, clearing my local credentials.
-    *   **Proposed Command:** `onedrive-client auth logout`
-
-- **US-4: Upload Large Files**: As a developer, I want to upload files larger than 4MB, so that I can transfer large assets to my cloud storage. (Status: **Complete**)
-  - *Acceptance Criteria*:
-    - The `upload` command works for files up to 100MB.
-    - The upload process is resumable if interrupted.
-    - Progress is displayed to the user during the upload.
-
-- **US-5: Download Large Files**: As a developer, I want to download files larger than 4MB. (Status: **Not Started**)
+    *   **Command:** `onedrive-client auth logout`

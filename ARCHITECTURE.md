@@ -6,29 +6,29 @@ This document outlines the technical architecture for the `onedrive-client` appl
 
 All development should adhere to these core principles:
 
-1.  **Separation of Concerns:** Each component has a single, well-defined responsibility.
-2.  **Testability:** Application logic should be testable without live network calls.
+1.  **Separation of Concerns:** Each component has a single, well-defined responsibility. The CLI is separate from the SDK, and the SDK is separate from the core application logic.
+2.  **Testability:** Application logic must be testable without live network calls, achieved through interfaces and dependency injection.
 3.  **Extensibility:** Adding new commands should be simple and not require major refactoring.
 
 This document is divided into two parts:
 *   **Current Architecture:** Describes the application as it is currently built.
-*   **Future Architecture:** Outlines the vision for improving the design and adding a background sync engine.
+*   **Future Architecture:** Outlines the vision for improving the design, extracting the SDK, and adding a background sync engine.
 
 ---
 
-## 2. Current Architecture: CLI Primitives
+## 2. Current Architecture: A Command-Driven Utility
 
-The application functions as a stateless, command-driven utility. The user executes a command, the action is performed, and the application exits.
+The application functions as a stateless, command-driven utility. The user executes a command, the action is performed, and the application exits. State is managed across invocations for specific features like authentication and resumable uploads via session files.
 
 ### 2.1. High-Level Data Flow
 
 The flow for any given command is as follows:
 
 ```
-[User] -> [main.go] -> [Cobra CLI (cmd/)] -> [App Core (internal/app)] -> [SDK (pkg/onedrive)] -> [MS Graph API]
+[User] -> [main.go] -> [Cobra CLI (cmd/)] -> [App Core (internal/app)] -> [SDK Interface] -> [OneDrive SDK (pkg/onedrive)] -> [MS Graph API]
   ^
-  |                                                                                             |
-  +----------------------- [UI (internal/ui)] <----------------- [Cobra CLI (cmd/)] <-----------+
+  |                                                                                                                        |
+  +------------------------------------ [UI (internal/ui)] <----------------------- [Cobra CLI (cmd/)] <--------------------+
 ```
 
 ### 2.2. Component Breakdown
@@ -45,10 +45,14 @@ The project is organized into packages, each with a distinct role.
 │   ├── drives.go
 │   └── auth.go
 └── internal/
-    ├── app/              // Core application logic (initialization, auth).
-    │   └── app.go
-    ├── config/           // Configuration loading and saving.
+    ├── app/              // Core application logic (initialization, SDK abstraction).
+    │   ├── app.go
+    │   └── sdk.go
+    ├── config/           // Configuration loading and saving (e.g., tokens).
     │   └── config.go
+    ├── session/          // Manages temporary state for multi-step operations.
+    │   ├── auth.go       // Handles the pending auth session.
+    │   └── session.go    // Handles resumable upload sessions.
     └── ui/               // User interface formatting and output.
         └── display.go
 └── pkg/
@@ -59,81 +63,73 @@ The project is organized into packages, each with a distinct role.
 
 #### `cmd/` (The Command Layer)
 *   **Technology:** [Cobra](https://cobra.dev/).
-*   **Responsibility:** Defines the command structure (`drives`, etc.), arguments, and flags. The `Run` function for each command is responsible for:
-    1.  Initializing the App Core (`internal/app`).
-    2.  Calling the appropriate SDK function via the App Core client.
+*   **Responsibility:** Defines the command structure (`files`, `drives`, etc.), arguments, and flags. The `RunE` function for each command is responsible for:
+    1.  Initializing the App Core (`app.NewApp()`).
+    2.  Calling the appropriate SDK function via the App Core's `SDK` interface.
     3.  Passing the results (or errors) to the UI Layer (`internal/ui`) for display.
-*   **Constraint:** This layer contains **no business logic**. It only orchestrates calls.
+*   **Constraint:** This layer contains **no business logic**. It only orchestrates calls between the user, the app core, and the UI.
 
-#### `internal/app/` (The App Core)
-*   **Responsibility:** Acts as the central hub for the application. It initializes the configuration and the OneDrive HTTP client (handling the authentication flow if necessary). It provides a fully configured client to the command layer.
-*   **Implementation:** The `app.NewApp()` function returns an `App` struct containing the loaded configuration and a ready-to-use `*http.Client`. The `NewApp` function is now also responsible for checking for and completing any pending authentication flows.
+#### `internal/app/` (The App Core & SDK Abstraction)
+*   **Responsibility:** Acts as the central hub for the application.
+    *   `app.go`: The `NewApp()` function initializes the configuration and the OneDrive HTTP client. Crucially, it detects and completes any pending authentication flows, ensuring that any command that runs can assume it has a valid, authenticated client.
+    *   `sdk.go`: Defines the `SDK` interface, which decouples the command layer from the concrete SDK implementation. This is key for testability. It also provides the `OneDriveSDK` struct which wraps the real `pkg/onedrive` functions.
 
 #### `internal/config/` (Configuration Management)
-*   **Responsibility:** Handles all logic for loading, parsing, and saving the `config.json` file, which stores the final OAuth tokens.
+*   **Responsibility:** Handles all logic for loading, parsing, and saving the `config.json` file. This file stores the final OAuth tokens and is located in the user's configuration directory (e.g., `~/.config/onedrive-client/`).
 
 #### `internal/session/` (Session Management)
-*   **Responsibility:** Manages temporary state files. For authentication, this includes the `auth_session.json` file, which stores the details of a pending Device Code Flow login. It uses file-locking to prevent race conditions from concurrent CLI invocations.
+*   **Responsibility:** Manages temporary state files required for operations that span multiple CLI invocations. It uses file-locking to prevent race conditions from concurrent commands.
+    *   `auth.go`: Manages the `auth_session.json` file, which stores the details of a pending Device Code Flow login.
+    *   `session.go`: Manages session files for resumable uploads. It creates a unique session file for each upload, named with a SHA256 hash of the local and remote file paths. This allows the `upload` command to resume if interrupted.
 
 #### `internal/ui/` (The Presentation Layer)
-*   **Responsibility:** Handles all user-facing output. This includes printing tables of files, success messages, and formatted errors. Separating this logic ensures display format changes don't affect other layers.
+*   **Responsibility:** Handles all user-facing output. This includes printing tables of files, progress bars, success messages, and formatted errors.
 
 #### `pkg/onedrive/` (The SDK Layer)
 *   **Responsibility:** This package is the **only** component that knows how to communicate with the Microsoft Graph API. It handles creating API requests, parsing responses, and defining the data models (`DriveItem`, etc.).
-*   **Authentication**: Implements the OAuth 2.0 Device Code Flow. It has no awareness of the higher-level application's stateful, non-blocking flow; it simply provides the functions to initiate the flow and verify a device code.
+*   **Authentication**: It implements the raw mechanics of the OAuth 2.0 Device Code Flow but has no awareness of the higher-level application's stateful, non-blocking flow. It simply provides the functions to initiate the flow and verify a device code.
+*   **Independence:** This package has no dependencies on any other package in the project (`internal/`, `cmd/`), making it a candidate for future extraction into a standalone library.
 
-### 2.3. How to Add a New Command (Example: `files list`)
+### 2.3. Key Architectural Patterns
 
-An intern should follow these steps:
+#### Non-Blocking Authentication Flow
+The application uses a stateful, non-blocking implementation of the OAuth 2.0 Device Code Flow, providing a seamless CLI experience.
+1.  **`auth login`**: The user runs this command. The CLI gets a `user_code` and `device_code` from Microsoft, saves them to `auth_session.json`, displays the code to the user, and immediately exits.
+2.  **User Action**: The user authorizes the code in a browser.
+3.  **Any Subsequent Command**: When the user runs another command (e.g., `files list`), `app.NewApp()` detects the `auth_session.json` file, automatically exchanges the `device_code` for the final tokens, saves them to `config.json`, and deletes the session file before proceeding.
 
-1.  **SDK Layer (`pkg/onedrive`):** Check if a function already exists to get the data you need (e.g., `GetDrives`). If not, add a new function that calls the required Microsoft Graph API endpoint.
-2.  **Command Layer (`cmd/`):** Create a new file, e.g., `cmd/mynewcommand.go`. Define the new command using Cobra.
-3.  **Command Layer:** In the `Run` function for the command, call `app.NewApp()` to get the initialized application struct. The `PersistentPreRunE` hook on the root command will automatically handle any pending login flows, so the command's own `Run` function does not need to worry about it. It can assume that if it runs, the user is authenticated.
-4.  **UI Layer (`internal/ui`):** Pass the data returned from the SDK to a display function in the `ui` package.
+#### Resumable Uploads
+Large file uploads are handled via resumable sessions to be resilient to network interruptions.
+1.  **`files upload`**: The command first checks if a session file exists for the given local and remote file paths.
+2.  **New Upload**: If no session exists, it calls the SDK to create an upload session with the Graph API and saves the unique `uploadUrl` to a new session file.
+3.  **Resumed Upload**: If a session file exists, it reads the `uploadUrl` and queries the API for the last successfully uploaded byte range.
+4.  **Chunking**: The file is then uploaded in chunks. After each successful chunk upload, the progress is implicitly saved on the server side. If the command is interrupted, running it again will resume from the last completed chunk.
+5.  **Completion**: Upon successful upload of all chunks, the session file is deleted.
 
 ---
 
 ## 3. Future Architecture
 
-This section outlines planned improvements to the architecture and the long-term vision for a sync client.
+This section outlines planned improvements and the long-term vision.
 
-### 3.1. Architectural Refinements for Testability and Reusability
+### 3.1. Architectural Refinements
 
-To make the application more robust and the SDK truly reusable, two key changes should be implemented.
-
-#### A. Isolate the SDK into its own Repository
+#### A. Isolate the SDK into its own Repository (High Priority)
 *   **Goal:** Allow other projects to use the OneDrive Go SDK without depending on the `onedrive-client` CLI.
-*   **Why:** True modularity. The SDK gets its own versioning, tests, and release cycle.
+*   **Why:** True modularity. The SDK will have its own versioning, tests, and release cycle, improving maintainability.
 *   **How-To:**
-    1.  Create a new, public Git repository (e.g., `github.com/your-org/onedrive-sdk-go`).
-    2.  Move the entire `pkg/onedrive` directory into the root of this new repository.
+    1.  Create a new, public Git repository (e.g., `github.com/your-org/go-onedrive`).
+    2.  Move the entire `pkg/onedrive` directory into the root of the new repository.
     3.  In the `onedrive-client` project, delete the `pkg/` directory.
-    4.  Run `go get github.com/your-org/onedrive-sdk-go` to add the new, external SDK as a dependency.
-    5.  Update all import paths from `.../pkg/onedrive` to `github.com/your-org/onedrive-sdk-go`.
+    4.  Run `go get github.com/your-org/go-onedrive` to add it as a dependency.
+    5.  Update all import paths. The `SDK` interface in `internal/app/sdk.go` will remain, wrapping the new external module.
 
-#### B. Abstract the SDK for Testability (Implemented)
-*   **Goal:** Enable true unit testing of CLI commands without making live network calls.
-*   **Why:** Previously, testing a command like `drives` required a live, authenticated `http.Client`. By using an interface, we can provide a "mock" SDK during tests that returns predefined data.
+#### B. Implement Resumable Downloads (Complete)
+*   **Goal:** Support downloading large files without consuming excessive memory and allow downloads to be resumed.
+*   **Why:** The current `files download` implementation is not streamed and is unsuitable for large files. Feature parity with uploads is needed.
 *   **How-To:**
-    1.  **Define an Interface:** In `internal/app`, a new `sdk.go` file was created with an `SDK` interface:
-        ```go
-        package app
-        
-        type SDK interface {
-            GetDriveItemChildrenByPath(client *http.Client, path string) (onedrive.DriveItemList, error)
-            // ... other SDK methods
-        }
-        ```
-    2.  **Create a Concrete Wrapper:** A struct `LiveSDK` was created that implements this interface and wraps the real SDK calls.
-        ```go
-        type LiveSDK struct{}
-
-        func (s *LiveSDK) GetDriveItemChildrenByPath(client *http.Client) (onedrive.DriveItemList, error) {
-            return onedrive.GetDriveItemChildrenByPath(client) // The real call
-        }
-        ```
-    3.  **Update App Core:** The `App` struct in `internal/app/app.go` now holds an instance of the `SDK` interface.
-    4.  **Update Commands:** Commands now call `a.SDK.GetDriveItemChildrenByPath()` instead of the package-level function. In tests, an `App` can be created with a mock SDK implementation.
+    1.  The SDK will need a new function that accepts an `io.Writer` and downloads the file in chunks using HTTP Range requests.
+    2.  The `files download` command will need to be updated to use this new function and manage a session file similar to the upload process.
 
 ### 3.2. The Sync Engine (v1.0+ Vision)
 
@@ -144,114 +140,6 @@ To evolve into a full sync client, the application must run as a persistent, bac
     *   `internal/sync/`: A new package containing the core sync logic.
         *   `engine.go`: Orchestrates the main sync loop, using the SDK's `delta` functionality to check for remote changes.
         *   `state.go`: Manages a local database (e.g., SQLite) to store the `deltaToken` and track the state of every synced file.
-        *   `watcher.go`: Uses a library like `fsnotify` to watch the local filesystem for changes, triggering the sync engine.
-        *   `resolver.go`: A crucial component for handling sync conflicts (e.g., a file modified in both places).
+        *   `watcher.go`: Uses a library like `fsnotify` to watch the local filesystem for changes.
+        *   `resolver.go`: A crucial component for handling sync conflicts.
     *   `cmd/sync.go`: A new command to `start`, `stop`, and check the `status` of the sync daemon.
-
-### 3.3. Authentication Flow (Device Code)
-
-The application uses a non-blocking, stateful implementation of the OAuth 2.0 Device Code Flow. This provides a seamless and user-friendly experience for a CLI.
-
-1.  **`auth login`**: The user runs this command to start the process.
-    - The CLI calls the Microsoft Identity endpoint to get a `user_code` and a `device_code`.
-    - It saves these details, along with the verification URL, into a temporary `auth_session.json` file.
-    - It displays the code and URL to the user and immediately exits.
-2.  **User Action**: The user opens the verification URL on any browser-enabled device and enters the `user_code` to approve the sign-in.
-3.  **Any Subsequent Command**: When the user runs *any* command (e.g., `files list` or `auth status`):
-    - The application starts and, in `app.NewApp`, detects the `auth_session.json` file.
-    - It automatically makes a request to the token endpoint with the stored `device_code`.
-    - If the user has approved the sign-in, the CLI receives the final access and refresh tokens, saves them to the main `config.json`, deletes the `auth_session.json` file, and proceeds with executing the command.
-    - If the user has not yet approved, the API returns a pending status, and the CLI informs the user to complete the step in their browser. All commands (except for `auth` itself) are blocked from running by a `PersistentPreRunE` hook on the root command.
-
-This non-blocking flow allows the user to initiate a login and continue working in their terminal without being locked into a polling loop.
-
-The `onedrive` package is a self-contained SDK for interacting with the Microsoft Graph API. It has no dependencies on the rest of the application. It handles API calls, error wrapping, and OAuth2 logic. All models specific to the OneDrive API are defined here.
-
-### Session State Management
-
-For features that require state to be maintained across multiple command invocations (e.g., resumable file uploads), a session management system is used.
-
-- **Location**: Session files are stored in `~/.config/onedrive-client/sessions/`.
-- **Mechanism**: When a resumable operation (like a file upload or a pending login) begins, a session file is created. This file contains the necessary information to resume the operation. The auth session is stored in `auth_session.json`, while file uploads are named using a SHA256 hash of the file paths.
-- **Lifecycle**: The session file is created when the operation starts and deleted upon successful completion. If the operation is interrupted, the file remains, and the application will detect and use it to resume the next time the same command is run. File locking is used to prevent race conditions.
-
-## UI
-
-The `ui` package is responsible for all console output. It provides functions for displaying tables, progress bars, and formatted success/error messages. It also contains the logger implementation that can be passed to the `onedrive` SDK for debug output.
-
-## Testing Strategy
-
-The authentication system includes comprehensive test coverage to ensure reliability and robustness:
-
-### Test Categories
-
-1. **Positive Flow Tests**
-   - `auth login` creates session files and displays proper messages
-   - `auth status` correctly reports login states (logged out, pending, logged in)
-   - `auth logout` cleans up tokens and session files
-   - Complete login flow with device code verification and user information retrieval
-
-2. **File Locking Tests**
-   - Concurrent login attempt prevention
-   - Session file lock acquisition and release
-   - Directory creation for lock files
-
-3. **Error Handling Tests**
-   - Device code request failures (network errors, server errors)
-   - Token verification failures (access denied, expired codes)
-   - Automatic session cleanup on authentication failures
-
-4. **Global Command Blocking Tests**
-   - Non-auth commands blocked when login pending
-   - Auth commands allowed when login pending
-   - Proper error propagation
-
-### Test Infrastructure
-
-- **Mock HTTP Server**: Custom test server that handles OAuth endpoints and Graph API calls
-- **Environment Isolation**: Each test uses temporary directories and environment variables
-- **Custom Endpoints**: Ability to override OAuth and Graph API endpoints for testing
-- **Error Simulation**: Controlled error scenarios for comprehensive edge case testing
-- **Improved Output Capture**: Non-intrusive output capturing that doesn't mutate global state
-- **Consistent Error Handling**: All commands use `RunE` pattern for better testability
-
-### Test Utilities
-
-- `setupAuthTest()`: Creates isolated test environment with temporary config
-- `captureOutput()`: Captures command output including log messages for assertion
-- Mock server with request body parsing for different OAuth flow stages
-- Session file path construction matching production behavior
-- Dependency injection for session management to avoid global state mutations
-
-This testing strategy ensures the authentication system works correctly under all conditions and provides confidence in the non-blocking device code flow implementation.
-
-## Code Quality Standards
-
-### Error Handling
-- **Consistency**: All commands use the `RunE` pattern instead of `log.Fatalf()` for consistent error handling
-- **Proper Propagation**: Errors are returned up the call stack rather than immediately terminating the program
-- **User-Friendly Messages**: Error messages provide actionable information to users
-- **Testing**: Error conditions are testable without process termination
-
-### Path Handling
-- **Remote vs Local**: Clear distinction between local filesystem paths and remote OneDrive paths
-- **Cross-Platform**: Local paths use `filepath` package, remote paths use custom utilities
-- **Validation**: Path inputs are validated before API calls
-- **Normalization**: Consistent path formatting across the application
-
-### Thread Safety
-- **Configuration**: Token updates use proper mutex protection
-- **Session Management**: File operations are atomic and locked appropriately
-- **Concurrent Access**: Multiple CLI instances can run safely without race conditions
-
-### Session Management
-- **Manager Pattern**: Session operations use dependency injection instead of global variables
-- **Resource Cleanup**: Proper cleanup of temporary files and session state
-- **Testability**: Session behavior is fully testable with custom configurations
-- **Expiration Handling**: Automatic cleanup of expired sessions
-
-### Resource Management
-- **File Handles**: Proper defer statements ensure file closure
-- **Memory**: Streaming operations for large files to minimize memory usage
-- **Network**: HTTP clients are properly configured and reused
-- **Cleanup**: Temporary resources are cleaned up on both success and failure paths

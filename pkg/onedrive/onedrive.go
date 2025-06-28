@@ -290,8 +290,8 @@ func apiCallWithDebug(method, url, contentType string, body io.Reader, debug boo
 	return res, nil
 }
 
-// buildPathURL constructs the correct Microsoft Graph API URL for a given path.
-func buildPathURL(path string) string {
+// BuildPathURL constructs the correct Microsoft Graph API URL for a given path.
+func BuildPathURL(path string) string {
 	if path == "" || path == "/" {
 		return customRootURL + "me/drive/root"
 	}
@@ -306,7 +306,7 @@ func GetDriveItemByPath(client *http.Client, path string) (DriveItem, error) {
 	logger.Debug("GetDriveItemByPath called with path: ", path)
 	var item DriveItem
 
-	url := buildPathURL(path)
+	url := BuildPathURL(path)
 	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return item, err
@@ -326,7 +326,7 @@ func GetDriveItemChildrenByPath(client *http.Client, path string) (DriveItemList
 	var items DriveItemList
 
 	// For root, the URL is /children. For subfolders, it's /:/children
-	url := buildPathURL(path)
+	url := BuildPathURL(path)
 	if url == customRootURL+"me/drive/root" {
 		url += "/children"
 	} else {
@@ -414,7 +414,7 @@ func CreateFolder(client *http.Client, parentPath string, folderName string) (Dr
 	logger.Debug("CreateFolder called with parentPath: ", parentPath, " folderName: ", folderName)
 	var item DriveItem
 
-	url := buildPathURL(parentPath)
+	url := BuildPathURL(parentPath)
 	if url == customRootURL+"me/drive/root" {
 		url += "/children"
 	} else {
@@ -456,7 +456,7 @@ func UploadFile(client *http.Client, localPath, remotePath string) (DriveItem, e
 	defer file.Close()
 
 	// The URL for upload is /root:/path/to/folder/filename:/content
-	url := buildPathURL(remotePath) + ":/content"
+	url := BuildPathURL(remotePath) + ":/content"
 
 	res, err := apiCall(client, "PUT", url, "application/octet-stream", file)
 	if err != nil {
@@ -476,7 +476,7 @@ func CreateUploadSession(client *http.Client, remotePath string) (UploadSession,
 	logger.Debug("CreateUploadSession called with remotePath: ", remotePath)
 	var session UploadSession
 
-	url := buildPathURL(remotePath) + ":/createUploadSession"
+	url := BuildPathURL(remotePath) + ":/createUploadSession"
 
 	requestBody := map[string]interface{}{
 		"item": map[string]interface{}{
@@ -596,7 +596,7 @@ func CancelUploadSession(uploadURL string) error {
 func DownloadFile(client *http.Client, remotePath, localPath string) error {
 	logger.Debug("DownloadFile called with remotePath: ", remotePath, ", localPath: ", localPath)
 
-	url := buildPathURL(remotePath) + "/content"
+	url := BuildPathURL(remotePath) + "/content"
 	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return err
@@ -615,6 +615,31 @@ func DownloadFile(client *http.Client, remotePath, localPath string) error {
 	}
 
 	return nil
+}
+
+// DownloadFileChunk downloads a chunk of a file.
+func DownloadFileChunk(client *http.Client, url string, startByte, endByte int64) (io.ReadCloser, error) {
+	logger.Debug("DownloadFileChunk called for URL: ", url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating download chunk request failed: %v", err)
+	}
+
+	contentRange := fmt.Sprintf("bytes=%d-%d", startByte, endByte)
+	req.Header.Set("Range", contentRange)
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("downloading chunk failed: %v", err)
+	}
+
+	if res.StatusCode != http.StatusPartialContent {
+		defer res.Body.Close()
+		return nil, fmt.Errorf("download chunk failed with status %s", res.Status)
+	}
+
+	return res.Body, nil
 }
 
 // StartAuthentication initiates the OAuth authentication process.

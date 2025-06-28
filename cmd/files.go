@@ -283,10 +283,92 @@ func filesDownloadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		localPath = args[1]
 	}
 
-	err := a.SDK.DownloadFile(remotePath, localPath)
+	// Handle graceful interruption
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		fmt.Println("\nDownload interrupted. Run the command again to resume.")
+		os.Exit(0)
+	}()
+
+	// Get file metadata to know the total size
+	item, err := a.SDK.GetDriveItemByPath(remotePath)
 	if err != nil {
-		return fmt.Errorf("downloading file: %w", err)
+		return fmt.Errorf("getting remote file info: %w", err)
 	}
+	totalSize := item.Size
+
+	// Check for existing session
+	state, err := session.Load(localPath, remotePath)
+	if err != nil {
+		return fmt.Errorf("loading session state: %w", err)
+	}
+
+	var startByte int64
+	var file *os.File
+
+	if state != nil {
+		fmt.Println("Resuming previous download session.")
+		startByte = state.CompletedBytes
+		file, err = os.OpenFile(localPath, os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("opening local file for resuming: %w", err)
+		}
+	} else {
+		fmt.Println("Starting new download.")
+		file, err = os.Create(localPath)
+		if err != nil {
+			return fmt.Errorf("creating local file: %w", err)
+		}
+		state = &session.State{
+			LocalPath:  localPath,
+			RemotePath: remotePath,
+		}
+	}
+	defer file.Close()
+
+	if _, err := file.Seek(startByte, io.SeekStart); err != nil {
+		return fmt.Errorf("seeking file: %w", err)
+	}
+
+	bar := ui.NewProgressBar(int(totalSize))
+	bar.Set(int(startByte))
+
+	for startByte < totalSize {
+		endByte := startByte + chunkSize - 1
+		if endByte >= totalSize {
+			endByte = totalSize - 1
+		}
+
+		// The download URL is part of the DriveItem model, but not yet exposed in the SDK call.
+		// For now, we will construct it manually.
+		downloadURL := onedrive.BuildPathURL(remotePath) + "/content"
+
+		body, err := a.SDK.DownloadFileChunk(downloadURL, startByte, endByte)
+		if err != nil {
+			return fmt.Errorf("downloading chunk: %w. Run command again to resume", err)
+		}
+
+		written, err := io.Copy(file, io.TeeReader(body, bar))
+		if err != nil {
+			body.Close()
+			return fmt.Errorf("writing chunk to file: %w", err)
+		}
+		body.Close()
+
+		startByte += written
+		state.CompletedBytes = startByte
+		if err := session.Save(state); err != nil {
+			return fmt.Errorf("saving session state: %w", err)
+		}
+	}
+
+	// Clean up session file on success
+	if err := session.Delete(localPath, remotePath); err != nil {
+		log.Printf("Warning: failed to delete session file %s: %v", remotePath, err)
+	}
+
 	ui.PrintSuccess("File '%s' downloaded successfully to '%s'.\n", remotePath, localPath)
 	return nil
 }
