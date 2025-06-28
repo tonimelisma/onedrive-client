@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -34,29 +33,29 @@ var authLoginCmd = &cobra.Command{
 	Short: "Authenticate with Microsoft OneDrive",
 	Long: `This command starts the authentication process with Microsoft OneDrive.
 You will be prompted to visit a URL and enter a code to authorize the application.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.LoadOrCreate()
 		if err != nil {
-			log.Fatalf("Error loading config: %v", err)
+			return fmt.Errorf("error loading config: %v", err)
 		}
 
 		if cfg.Token.AccessToken != "" {
 			fmt.Println("You are already logged in. Please run 'auth logout' first.")
-			return
+			return nil
 		}
 		authSessionPath, err := getAuthSessionFilePath()
 		if err != nil {
-			log.Fatalf("Could not get auth session path: %v", err)
+			return fmt.Errorf("could not get auth session path: %v", err)
 		}
 		if _, err := os.Stat(authSessionPath); !os.IsNotExist(err) {
 			fmt.Println("A login is already pending. Please complete it or run 'auth logout' to cancel.")
-			return
+			return nil
 		}
 
 		debug, _ := cmd.Flags().GetBool("debug")
 		deviceCodeResp, err := onedrive.InitiateDeviceCodeFlow(config.ClientID, debug)
 		if err != nil {
-			log.Fatalf("Login failed: %v", err)
+			return fmt.Errorf("login failed: %v", err)
 		}
 
 		authState := &session.AuthState{
@@ -67,11 +66,12 @@ You will be prompted to visit a URL and enter a code to authorize the applicatio
 		}
 
 		if err := session.SaveAuthState(authState); err != nil {
-			log.Fatalf("Could not save auth session: %v", err)
+			return fmt.Errorf("could not save auth session: %v", err)
 		}
 
 		fmt.Printf("You have %d minutes to complete the login.\n", deviceCodeResp.ExpiresIn/60)
 		fmt.Println(deviceCodeResp.Message)
+		return nil
 	},
 }
 
@@ -79,14 +79,15 @@ var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Clear the current user session",
 	Long:  "This command clears the saved user session, effectively logging the user out.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.LoadOrCreate()
 		if err != nil {
-			log.Fatalf("Error loading config: %v", err)
+			return fmt.Errorf("error loading config: %v", err)
 		}
 		if err := app.Logout(cfg); err != nil {
-			log.Fatalf("could not logout: %v", err)
+			return fmt.Errorf("could not logout: %v", err)
 		}
+		return nil
 	},
 }
 
@@ -94,28 +95,29 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Display the current authentication status",
 	Long:  `This command checks and displays the current authentication status, including the logged in user.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
 			if errors.Is(err, app.ErrLoginPending) {
 				fmt.Println(err.Error())
-				return
+				return nil
 			}
 			if errors.Is(err, onedrive.ErrReauthRequired) {
 				fmt.Println("You are not logged in. Please run 'onedrive-client auth login'.")
-				return
+				return nil
 			}
 			if err.Error() == "login pending" {
-				return
+				return nil
 			}
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %v", err)
 		}
 
 		user, err := a.GetMe()
 		if err != nil {
-			log.Fatalf("Could not get user information: %v", err)
+			return fmt.Errorf("could not get user information: %v", err)
 		}
 		fmt.Printf("You are logged in as: %s (%s)\n", user.DisplayName, user.UserPrincipalName)
+		return nil
 	},
 }
 

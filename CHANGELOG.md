@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `drives list` command to list all available OneDrive drives.
 - `drives quota` command to display storage quota for the default drive.
 - New `auth` command group (`login`, `confirm`, `status`, `logout`) to manage authentication.
+- Comprehensive authentication testing strategy with file locking, error handling, and edge case coverage.
+- Enhanced test infrastructure with mock server support for Graph API endpoints.
 
 ### Changed
 - The underlying SDK now uses path-based addressing to look up items in OneDrive, allowing access to any file/folder, not just those in the root.
@@ -39,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Resolved persistent build and test failures caused by Go module inconsistencies. This required manual adjustments to `go.mod` and repeated `go mod tidy` commands to correctly vendor a new dependency (`progressbar`).
 - The build process was fixed by removing duplicated test helper code.
+- Authentication command error handling to use RunE instead of log.Fatalf for better testability.
+- Session directory creation in file locking operations to prevent "no such file or directory" errors.
+- Test helper function signatures and session file path construction in authentication tests.
 
 ### Removed
 - Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.

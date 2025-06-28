@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tonimelisma/onedrive-client/internal/config"
+	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
@@ -23,8 +25,11 @@ func setupAuthTest(t *testing.T) (string, func()) {
 
 	t.Setenv("ONEDRIVE_CONFIG_PATH", tempConfigFile)
 
-	// Teardown is handled automatically by t.Setenv and t.TempDir
-	return tempDir, func() {}
+	// Override session package's GetConfigDir to point to same temp dir
+	oldSessionDir := session.GetConfigDir
+	session.GetConfigDir = func() (string, error) { return tempDir, nil }
+
+	return tempDir, func() { session.GetConfigDir = oldSessionDir }
 }
 
 func TestAuthLogin(t *testing.T) {
@@ -97,23 +102,48 @@ func TestAuthStatus(t *testing.T) {
 		loginAttempts := 0
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			if strings.Contains(r.URL.Path, "devicecode") {
-				resp := onedrive.DeviceCodeResponse{DeviceCode: "device-code-complete", UserCode: "USERCODE", VerificationURI: "http://verify.com"}
-				json.NewEncoder(w).Encode(resp)
-			} else if strings.Contains(r.URL.Path, "token") {
-				if loginAttempts == 0 {
-					loginAttempts++
-					w.WriteHeader(http.StatusBadRequest)
-					json.NewEncoder(w).Encode(map[string]string{"error": "authorization_pending"})
-				} else {
-					json.NewEncoder(w).Encode(onedrive.OAuthToken{AccessToken: "final-token"})
-				}
-			} else if strings.Contains(r.URL.Path, "me") {
+
+			// Handle Graph API requests (like /v1.0/me)
+			if r.Method == "GET" && r.URL.Path == "/v1.0/me" {
 				json.NewEncoder(w).Encode(onedrive.User{DisplayName: "Test User", UserPrincipalName: "test@user.com"})
+				return
+			}
+
+			// Parse the request body to determine the type of OAuth request
+			if r.Method == "POST" {
+				body, _ := io.ReadAll(r.Body)
+				bodyStr := string(body)
+
+				if strings.Contains(bodyStr, "client_id") && strings.Contains(bodyStr, "scope") {
+					// This is a device code request
+					resp := onedrive.DeviceCodeResponse{
+						DeviceCode:      "device-code-complete",
+						UserCode:        "USERCODE",
+						VerificationURI: "http://verify.com",
+						ExpiresIn:       900,
+						Interval:        1,
+						Message:         "Go to http://verify.com and enter code USERCODE",
+					}
+					json.NewEncoder(w).Encode(resp)
+				} else if strings.Contains(bodyStr, "device_code") {
+					// This is a token verification request
+					if loginAttempts == 0 {
+						loginAttempts++
+						w.WriteHeader(http.StatusBadRequest)
+						json.NewEncoder(w).Encode(map[string]string{"error": "authorization_pending"})
+					} else {
+						json.NewEncoder(w).Encode(onedrive.OAuthToken{AccessToken: "final-token"})
+					}
+				} else {
+					w.WriteHeader(http.StatusNotFound)
+				}
+			} else {
+				w.WriteHeader(http.StatusNotFound)
 			}
 		}))
 		defer server.Close()
 		onedrive.SetCustomEndpoints(server.URL, server.URL, server.URL)
+		onedrive.SetCustomGraphEndpoint(server.URL + "/v1.0/")
 
 		_, cleanup := setupAuthTest(t)
 		defer cleanup()
@@ -170,6 +200,116 @@ func TestAuthLogout(t *testing.T) {
 
 		cfg, _ = config.LoadOrCreate()
 		assert.Empty(t, cfg.Token.AccessToken)
+		assert.NoFileExists(t, sessionFilePath)
+	})
+}
+
+func TestAuthFileLocking(t *testing.T) {
+	t.Run("should prevent concurrent login attempts", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			resp := onedrive.DeviceCodeResponse{
+				UserCode:        "TESTCODE",
+				DeviceCode:      "test-device-code",
+				VerificationURI: "https://test.com/verify",
+				ExpiresIn:       900,
+				Interval:        1,
+				Message:         "Go to https://test.com/verify and enter code TESTCODE",
+			}
+			json.NewEncoder(w).Encode(resp)
+		}))
+		defer server.Close()
+		onedrive.SetCustomEndpoints(server.URL, server.URL, server.URL)
+
+		_, cleanup := setupAuthTest(t)
+		defer cleanup()
+
+		// Start first login
+		captureOutput(t, func() {
+			rootCmd.SetArgs([]string{"auth", "login"})
+			rootCmd.Execute()
+		})
+
+		// Try second login - should detect existing session
+		output := captureOutput(t, func() {
+			rootCmd.SetArgs([]string{"auth", "login"})
+			rootCmd.Execute()
+		})
+
+		assert.Contains(t, output, "A login is already pending")
+	})
+}
+
+func TestAuthErrorHandling(t *testing.T) {
+	t.Run("should handle device code request failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Server error"))
+		}))
+		defer server.Close()
+		onedrive.SetCustomEndpoints(server.URL, server.URL, server.URL)
+
+		_, cleanup := setupAuthTest(t)
+		defer cleanup()
+
+		output := captureOutput(t, func() {
+			rootCmd.SetArgs([]string{"auth", "login"})
+			err := rootCmd.Execute()
+			assert.Error(t, err)
+		})
+
+		// Error should be returned, not printed to output since we're using RunE
+		assert.Empty(t, output)
+	})
+
+	t.Run("should handle token verification failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			body, _ := io.ReadAll(r.Body)
+			bodyStr := string(body)
+
+			if strings.Contains(bodyStr, "client_id") && strings.Contains(bodyStr, "scope") {
+				resp := onedrive.DeviceCodeResponse{
+					DeviceCode:      "test-device-code",
+					UserCode:        "TESTCODE",
+					VerificationURI: "https://test.com/verify",
+					ExpiresIn:       900,
+					Interval:        1,
+					Message:         "Go to https://test.com/verify and enter code TESTCODE",
+				}
+				json.NewEncoder(w).Encode(resp)
+			} else if strings.Contains(bodyStr, "device_code") {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"error": "access_denied"})
+			}
+		}))
+		defer server.Close()
+		onedrive.SetCustomEndpoints(server.URL, server.URL, server.URL)
+
+		_, cleanup := setupAuthTest(t)
+		defer cleanup()
+
+		// Start login
+		captureOutput(t, func() {
+			rootCmd.SetArgs([]string{"auth", "login"})
+			rootCmd.Execute()
+		})
+
+		// Check status - should detect auth failure and return error
+		var statusErr error
+		captureOutput(t, func() {
+			rootCmd.SetArgs([]string{"auth", "status"})
+			statusErr = rootCmd.Execute()
+		})
+
+		// Should return an error when auth fails
+		assert.Error(t, statusErr)
+		assert.Contains(t, statusErr.Error(), "authentication failed")
+
+		// Session file should be cleaned up after failure
+		configDir, err := config.GetConfigDir()
+		require.NoError(t, err)
+		sessionFilePath := filepath.Join(configDir, "sessions", "auth_session.json")
 		assert.NoFileExists(t, sessionFilePath)
 	})
 }

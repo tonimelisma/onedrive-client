@@ -178,3 +178,46 @@ For features that require state to be maintained across multiple command invocat
 ## UI
 
 The `ui` package is responsible for all console output. It provides functions for displaying tables, progress bars, and formatted success/error messages. It also contains the logger implementation that can be passed to the `onedrive` SDK for debug output.
+
+## Testing Strategy
+
+The authentication system includes comprehensive test coverage to ensure reliability and robustness:
+
+### Test Categories
+
+1. **Positive Flow Tests**
+   - `auth login` creates session files and displays proper messages
+   - `auth status` correctly reports login states (logged out, pending, logged in)
+   - `auth logout` cleans up tokens and session files
+   - Complete login flow with device code verification and user information retrieval
+
+2. **File Locking Tests**
+   - Concurrent login attempt prevention
+   - Session file lock acquisition and release
+   - Directory creation for lock files
+
+3. **Error Handling Tests**
+   - Device code request failures (network errors, server errors)
+   - Token verification failures (access denied, expired codes)
+   - Automatic session cleanup on authentication failures
+
+4. **Global Command Blocking Tests**
+   - Non-auth commands blocked when login pending
+   - Auth commands allowed when login pending
+   - Proper error propagation
+
+### Test Infrastructure
+
+- **Mock HTTP Server**: Custom test server that handles OAuth endpoints and Graph API calls
+- **Environment Isolation**: Each test uses temporary directories and environment variables
+- **Custom Endpoints**: Ability to override OAuth and Graph API endpoints for testing
+- **Error Simulation**: Controlled error scenarios for comprehensive edge case testing
+
+### Test Utilities
+
+- `setupAuthTest()`: Creates isolated test environment with temporary config
+- `captureOutput()`: Captures command output for assertion
+- Mock server with request body parsing for different OAuth flow stages
+- Session file path construction matching production behavior
+
+This testing strategy ensures the authentication system works correctly under all conditions and provides confidence in the non-blocking device code flow implementation.

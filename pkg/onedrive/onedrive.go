@@ -32,6 +32,7 @@ var (
 	customAuthURL   = oAuthAuthURL
 	customTokenURL  = oAuthTokenURL
 	customDeviceURL = oAuthDeviceURL
+	customRootURL   = rootUrl
 )
 
 // Sentinel errors
@@ -53,6 +54,11 @@ func SetCustomEndpoints(authURL, tokenURL, deviceURL string) {
 	customAuthURL = authURL
 	customTokenURL = tokenURL
 	customDeviceURL = deviceURL
+}
+
+// SetCustomGraphEndpoint allows overriding the default Graph API endpoint for testing.
+func SetCustomGraphEndpoint(graphURL string) {
+	customRootURL = graphURL
 }
 
 // OAuthToken represents an OAuth2 Token.
@@ -287,12 +293,12 @@ func apiCallWithDebug(method, url, contentType string, body io.Reader, debug boo
 // buildPathURL constructs the correct Microsoft Graph API URL for a given path.
 func buildPathURL(path string) string {
 	if path == "" || path == "/" {
-		return rootUrl + "me/drive/root"
+		return customRootURL + "me/drive/root"
 	}
 	// Trim leading/trailing slashes and encode the path
 	trimmedPath := strings.Trim(path, "/")
 	encodedPath := url.PathEscape(trimmedPath)
-	return rootUrl + "me/drive/root:/" + encodedPath + ":"
+	return customRootURL + "me/drive/root:/" + encodedPath + ":"
 }
 
 // GetDriveItemByPath retrieves the metadata for a single drive item by its path.
@@ -321,7 +327,7 @@ func GetDriveItemChildrenByPath(client *http.Client, path string) (DriveItemList
 
 	// For root, the URL is /children. For subfolders, it's /:/children
 	url := buildPathURL(path)
-	if url == rootUrl+"me/drive/root" {
+	if url == customRootURL+"me/drive/root" {
 		url += "/children"
 	} else {
 		url += "/children"
@@ -345,7 +351,7 @@ func GetDrives(client *http.Client) (DriveList, error) {
 	logger.Debug("GetDrives called")
 	var drives DriveList
 
-	url := rootUrl + "me/drives"
+	url := customRootURL + "me/drives"
 	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return drives, err
@@ -364,7 +370,7 @@ func GetDefaultDrive(client *http.Client) (Drive, error) {
 	logger.Debug("GetDefaultDrive called")
 	var drive Drive
 
-	url := rootUrl + "me/drive"
+	url := customRootURL + "me/drive"
 	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return drive, err
@@ -384,7 +390,7 @@ func GetRootDriveItems(client *http.Client) (DriveItemList, error) {
 	logger.Debug("GetRootDriveItems called")
 	var items DriveItemList
 
-	res, err := apiCall(client, "GET", rootUrl+"me/drive/root/children", "", nil)
+	res, err := apiCall(client, "GET", customRootURL+"me/drive/root/children", "", nil)
 	if err != nil {
 		return items, err
 	}
@@ -409,7 +415,7 @@ func CreateFolder(client *http.Client, parentPath string, folderName string) (Dr
 	var item DriveItem
 
 	url := buildPathURL(parentPath)
-	if url == rootUrl+"me/drive/root" {
+	if url == customRootURL+"me/drive/root" {
 		url += "/children"
 	} else {
 		url += "/children"
@@ -708,7 +714,7 @@ func GetMe(client *http.Client) (User, error) {
 	logger.Debug("GetMe called")
 	var user User
 
-	url := rootUrl + "me"
+	url := customRootURL + "me"
 	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return user, err

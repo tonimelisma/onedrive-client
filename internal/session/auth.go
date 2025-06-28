@@ -68,6 +68,15 @@ func LoadAuthState() (*AuthState, error) {
 		return nil, err
 	}
 
+	// Ensure the session directory exists before trying to create lock files
+	sessionDir, err := getSessionDir()
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		return nil, fmt.Errorf("could not create session directory: %w", err)
+	}
+
 	fileLock := flock.New(filePath + ".lock")
 	locked, err := fileLock.TryLock()
 	if err != nil {
@@ -99,6 +108,15 @@ func DeleteAuthState() error {
 	filePath, err := getAuthSessionFilePath()
 	if err != nil {
 		return err
+	}
+
+	// Ensure the session directory exists before trying to create lock files
+	sessionDir, err := getSessionDir()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+		return fmt.Errorf("could not create session directory: %w", err)
 	}
 
 	fileLock := flock.New(filePath + ".lock")
