@@ -31,7 +31,7 @@ var filesListCmd = &cobra.Command{
 	Long:  "Lists the contents of a directory in your OneDrive. If no path is provided, it defaults to the root directory.",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		a, err := app.NewApp()
+		a, err := app.NewApp(cmd)
 		if err != nil {
 			log.Fatalf("Error creating app: %v", err)
 		}
@@ -47,7 +47,7 @@ var filesStatCmd = &cobra.Command{
 	Long:  "Retrieves detailed metadata for a specific file or folder by its path.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		a, err := app.NewApp()
+		a, err := app.NewApp(cmd)
 		if err != nil {
 			log.Fatalf("Error creating app: %v", err)
 		}
@@ -63,7 +63,7 @@ var filesMkdirCmd = &cobra.Command{
 	Long:  "Creates a new, empty folder at the specified remote path.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		a, err := app.NewApp()
+		a, err := app.NewApp(cmd)
 		if err != nil {
 			log.Fatalf("Error creating app: %v", err)
 		}
@@ -79,7 +79,7 @@ var filesUploadCmd = &cobra.Command{
 	Long:  "Uploads a local file to a specific folder in your OneDrive. If remote path is omitted, uploads to the root.",
 	Args:  cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
-		a, err := app.NewApp()
+		a, err := app.NewApp(cmd)
 		if err != nil {
 			log.Fatalf("Error creating app: %v", err)
 		}
@@ -95,7 +95,7 @@ var filesDownloadCmd = &cobra.Command{
 	Long:  "Downloads a file from your OneDrive. If local path is omitted, it saves to the current directory with the same name.",
 	Args:  cobra.RangeArgs(1, 2),
 	Run: func(cmd *cobra.Command, args []string) {
-		a, err := app.NewApp()
+		a, err := app.NewApp(cmd)
 		if err != nil {
 			log.Fatalf("Error creating app: %v", err)
 		}

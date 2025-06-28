@@ -18,6 +18,12 @@ func (l StdLogger) Debug(v ...interface{}) {
 	log.Println(v...)
 }
 
+// Success prints a success message.
+func Success(msg string) {
+	// Simple wrapper for now, could be expanded later (e.g., with colors)
+	fmt.Println(msg)
+}
+
 // PrintSuccess prints a success message to the console.
 func PrintSuccess(msg string, args ...interface{}) {
 	log.Printf("SUCCESS: "+msg+"\n", args...)
@@ -53,7 +59,11 @@ func DisplayDrives(drives onedrive.DriveList) {
 		if drive.Owner.User.DisplayName != "" {
 			ownerName = drive.Owner.User.DisplayName
 		}
-		fmt.Printf("%-35s %-15s %s\n", drive.Name, drive.DriveType, ownerName)
+		driveName := drive.Name
+		if drive.DriveType == "personal" && driveName == "" {
+			driveName = "OneDrive"
+		}
+		fmt.Printf("%-35s %-15s %s\n", driveName, drive.DriveType, ownerName)
 	}
 }
 
@@ -78,6 +88,11 @@ func DisplayQuota(drive onedrive.Drive) {
 	fmt.Printf("  Used:      %s\n", formatBytes(drive.Quota.Used))
 	fmt.Printf("  Remaining: %s\n", formatBytes(drive.Quota.Remaining))
 	fmt.Printf("  State:     %s\n", drive.Quota.State)
+}
+
+// DisplayUser prints information about a user.
+func DisplayUser(user onedrive.User) {
+	fmt.Printf("Logged in as: %s (%s)\n", user.DisplayName, user.UserPrincipalName)
 }
 
 // DisplayDriveItem prints detailed information about a single DriveItem.

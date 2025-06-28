@@ -113,9 +113,9 @@ As a user, I want to see and manage content that has been shared with me.
 As a user, I want to explicitly manage my authentication state.
 
 *   **[x] User Story 4.1:** I want to log in using a non-interactive flow suitable for CLI applications.
-    *   **Proposed Commands:** `onedrive-client auth login`, `onedrive-client auth confirm`
+    *   **Proposed Commands:** `onedrive-client auth login`
 *   **[x] User Story 4.2:** I want to check if I am currently logged in and see my user information.
-    *   **Proposed Command:** `onedrive-client auth status`
+    *   **Proposed Command:** `onedrive-client auth status`, `onedrive-client auth whoami`
 *   **[x] User Story 4.3:** I want to log out, clearing my local credentials.
     *   **Proposed Command:** `onedrive-client auth logout`
 

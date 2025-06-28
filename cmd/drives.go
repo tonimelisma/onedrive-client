@@ -20,7 +20,7 @@ var drivesListCmd = &cobra.Command{
 	Long:  "Lists all available OneDrive drives for the current user.",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		a, err := app.NewApp()
+		a, err := app.NewApp(cmd)
 		if err != nil {
 			log.Fatalf("Error creating app: %v", err)
 		}
@@ -36,7 +36,7 @@ var drivesQuotaCmd = &cobra.Command{
 	Long:  "Displays the total, used, and remaining storage quota for the default drive.",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		a, err := app.NewApp()
+		a, err := app.NewApp(cmd)
 		if err != nil {
 			log.Fatalf("Error creating app: %v", err)
 		}

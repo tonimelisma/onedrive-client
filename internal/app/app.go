@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/config"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
@@ -19,10 +20,16 @@ type App struct {
 	SDK    SDK
 }
 
-func NewApp() (*App, error) {
+func NewApp(cmd *cobra.Command) (*App, error) {
 	cfg, err := config.LoadOrCreate()
 	if err != nil {
 		return nil, fmt.Errorf("loading configuration: %w", err)
+	}
+
+	// Set debug mode from the flag if it was passed.
+	debug, _ := cmd.Flags().GetBool("debug")
+	if debug {
+		cfg.Debug = true
 	}
 
 	app := &App{
@@ -118,4 +125,39 @@ func (a *App) tokenRefreshCallback(token onedrive.OAuthToken) {
 	if err := a.Config.Save(); err != nil {
 		log.Fatalf("Error saving updated token to configuration on disk: %v\n", err)
 	}
+}
+
+// WhoAmI fetches and displays the current user's information.
+func (a *App) WhoAmI() error {
+	user, err := a.SDK.GetMe()
+	if err != nil {
+		return err
+	}
+	ui.DisplayUser(user)
+	return nil
+}
+
+// Logout clears the stored credentials.
+func (a *App) Logout() error {
+	a.Config.Token = onedrive.OAuthToken{}
+	if err := a.Config.Save(); err != nil {
+		return fmt.Errorf("could not clear token: %w", err)
+	}
+	ui.Success("You have been logged out.")
+	return nil
+}
+
+// Status checks and displays the current authentication status.
+func (a *App) Status() error {
+	// A successful call to GetMe indicates we are logged in.
+	user, err := a.SDK.GetMe()
+	if err != nil {
+		if errors.Is(err, onedrive.ErrReauthRequired) {
+			fmt.Println("You are not logged in. Please run 'onedrive-client auth login'.")
+			return nil
+		}
+		return fmt.Errorf("could not get status: %w", err)
+	}
+	fmt.Printf("You are logged in as: %s (%s)\n", user.DisplayName, user.UserPrincipalName)
+	return nil
 }

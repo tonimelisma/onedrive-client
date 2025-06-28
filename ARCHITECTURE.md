@@ -42,7 +42,8 @@ The project is organized into packages, each with a distinct role.
 ├── cmd/                  // All CLI command definitions (using Cobra).
 │   ├── root.go
 │   ├── files.go
-│   └── drives.go
+│   ├── drives.go
+│   └── auth.go
 └── internal/
     ├── app/              // Core application logic (initialization, auth).
     │   └── app.go
@@ -82,14 +83,14 @@ The project is organized into packages, each with a distinct role.
 
 An intern should follow these steps:
 
-1.  **SDK Layer (`pkg/onedrive`):** Check if a function already exists to get the data you need (e.g., `GetRootDriveItems`). If not, add a new function that calls the required Microsoft Graph API endpoint. For listing files in a specific folder, you might need a new `GetFolderItems(folderID string)` function.
-2.  **Command Layer (`cmd/`):** Create a new file, `cmd/files.go`.
-3.  **Command Layer:** In `files.go`, create a `filesCmd` and a `filesListCmd`. Add the `filesListCmd` to the `filesCmd`, and add `filesCmd` to `root.go`.
-4.  **Command Layer:** In the `Run` function for `filesListCmd`:
-    *   Call `app.NewApp()` to get the initialized application struct.
-    *   Call the appropriate SDK function, passing it the app's HTTP client: `items, err := onedrive.GetRootDriveItems(a.Client)`.
-    *   Handle any errors, logging them to the console.
-5.  **UI Layer (`internal/ui`):** Pass the data returned from the SDK to a display function. If a good one like `DisplayDriveItems` already exists, use it. Otherwise, create a new function in `display.go` to format and print the output.
+1.  **SDK Layer (`pkg/onedrive`):** Check if a function already exists to get the data you need (e.g., `GetDrives`). If not, add a new function that calls the required Microsoft Graph API endpoint. Ensure the data model in `models.go` is correct.
+2.  **Command Layer (`cmd/`):** Create a new file, e.g., `cmd/mynewcommand.go`.
+3.  **Command Layer:** In `mynewcommand.go`, define the new command using Cobra.
+4.  **Command Layer:** In the `Run` function for the command:
+    *   Call `app.NewApp()` to get the initialized application struct, which contains the SDK interface.
+    *   Call the appropriate SDK function via the interface: `data, err := a.SDK.GetDrives()`.
+    *   Handle any errors.
+5.  **UI Layer (`internal/ui`):** Pass the data returned from the SDK to a display function in the `ui` package. If a suitable one exists, use it. Otherwise, create a new one.
 
 ---
 
@@ -152,11 +153,11 @@ To evolve into a full sync client, the application must run as a persistent, bac
 
 The application uses the OAuth 2.0 Device Code Flow, which is designed for headless applications like CLIs. This provides a non-interactive and secure user experience. The flow is managed by the `auth` command group.
 
-1.  **`auth login`**: The user initiates the login. The CLI calls the Microsoft Identity endpoint to get a `user_code` and a `device_code`. It displays the `user_code` and a verification URL to the user. The `device_code` is saved to a temporary session file in `~/.config/onedrive-client/sessions/auth_session.json`.
+1.  **`auth login`**: The user initiates the login. The CLI calls the Microsoft Identity endpoint to get a `user_code` and a `device_code`. It displays the `user_code` and a verification URL to the user. The CLI then immediately starts polling the token endpoint.
 2.  **User Action**: The user opens the verification URL on any browser-enabled device (phone, laptop) and enters the `user_code` to approve the sign-in.
-3.  **`auth confirm`**: The user runs this command after approving. The CLI reads the `device_code` from the session file and polls the token endpoint. Upon success, it receives the access and refresh tokens, saves them to the main `config.json`, and deletes the temporary session file.
+3.  **Completion**: Once the user approves, the polling CLI receives the access and refresh tokens and saves them to the main `config.json`.
 
-This two-step, non-blocking process ensures that no command waits for user input, making the CLI suitable for both interactive and scripted use. The refresh token is then used automatically for subsequent API calls.
+This single-command flow provides a seamless user experience. The refresh token is then used automatically for subsequent API calls.
 
 The `onedrive` package is a self-contained SDK for interacting with the Microsoft Graph API. It has no dependencies on the rest of the application. It handles API calls, error wrapping, and OAuth2 logic. All models specific to the OneDrive API are defined here.
 

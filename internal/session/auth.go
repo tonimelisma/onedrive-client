@@ -2,10 +2,14 @@ package session
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/tonimelisma/onedrive-client/internal/config"
+	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 const authSessionFile = "auth_session.json"
@@ -89,4 +93,43 @@ func DeleteAuthState() error {
 		return fmt.Errorf("could not delete auth session file: %w", err)
 	}
 	return nil
+}
+
+// Login handles the entire device code authentication flow.
+func Login(cfg *config.Configuration) error {
+	// Step 1: Initiate device code flow
+	deviceCodeResp, err := onedrive.InitiateDeviceCodeFlow(config.ClientID, cfg.Debug)
+	if err != nil {
+		return fmt.Errorf("initiating device code flow: %w", err)
+	}
+
+	fmt.Println(deviceCodeResp.Message)
+
+	// Step 2: Poll for the token
+	interval := time.Duration(deviceCodeResp.Interval) * time.Second
+	expires := time.Now().Add(time.Duration(deviceCodeResp.ExpiresIn) * time.Second)
+
+	for {
+		if time.Now().After(expires) {
+			return fmt.Errorf("authentication timed out")
+		}
+
+		time.Sleep(interval)
+
+		token, err := onedrive.VerifyDeviceCode(config.ClientID, deviceCodeResp.DeviceCode, cfg.Debug)
+		if err != nil {
+			if errors.Is(err, onedrive.ErrAuthorizationPending) {
+				// This is expected, continue polling
+				continue
+			}
+			return fmt.Errorf("verifying device code: %w", err)
+		}
+
+		// Step 3: Save the token
+		cfg.Token = *token
+		if err := cfg.Save(); err != nil {
+			return fmt.Errorf("saving token: %w", err)
+		}
+		return nil // Success
+	}
 }

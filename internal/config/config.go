@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 const configDir = ".onedrive-client"
 const configFile = "config.json"
 const ClientID = "57caa7f2-c679-440c-8de2-f8ec86510722"
+
+var ErrConfigNotFound = errors.New("configuration file not found")
 
 // Configuration struct holds all the application's persisted settings.
 // It includes the OAuth token and a debug flag.
@@ -77,6 +80,9 @@ func Load() (*Configuration, error) {
 	if err != nil {
 		return nil, err
 	}
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, ErrConfigNotFound
+	}
 
 	fileHandle, err := os.ReadFile(configPath)
 	if err != nil {
@@ -94,12 +100,12 @@ func Load() (*Configuration, error) {
 // LoadOrCreate attempts to load a configuration file. If it doesn't exist,
 // it returns a new, empty configuration struct.
 func LoadOrCreate() (*Configuration, error) {
-	config, err := Load()
+	cfg, err := Load()
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, ErrConfigNotFound) {
 			return &Configuration{}, nil
 		}
 		return nil, err
 	}
-	return config, nil
+	return cfg, nil
 }

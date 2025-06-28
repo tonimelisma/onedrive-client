@@ -1,12 +1,15 @@
 package onedrive
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"strings"
@@ -16,12 +19,13 @@ import (
 )
 
 // OAuth2 scopes and endpoints
-var oAuthScopes = []string{"offline_access", "files.readwrite.all"}
+var oAuthScopes = []string{"offline_access", "files.readwrite.all", "user.read", "email", "openid", "profile"}
 
 const (
-	oAuthAuthURL  = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-	oAuthTokenURL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-	rootUrl       = "https://graph.microsoft.com/v1.0/"
+	oAuthAuthURL   = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+	oAuthTokenURL  = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+	oAuthDeviceURL = "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+	rootUrl        = "https://graph.microsoft.com/v1.0/"
 )
 
 // OAuthToken represents an OAuth2 Token.
@@ -192,6 +196,76 @@ func apiCall(client *http.Client, method, url, contentType string, body io.Reade
 				return nil, fmt.Errorf("HTTP error: %s - %s", res.Status, oneDriveError.Error.Message)
 			}
 		}
+	}
+
+	return res, nil
+}
+
+// apiCallWithDebug handles HTTP requests with optional debug logging.
+// It's used for unauthenticated calls like the device code flow.
+func apiCallWithDebug(method, url, contentType string, body io.Reader, debug bool) (*http.Response, error) {
+	var reqBodyBytes []byte
+	if body != nil {
+		reqBodyBytes, _ = io.ReadAll(body)
+		body = bytes.NewBuffer(reqBodyBytes) // Restore body for request
+	}
+
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("creating request failed: %v", err)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+
+	if debug {
+		dump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			log.Println("Error dumping request:", err)
+		} else {
+			log.Printf("DEBUG Request:\n%s\n", string(dump))
+		}
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("network error: %v", err)
+	}
+
+	if debug {
+		dump, err := httputil.DumpResponse(res, true)
+		if err != nil {
+			log.Println("Error dumping response:", err)
+		} else {
+			log.Printf("DEBUG Response:\n%s\n", string(dump))
+		}
+	}
+
+	if res.StatusCode >= 400 {
+		defer res.Body.Close()
+		resBody, _ := io.ReadAll(res.Body)
+
+		var oneDriveError struct {
+			Error            string `json:"error"`
+			ErrorDescription string `json:"error_description"`
+		}
+
+		jsonErr := json.Unmarshal(resBody, &oneDriveError)
+		if jsonErr == nil && oneDriveError.Error != "" {
+			switch oneDriveError.Error {
+			case "authorization_pending":
+				return nil, ErrAuthorizationPending
+			case "authorization_declined":
+				return nil, ErrAuthorizationDeclined
+			case "expired_token":
+				return nil, ErrTokenExpired
+			case "invalid_request":
+				return nil, fmt.Errorf("%w: %s", ErrInvalidRequest, oneDriveError.ErrorDescription)
+			default:
+				return nil, fmt.Errorf("authentication error: %s - %s", oneDriveError.Error, oneDriveError.ErrorDescription)
+			}
+		}
+		return nil, fmt.Errorf("HTTP error: %s", res.Status)
 	}
 
 	return res, nil
@@ -640,77 +714,41 @@ func GetMe(client *http.Client) (User, error) {
 }
 
 // InitiateDeviceCodeFlow starts the device code authentication process.
-func InitiateDeviceCodeFlow(clientID string) (*DeviceCodeResponse, error) {
-	endpoint := "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+func InitiateDeviceCodeFlow(clientID string, debug bool) (*DeviceCodeResponse, error) {
 	data := url.Values{}
 	data.Set("client_id", clientID)
 	data.Set("scope", strings.Join(oAuthScopes, " "))
 
-	res, err := http.Post(endpoint, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	res, err := apiCallWithDebug("POST", oAuthDeviceURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()), debug)
 	if err != nil {
-		return nil, fmt.Errorf("device code request failed: %w", err)
+		return nil, err
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading device code response failed: %w", err)
-	}
-
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("device code request returned status %s: %s", res.Status, string(body))
-	}
-
 	var deviceCodeResponse DeviceCodeResponse
-	if err := json.Unmarshal(body, &deviceCodeResponse); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&deviceCodeResponse); err != nil {
 		return nil, fmt.Errorf("decoding device code response failed: %w", err)
 	}
 
 	return &deviceCodeResponse, nil
 }
 
-// VerifyDeviceCode polls the token endpoint to complete the device code flow.
-func VerifyDeviceCode(clientID string, deviceCode string) (*OAuthToken, error) {
-	endpoint := "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+// VerifyDeviceCode polls to verify the device code and get an access token.
+func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*OAuthToken, error) {
 	data := url.Values{}
 	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
 	data.Set("client_id", clientID)
 	data.Set("device_code", deviceCode)
 
-	res, err := http.Post(endpoint, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	res, err := apiCallWithDebug("POST", oAuthTokenURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()), debug)
 	if err != nil {
-		return nil, fmt.Errorf("token request failed: %w", err)
+		return nil, err
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading token response failed: %w", err)
-	}
-
-	// Handle specific OAuth errors for device flow
-	if res.StatusCode != http.StatusOK {
-		var errResp struct {
-			Error            string `json:"error"`
-			ErrorDescription string `json:"error_description"`
-		}
-		if json.Unmarshal(body, &errResp) == nil {
-			if errResp.Error == "authorization_pending" {
-				return nil, ErrAuthorizationPending
-			}
-			if errResp.Error == "authorization_declined" {
-				return nil, ErrAuthorizationDeclined
-			}
-			if errResp.Error == "expired_token" {
-				return nil, ErrTokenExpired
-			}
-		}
-		return nil, fmt.Errorf("token request returned status %s: %s", res.Status, string(body))
-	}
-
 	var token OAuthToken
-	if err := json.Unmarshal(body, &token); err != nil {
-		return nil, fmt.Errorf("decoding token failed: %w", err)
+	if err := json.NewDecoder(res.Body).Decode(&token); err != nil {
+		return nil, fmt.Errorf("decoding token failed: %v", err)
 	}
 
 	return &token, nil
