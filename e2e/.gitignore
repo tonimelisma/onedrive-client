@@ -1,0 +1,46 @@
+# E2E Test Security
+# Never commit these files/patterns
+
+# Configuration files with tokens
+config.json
+
+# Environment files
+.env
+.env.local
+.env.e2e
+*.env
+
+# Test data
+test-data/
+temp-files/
+*.tmp
+*.temp
+
+# OAuth tokens
+*.token
+access_token
+refresh_token
+
+# Local test configurations
+local-config.yaml
+local-config.yml
+test-config.local.*
+
+# IDE and editor files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test outputs
+test-results/
+test-reports/
+coverage.out
+
+# Backup files
+*.bak
+*.backup 

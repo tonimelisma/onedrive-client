@@ -298,7 +298,7 @@ func BuildPathURL(path string) string {
 	// Trim leading/trailing slashes and encode the path
 	trimmedPath := strings.Trim(path, "/")
 	encodedPath := url.PathEscape(trimmedPath)
-	return customRootURL + "me/drive/root:/" + encodedPath + ":"
+	return customRootURL + "me/drive/root:/" + encodedPath
 }
 
 // GetDriveItemByPath retrieves the metadata for a single drive item by its path.
@@ -418,7 +418,7 @@ func CreateFolder(client *http.Client, parentPath string, folderName string) (Dr
 	if url == customRootURL+"me/drive/root" {
 		url += "/children"
 	} else {
-		url += "/children"
+		url += ":/children"
 	}
 
 	requestBody := map[string]interface{}{
@@ -596,7 +596,7 @@ func CancelUploadSession(uploadURL string) error {
 func DownloadFile(client *http.Client, remotePath, localPath string) error {
 	logger.Debug("DownloadFile called with remotePath: ", remotePath, ", localPath: ", localPath)
 
-	url := BuildPathURL(remotePath) + "/content"
+	url := BuildPathURL(remotePath) + ":/content"
 	res, err := apiCall(client, "GET", url, "", nil)
 	if err != nil {
 		return err

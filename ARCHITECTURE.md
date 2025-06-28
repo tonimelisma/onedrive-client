@@ -44,6 +44,13 @@ The project is organized into packages, each with a distinct role.
 │   ├── files.go
 │   ├── drives.go
 │   └── auth.go
+├── e2e/                  // End-to-end testing framework for real OneDrive API integration.
+│   ├── config.go         // E2E test configuration management
+│   ├── test_helpers.go   // Authentication and utility functions for E2E tests
+│   ├── files_test.go     // Comprehensive file operation tests
+│   ├── quick_start.go    // Setup validation and test environment verification
+│   ├── README.md         // E2E testing setup and usage instructions
+│   └── .gitignore        // Excludes test config files from version control
 └── internal/
     ├── app/              // Core application logic (initialization, SDK abstraction).
     │   ├── app.go
@@ -119,6 +126,36 @@ Large file downloads are handled via chunked downloads with session state manage
 2.  **Chunked Downloads**: Files are downloaded in chunks using HTTP Range requests to minimize memory usage.
 3.  **Session Tracking**: Download progress is saved to session files, allowing seamless resumption after interruption.
 4.  **Completion**: Upon successful download, the session file is automatically cleaned up.
+
+#### E2E Testing Infrastructure
+The application includes a comprehensive end-to-end testing framework that validates functionality against real OneDrive accounts, ensuring API integration reliability and catching regressions that unit tests might miss.
+
+##### Authentication Strategy
+The E2E tests use the same device code flow authentication as the CLI application, ensuring consistency and avoiding the complexity of service principal setup.
+1.  **Setup**: Tests expect a `config.json` file in the project root (copied from `~/.config/onedrive-client/config.json` after CLI login).
+2.  **Token Management**: Tests automatically handle token refresh during execution, ensuring long-running test suites don't fail due to expired tokens.
+3.  **Consistency**: By using the same authentication flow as the CLI, tests validate the actual user experience.
+
+##### Test Isolation and Safety
+The framework includes multiple layers of protection to prevent data corruption or conflicts during testing.
+1.  **Unique Test Directories**: All tests run within timestamped directories (`/E2E-Tests/test-{timestamp}`) to prevent conflicts between test runs.
+2.  **Cleanup Procedures**: Tests include proper cleanup of both local temporary files and remote test data.
+3.  **Read-Only Operations**: Where possible, tests favor read-only operations to minimize risk to user data.
+4.  **Build Tags**: E2E tests use the `e2e` build tag to prevent accidental execution during regular testing.
+
+##### Test Coverage and Bug Detection
+The E2E framework provides comprehensive coverage of the OneDrive SDK functionality:
+1.  **File Operations**: Upload (small files, large file sessions), download verification, metadata retrieval
+2.  **Directory Operations**: Creation, listing, navigation
+3.  **Drive Operations**: List drives, quota checking
+4.  **URL Construction**: Verification of proper Microsoft Graph API endpoint formatting
+5.  **Error Handling**: Network failures, authentication issues, API errors
+
+##### Critical Bug Discovery
+The E2E testing implementation discovered and helped fix several critical bugs:
+1.  **URL Construction**: Fixed `BuildPathURL()` function that was generating malformed URLs with double colons (`::`)
+2.  **API Endpoint Formatting**: Corrected Microsoft Graph API endpoints to match specification
+3.  **Authentication Flows**: Identified download authentication issues requiring further investigation
 
 ---
 

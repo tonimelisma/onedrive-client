@@ -399,7 +399,7 @@ func filesDownloadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 
 		// The download URL is part of the DriveItem model, but not yet exposed in the SDK call.
 		// For now, we will construct it manually.
-		downloadURL := onedrive.BuildPathURL(remotePath) + "/content"
+		downloadURL := onedrive.BuildPathURL(remotePath) + ":/content"
 
 		body, err := a.SDK.DownloadFileChunk(downloadURL, startByte, endByte)
 		if err != nil {

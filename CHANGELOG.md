@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **E2E Testing Framework**: Comprehensive end-to-end testing framework in `e2e/` directory that tests against real OneDrive accounts using the CLI's existing device code flow authentication.
+  - Test isolation with unique timestamped directories (`/E2E-Tests/test-{timestamp}`)
+  - Automated authentication using existing `config.json` from CLI login
+  - Coverage for file uploads, directory creation, metadata retrieval, drive operations, and URL construction verification
+  - Proper test cleanup and safety measures to protect user data
 - Resumable large file downloads with progress bar and interrupt handling.
 - New `files cancel-upload <upload-url>` command to cancel a resumable upload session.
 - New `files get-upload-status <upload-url>` command to retrieve the status of a resumable upload session.
@@ -50,6 +55,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Session management now uses proper dependency injection instead of global variable overrides for testing.
 
 ### Fixed
+- **Critical**: Fixed fundamental URL construction bug in `BuildPathURL()` function that was generating malformed URLs with double colons (`::`) instead of single colons (`:`).
+- **Critical**: Fixed Microsoft Graph API endpoint URLs for file operations to match correct format:
+  - Upload endpoints: `/me/drive/root:/path/to/file:/content`
+  - Download endpoints: `/me/drive/root:/path/to/file:/content`
+  - Create folder endpoints: `/me/drive/root:/parent-path:/children`
+- **Critical**: Fixed `CreateFolder()` function URL construction to use proper path-based addressing.
 - **Critical**: Standardized error handling patterns across all commands for consistency and testability.
 - **Critical**: Fixed race conditions in session management by removing global variable patterns.
 - **Critical**: Fixed path handling bugs where `filepath.Join` was incorrectly used for remote URL paths.
@@ -85,6 +96,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     5.  All tests pass and build succeeds with no errors.
 - **Current State:** All SDK functionality is now exposed via CLI commands. The CLI provides complete coverage of the OneDrive SDK capabilities.
 - **Code Quality:** No shortcuts taken. Followed existing patterns for error handling, UI output, and test structure. All new code follows the established architecture and coding standards.
+
+### E2E Testing Framework Development Notes
+- **Aim:** Create automated end-to-end tests against real OneDrive accounts to catch integration issues and API regressions.
+- **Scope of Work Undertaken:** Implemented comprehensive E2E testing framework with real OneDrive API integration.
+- **Initial Approach (Rejected):** Originally implemented service principal authentication with Azure app registration (CLIENT_ID, CLIENT_SECRET, TENANT_ID) but user preferred simpler device code flow approach.
+- **Final Implementation:**
+  1. Created `e2e/config.go` for simplified configuration management using existing CLI authentication
+  2. Implemented `e2e/test_helpers.go` with authentication using CLI's `config.json` and automatic token refresh
+  3. Built `e2e/files_test.go` with comprehensive test coverage: uploads, downloads, directory operations, metadata, drive operations
+  4. Added `e2e/quick_start.go` for setup validation and `e2e/README.md` with simple setup instructions
+  5. Implemented test isolation with unique timestamped directories to prevent data conflicts
+- **Critical Bug Fixes Discovered During Testing:**
+  - Fixed `BuildPathURL()` function removing trailing colon that caused double-colon malformed URLs
+  - Corrected Microsoft Graph API endpoint construction for all file operations
+  - Updated download and folder creation URL patterns to match API specification
+- **Current Test Status:** ✅ Working: Directory creation, file uploads, metadata retrieval, drive operations, URL construction verification. ❌ Issues: Download operations (authentication errors), some directory listing operations.
+- **Code Quality:** Framework provides solid foundation for automated testing with proper error handling, test isolation, and safety measures to protect user data.
+- **Deviations:** Download functionality authentication issues remain unresolved and require separate investigation.
 
 ## [0.1.0] - 2024-05-20
 

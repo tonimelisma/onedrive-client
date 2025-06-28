@@ -130,3 +130,29 @@ As a user, I want to explicitly manage my authentication state.
     *   **Command:** `onedrive-client auth status`
 *   **[x] User Story 4.3:** I want to log out, clearing my local credentials.
     *   **Command:** `onedrive-client auth logout`
+
+---
+
+### `[x]` Epic 5: E2E Testing Infrastructure
+
+As a developer, I want comprehensive end-to-end testing against real OneDrive accounts to ensure API integration reliability and catch regressions.
+
+*   **[x] User Story 5.1:** I want automated tests that authenticate using the same device code flow as the CLI to ensure authentication consistency.
+    *   **Implementation:** Tests use existing `config.json` from CLI login process
+*   **[x] User Story 5.2:** I want test isolation to prevent data conflicts and protect user data during testing.
+    *   **Implementation:** Tests run in unique timestamped directories (`/E2E-Tests/test-{timestamp}`)
+*   **[x] User Story 5.3:** I want comprehensive test coverage of file operations against real OneDrive API.
+    *   **Test Coverage:** File uploads, directory creation, metadata retrieval, drive operations, URL construction verification
+*   **[x] User Story 5.4:** I want automatic token refresh during long-running test suites.
+    *   **Implementation:** Tests handle token expiration and refresh automatically
+*   **[x] User Story 5.5:** I want proper test cleanup and safety measures to protect user data.
+    *   **Implementation:** Tests use isolated directories and include cleanup procedures
+*   **[x] User Story 5.6:** I want API bug detection through real endpoint testing.
+    *   **Achievement:** Discovered and fixed critical URL construction bugs in Microsoft Graph API calls
+
+**Setup Process:**
+1. Authenticate with CLI: `./onedrive-client auth login`
+2. Copy config to project: `cp ~/.config/onedrive-client/config.json ./config.json`
+3. Run E2E tests: `go test -tags=e2e -v ./e2e/...`
+
+**Current Status:** Framework operational with most tests passing. Download operations and some directory listing operations require further investigation.
