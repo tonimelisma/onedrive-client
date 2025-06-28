@@ -108,8 +108,7 @@ func (a *App) initializeOnedriveClient() (*http.Client, error) {
 }
 
 func (a *App) tokenRefreshCallback(token onedrive.OAuthToken) {
-	a.Config.Token = token
-	if err := a.Config.Save(); err != nil {
+	if err := a.Config.UpdateToken(token); err != nil {
 		log.Fatalf("Error saving updated token to configuration on disk: %v\n", err)
 	}
 }

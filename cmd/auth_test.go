@@ -252,14 +252,13 @@ func TestAuthErrorHandling(t *testing.T) {
 		_, cleanup := setupAuthTest(t)
 		defer cleanup()
 
-		output := captureOutput(t, func() {
-			rootCmd.SetArgs([]string{"auth", "login"})
-			err := rootCmd.Execute()
-			assert.Error(t, err)
-		})
+		// Test the command directly without going through Execute()
+		rootCmd.SetArgs([]string{"auth", "login"})
+		err := rootCmd.Execute()
 
-		// Error should be returned, not printed to output since we're using RunE
-		assert.Empty(t, output)
+		// Error should be returned when there's a server error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "login failed")
 	})
 
 	t.Run("should handle token verification failure", func(t *testing.T) {

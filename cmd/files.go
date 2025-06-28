@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,14 +31,12 @@ var filesListCmd = &cobra.Command{
 	Short: "List files and folders in a given path",
 	Long:  "Lists the contents of a directory in your OneDrive. If no path is provided, it defaults to the root directory.",
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %w", err)
 		}
-		if err := filesListLogic(a, cmd, args); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+		return filesListLogic(a, cmd, args)
 	},
 }
 
@@ -46,14 +45,12 @@ var filesStatCmd = &cobra.Command{
 	Short: "Get metadata for a file or folder",
 	Long:  "Retrieves detailed metadata for a specific file or folder by its path.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %w", err)
 		}
-		if err := filesStatLogic(a, cmd, args); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+		return filesStatLogic(a, cmd, args)
 	},
 }
 
@@ -62,14 +59,12 @@ var filesMkdirCmd = &cobra.Command{
 	Short: "Create a new folder",
 	Long:  "Creates a new, empty folder at the specified remote path.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %w", err)
 		}
-		if err := filesMkdirLogic(a, cmd, args); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+		return filesMkdirLogic(a, cmd, args)
 	},
 }
 
@@ -78,14 +73,12 @@ var filesUploadCmd = &cobra.Command{
 	Short: "Upload a file",
 	Long:  "Uploads a local file to a specific folder in your OneDrive. If remote path is omitted, uploads to the root.",
 	Args:  cobra.RangeArgs(1, 2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %w", err)
 		}
-		if err := filesUploadLogic(a, cmd, args); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+		return filesUploadLogic(a, cmd, args)
 	},
 }
 
@@ -94,14 +87,12 @@ var filesDownloadCmd = &cobra.Command{
 	Short: "Download a file",
 	Long:  "Downloads a file from your OneDrive. If local path is omitted, it saves to the current directory with the same name.",
 	Args:  cobra.RangeArgs(1, 2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %w", err)
 		}
-		if err := filesDownloadLogic(a, cmd, args); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+		return filesDownloadLogic(a, cmd, args)
 	},
 }
 
@@ -131,8 +122,11 @@ func filesStatLogic(a *app.App, cmd *cobra.Command, args []string) error {
 
 func filesMkdirLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	remotePath := args[0]
-	parentDir := filepath.Dir(remotePath)
-	newDirName := filepath.Base(remotePath)
+	parentDir := path.Dir(remotePath)
+	if parentDir == "." {
+		parentDir = "/"
+	}
+	newDirName := path.Base(remotePath)
 
 	_, err := a.SDK.CreateFolder(parentDir, newDirName)
 	if err != nil {
@@ -146,13 +140,27 @@ const (
 	chunkSize = 320 * 1024 * 10 // 3.2MB, a multiple of 320KB
 )
 
+// joinRemotePath joins remote paths using forward slashes, not platform-specific separators
+func joinRemotePath(dir, file string) string {
+	if dir == "" || dir == "/" {
+		return "/" + file
+	}
+	// Ensure dir starts with / and doesn't end with /
+	if !strings.HasPrefix(dir, "/") {
+		dir = "/" + dir
+	}
+	dir = strings.TrimSuffix(dir, "/")
+	return dir + "/" + file
+}
+
 func filesUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	localPath := args[0]
 	remoteDir := "/"
 	if len(args) == 2 {
 		remoteDir = args[1]
 	}
-	remotePath := filepath.Join(remoteDir, filepath.Base(localPath))
+	// Use proper remote path joining instead of filepath.Join
+	remotePath := joinRemotePath(remoteDir, filepath.Base(localPath))
 
 	// Handle graceful interruption
 	sigs := make(chan os.Signal, 1)

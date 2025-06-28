@@ -212,12 +212,46 @@ The authentication system includes comprehensive test coverage to ensure reliabi
 - **Environment Isolation**: Each test uses temporary directories and environment variables
 - **Custom Endpoints**: Ability to override OAuth and Graph API endpoints for testing
 - **Error Simulation**: Controlled error scenarios for comprehensive edge case testing
+- **Improved Output Capture**: Non-intrusive output capturing that doesn't mutate global state
+- **Consistent Error Handling**: All commands use `RunE` pattern for better testability
 
 ### Test Utilities
 
 - `setupAuthTest()`: Creates isolated test environment with temporary config
-- `captureOutput()`: Captures command output for assertion
+- `captureOutput()`: Captures command output including log messages for assertion
 - Mock server with request body parsing for different OAuth flow stages
 - Session file path construction matching production behavior
+- Dependency injection for session management to avoid global state mutations
 
 This testing strategy ensures the authentication system works correctly under all conditions and provides confidence in the non-blocking device code flow implementation.
+
+## Code Quality Standards
+
+### Error Handling
+- **Consistency**: All commands use the `RunE` pattern instead of `log.Fatalf()` for consistent error handling
+- **Proper Propagation**: Errors are returned up the call stack rather than immediately terminating the program
+- **User-Friendly Messages**: Error messages provide actionable information to users
+- **Testing**: Error conditions are testable without process termination
+
+### Path Handling
+- **Remote vs Local**: Clear distinction between local filesystem paths and remote OneDrive paths
+- **Cross-Platform**: Local paths use `filepath` package, remote paths use custom utilities
+- **Validation**: Path inputs are validated before API calls
+- **Normalization**: Consistent path formatting across the application
+
+### Thread Safety
+- **Configuration**: Token updates use proper mutex protection
+- **Session Management**: File operations are atomic and locked appropriately
+- **Concurrent Access**: Multiple CLI instances can run safely without race conditions
+
+### Session Management
+- **Manager Pattern**: Session operations use dependency injection instead of global variables
+- **Resource Cleanup**: Proper cleanup of temporary files and session state
+- **Testability**: Session behavior is fully testable with custom configurations
+- **Expiration Handling**: Automatic cleanup of expired sessions
+
+### Resource Management
+- **File Handles**: Proper defer statements ensure file closure
+- **Memory**: Streaming operations for large files to minimize memory usage
+- **Network**: HTTP clients are properly configured and reused
+- **Cleanup**: Temporary resources are cleaned up on both success and failure paths

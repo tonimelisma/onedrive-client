@@ -121,3 +121,12 @@ func LoadOrCreate() (*Configuration, error) {
 	}
 	return cfg, nil
 }
+
+// UpdateToken safely updates the OAuth token using the mutex
+func (c *Configuration) UpdateToken(token onedrive.OAuthToken) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.Token = token
+	return c.Save()
+}

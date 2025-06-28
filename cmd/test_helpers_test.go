@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"log"
@@ -128,20 +127,39 @@ func newTestApp(sdk app.SDK) *app.App {
 }
 
 // captureOutput captures stdout and stderr, returning them as a string.
+// This version doesn't mutate global log state.
 func captureOutput(t *testing.T, f func()) string {
 	t.Helper()
-	var buf bytes.Buffer
-	log.SetOutput(&buf)
+
+	// Save original log output
+	originalLogOutput := log.Writer()
+
+	// Capture stdout
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
+	// Capture stderr and redirect log to it
+	oldStderr := os.Stderr
+	r2, w2, _ := os.Pipe()
+	os.Stderr = w2
+	log.SetOutput(w2)
+
+	// Run the function
 	f()
 
-	log.SetOutput(os.Stderr)
+	// Restore everything
 	w.Close()
+	w2.Close()
 	os.Stdout = oldStdout
-	out, _ := io.ReadAll(r)
-	buf.Write(out)
-	return buf.String()
+	os.Stderr = oldStderr
+	log.SetOutput(originalLogOutput)
+
+	// Read captured output
+	stdout, _ := io.ReadAll(r)
+	stderr, _ := io.ReadAll(r2)
+
+	// Combine stdout and stderr
+	output := string(stdout) + string(stderr)
+	return output
 }

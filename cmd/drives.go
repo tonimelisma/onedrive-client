@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/app"
@@ -19,14 +19,12 @@ var drivesListCmd = &cobra.Command{
 	Short: "List available drives",
 	Long:  "Lists all available OneDrive drives for the current user.",
 	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %w", err)
 		}
-		if err := drivesListLogic(a); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+		return drivesListLogic(a)
 	},
 }
 
@@ -35,14 +33,12 @@ var drivesQuotaCmd = &cobra.Command{
 	Short: "Get storage quota for the default drive",
 	Long:  "Displays the total, used, and remaining storage quota for the default drive.",
 	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
-			log.Fatalf("Error creating app: %v", err)
+			return fmt.Errorf("error creating app: %w", err)
 		}
-		if err := drivesQuotaLogic(a); err != nil {
-			log.Fatalf("Error: %v", err)
-		}
+		return drivesQuotaLogic(a)
 	},
 }
 
