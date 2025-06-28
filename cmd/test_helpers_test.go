@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"testing"
 
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
@@ -126,8 +127,9 @@ func newTestApp(sdk app.SDK) *app.App {
 	}
 }
 
-// captureOutput captures stdout and log output, returning it as a string.
-func captureOutput(f func()) string {
+// captureOutput captures stdout and stderr, returning them as a string.
+func captureOutput(t *testing.T, f func()) string {
+	t.Helper()
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
 	oldStdout := os.Stdout
@@ -139,6 +141,7 @@ func captureOutput(f func()) string {
 	log.SetOutput(os.Stderr)
 	w.Close()
 	os.Stdout = oldStdout
-	buf.ReadFrom(r)
+	out, _ := io.ReadAll(r)
+	buf.Write(out)
 	return buf.String()
 }

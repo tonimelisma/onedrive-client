@@ -28,8 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Large file uploads now use a session-based approach instead of a single request.
 - Renamed `LiveSDK` to `OneDriveSDK` for better clarity.
 - Refactored test suite to use a shared `test_helpers_test.go` to avoid duplicated code and fix the build.
-- Replaced the interactive, browser-based authentication with a non-interactive OAuth 2.0 Device Code Flow.
-- The app no longer performs authentication automatically; users must explicitly run `auth login`.
+- **Overhauled Authentication Flow**: Replaced the previous blocking Device Code Flow with a non-blocking, stateful, and more user-friendly process.
+  - `auth login` now starts the flow and exits immediately, allowing the user to continue working.
+  - Any subsequent command (`files list`, `auth status`, etc.) will automatically attempt to complete the pending login.
+  - The CLI now clearly reports its state: `Logged In`, `Logged Out`, or `Login Pending`.
+  - Added file-locking to the authentication session file (`auth_session.json`) to prevent race conditions.
+  - The `auth whoami` command was removed and its functionality merged into `auth status` for a cleaner interface.
 - The local configuration file path can now be overridden with the `ONEDRIVE_CONFIG_PATH` environment variable for easier testing.
 
 ### Fixed

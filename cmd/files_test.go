@@ -36,7 +36,7 @@ func TestFilesListLogic(t *testing.T) {
 	}
 	a := newTestApp(mockSDK)
 
-	output := captureOutput(func() {
+	output := captureOutput(t, func() {
 		err := filesListLogic(a, &cobra.Command{}, []string{"/test"})
 		assert.NoError(t, err)
 	})
@@ -55,7 +55,7 @@ func TestFilesMkdirLogic(t *testing.T) {
 	}
 	a := newTestApp(mockSDK)
 
-	output := captureOutput(func() {
+	output := captureOutput(t, func() {
 		err := filesMkdirLogic(a, &cobra.Command{}, []string{"/test/new-folder"})
 		assert.NoError(t, err)
 	})
@@ -108,7 +108,7 @@ func TestFilesUploadLogic(t *testing.T) {
 	session.GetConfigDir = func() (string, error) { return tmpDir, nil }
 	defer func() { session.GetConfigDir = oldGetConfigDir }()
 
-	output := captureOutput(func() {
+	output := captureOutput(t, func() {
 		err := filesUploadLogic(a, &cobra.Command{}, []string{tmpFile.Name(), "/remote/dest"})
 		assert.NoError(t, err)
 	})
@@ -140,7 +140,7 @@ func TestFilesDownloadLogic(t *testing.T) {
 	}
 	a := newTestApp(mockSDK)
 
-	output := captureOutput(func() {
+	output := captureOutput(t, func() {
 		err := filesDownloadLogic(a, &cobra.Command{}, []string{"/remote/source/file.txt", localPath})
 		assert.NoError(t, err)
 	})

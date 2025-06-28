@@ -31,7 +31,7 @@ func TestDrivesListLogic(t *testing.T) {
 
 	app := newTestApp(mockSDK)
 
-	output := captureOutput(func() {
+	output := captureOutput(t, func() {
 		err := drivesListLogic(app)
 		assert.NoError(t, err)
 	})
@@ -59,7 +59,7 @@ func TestDrivesQuotaLogic(t *testing.T) {
 
 	app := newTestApp(mockSDK)
 
-	output := captureOutput(func() {
+	output := captureOutput(t, func() {
 		err := drivesQuotaLogic(app)
 		assert.NoError(t, err)
 	})

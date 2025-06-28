@@ -25,11 +25,10 @@ type Configuration struct {
 	mu    sync.RWMutex        // Add mutex for thread-safe writes
 }
 
-// getConfigPath determines the path for the configuration file.
-// It prioritizes the ONEDRIVE_CONFIG_PATH environment variable if set.
-func getConfigPath() (string, error) {
+// GetConfigDir returns the root directory for application configuration files.
+func GetConfigDir() (string, error) {
 	if customPath := os.Getenv("ONEDRIVE_CONFIG_PATH"); customPath != "" {
-		return customPath, nil
+		return filepath.Dir(customPath), nil
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -37,8 +36,20 @@ func getConfigPath() (string, error) {
 		return "", fmt.Errorf("getting home directory: %v", err)
 	}
 
-	configDirPath := filepath.Join(homeDir, configDir)
-	return filepath.Join(configDirPath, configFile), nil
+	return filepath.Join(homeDir, configDir), nil
+}
+
+// getConfigPath determines the path for the configuration file.
+// It prioritizes the ONEDRIVE_CONFIG_PATH environment variable if set.
+func getConfigPath() (string, error) {
+	if customPath := os.Getenv("ONEDRIVE_CONFIG_PATH"); customPath != "" {
+		return customPath, nil
+	}
+	configDir, err := GetConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, configFile), nil
 }
 
 // Save persists the configuration struct to a JSON file on disk.
@@ -57,12 +68,13 @@ func (c *Configuration) Save() error {
 	}
 
 	// Ensure the directory exists if we are not using a custom file path
-	if os.Getenv("ONEDRIVE_CONFIG_PATH") == "" {
-		configDirPath := filepath.Dir(configFilePath)
-		if _, err := os.Stat(configDirPath); os.IsNotExist(err) {
-			if err := os.Mkdir(configDirPath, 0700); err != nil {
-				return fmt.Errorf("creating config directory: %v", err)
-			}
+	configDirPath, err := GetConfigDir()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(configDirPath); os.IsNotExist(err) {
+		if err := os.Mkdir(configDirPath, 0700); err != nil {
+			return fmt.Errorf("creating config directory: %v", err)
 		}
 	}
 

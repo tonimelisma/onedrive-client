@@ -67,30 +67,29 @@ The project is organized into packages, each with a distinct role.
 
 #### `internal/app/` (The App Core)
 *   **Responsibility:** Acts as the central hub for the application. It initializes the configuration and the OneDrive HTTP client (handling the authentication flow if necessary). It provides a fully configured client to the command layer.
-*   **Implementation:** The `app.NewApp()` function returns an `App` struct containing the loaded configuration and a ready-to-use `*http.Client`.
+*   **Implementation:** The `app.NewApp()` function returns an `App` struct containing the loaded configuration and a ready-to-use `*http.Client`. The `NewApp` function is now also responsible for checking for and completing any pending authentication flows.
 
 #### `internal/config/` (Configuration Management)
-*   **Responsibility:** Handles all logic for loading, parsing, and saving the `config.json` file, including the OAuth token.
+*   **Responsibility:** Handles all logic for loading, parsing, and saving the `config.json` file, which stores the final OAuth tokens.
+
+#### `internal/session/` (Session Management)
+*   **Responsibility:** Manages temporary state files. For authentication, this includes the `auth_session.json` file, which stores the details of a pending Device Code Flow login. It uses file-locking to prevent race conditions from concurrent CLI invocations.
 
 #### `internal/ui/` (The Presentation Layer)
 *   **Responsibility:** Handles all user-facing output. This includes printing tables of files, success messages, and formatted errors. Separating this logic ensures display format changes don't affect other layers.
 
 #### `pkg/onedrive/` (The SDK Layer)
 *   **Responsibility:** This package is the **only** component that knows how to communicate with the Microsoft Graph API. It handles creating API requests, parsing responses, and defining the data models (`DriveItem`, etc.).
-*   **Authentication**: Implements both the legacy interactive OAuth2 flow and the modern, non-interactive Device Code Flow for CLI applications.
+*   **Authentication**: Implements the OAuth 2.0 Device Code Flow. It has no awareness of the higher-level application's stateful, non-blocking flow; it simply provides the functions to initiate the flow and verify a device code.
 
 ### 2.3. How to Add a New Command (Example: `files list`)
 
 An intern should follow these steps:
 
-1.  **SDK Layer (`pkg/onedrive`):** Check if a function already exists to get the data you need (e.g., `GetDrives`). If not, add a new function that calls the required Microsoft Graph API endpoint. Ensure the data model in `models.go` is correct.
-2.  **Command Layer (`cmd/`):** Create a new file, e.g., `cmd/mynewcommand.go`.
-3.  **Command Layer:** In `mynewcommand.go`, define the new command using Cobra.
-4.  **Command Layer:** In the `Run` function for the command:
-    *   Call `app.NewApp()` to get the initialized application struct, which contains the SDK interface.
-    *   Call the appropriate SDK function via the interface: `data, err := a.SDK.GetDrives()`.
-    *   Handle any errors.
-5.  **UI Layer (`internal/ui`):** Pass the data returned from the SDK to a display function in the `ui` package. If a suitable one exists, use it. Otherwise, create a new one.
+1.  **SDK Layer (`pkg/onedrive`):** Check if a function already exists to get the data you need (e.g., `GetDrives`). If not, add a new function that calls the required Microsoft Graph API endpoint.
+2.  **Command Layer (`cmd/`):** Create a new file, e.g., `cmd/mynewcommand.go`. Define the new command using Cobra.
+3.  **Command Layer:** In the `Run` function for the command, call `app.NewApp()` to get the initialized application struct. The `PersistentPreRunE` hook on the root command will automatically handle any pending login flows, so the command's own `Run` function does not need to worry about it. It can assume that if it runs, the user is authenticated.
+4.  **UI Layer (`internal/ui`):** Pass the data returned from the SDK to a display function in the `ui` package.
 
 ---
 
@@ -151,13 +150,20 @@ To evolve into a full sync client, the application must run as a persistent, bac
 
 ### 3.3. Authentication Flow (Device Code)
 
-The application uses the OAuth 2.0 Device Code Flow, which is designed for headless applications like CLIs. This provides a non-interactive and secure user experience. The flow is managed by the `auth` command group.
+The application uses a non-blocking, stateful implementation of the OAuth 2.0 Device Code Flow. This provides a seamless and user-friendly experience for a CLI.
 
-1.  **`auth login`**: The user initiates the login. The CLI calls the Microsoft Identity endpoint to get a `user_code` and a `device_code`. It displays the `user_code` and a verification URL to the user. The CLI then immediately starts polling the token endpoint.
-2.  **User Action**: The user opens the verification URL on any browser-enabled device (phone, laptop) and enters the `user_code` to approve the sign-in.
-3.  **Completion**: Once the user approves, the polling CLI receives the access and refresh tokens and saves them to the main `config.json`.
+1.  **`auth login`**: The user runs this command to start the process.
+    - The CLI calls the Microsoft Identity endpoint to get a `user_code` and a `device_code`.
+    - It saves these details, along with the verification URL, into a temporary `auth_session.json` file.
+    - It displays the code and URL to the user and immediately exits.
+2.  **User Action**: The user opens the verification URL on any browser-enabled device and enters the `user_code` to approve the sign-in.
+3.  **Any Subsequent Command**: When the user runs *any* command (e.g., `files list` or `auth status`):
+    - The application starts and, in `app.NewApp`, detects the `auth_session.json` file.
+    - It automatically makes a request to the token endpoint with the stored `device_code`.
+    - If the user has approved the sign-in, the CLI receives the final access and refresh tokens, saves them to the main `config.json`, deletes the `auth_session.json` file, and proceeds with executing the command.
+    - If the user has not yet approved, the API returns a pending status, and the CLI informs the user to complete the step in their browser. All commands (except for `auth` itself) are blocked from running by a `PersistentPreRunE` hook on the root command.
 
-This single-command flow provides a seamless user experience. The refresh token is then used automatically for subsequent API calls.
+This non-blocking flow allows the user to initiate a login and continue working in their terminal without being locked into a polling loop.
 
 The `onedrive` package is a self-contained SDK for interacting with the Microsoft Graph API. It has no dependencies on the rest of the application. It handles API calls, error wrapping, and OAuth2 logic. All models specific to the OneDrive API are defined here.
 
@@ -166,8 +172,8 @@ The `onedrive` package is a self-contained SDK for interacting with the Microsof
 For features that require state to be maintained across multiple command invocations (e.g., resumable file uploads), a session management system is used.
 
 - **Location**: Session files are stored in `~/.config/onedrive-client/sessions/`.
-- **Mechanism**: When a resumable operation begins, a session file is created. This file contains the necessary information to resume the operation (like the `uploadUrl` for a file upload). The file is named using a SHA256 hash of the local and remote file paths to ensure uniqueness.
-- **Lifecycle**: The session file is created when the operation starts and deleted upon successful completion. If the operation is interrupted, the file remains, and the application will detect and use it to resume the next time the same command is run.
+- **Mechanism**: When a resumable operation (like a file upload or a pending login) begins, a session file is created. This file contains the necessary information to resume the operation. The auth session is stored in `auth_session.json`, while file uploads are named using a SHA256 hash of the file paths.
+- **Lifecycle**: The session file is created when the operation starts and deleted upon successful completion. If the operation is interrupted, the file remains, and the application will detect and use it to resume the next time the same command is run. File locking is used to prevent race conditions.
 
 ## UI
 

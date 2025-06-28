@@ -1,18 +1,19 @@
 package app
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/config"
+	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
+
+var ErrLoginPending = errors.New("login pending")
 
 type App struct {
 	Config *config.Configuration
@@ -42,6 +43,10 @@ func NewApp(cmd *cobra.Command) (*App, error) {
 
 	client, err := app.initializeOnedriveClient()
 	if err != nil {
+		// Forward ErrLoginPending without wrapping
+		if errors.Is(err, ErrLoginPending) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("initializing onedrive client: %w", err)
 	}
 	app.Client = client
@@ -55,12 +60,43 @@ func (a *App) initializeOnedriveClient() (*http.Client, error) {
 		return nil, errors.New("configuration is nil")
 	}
 
+	// Step 1: Check for a pending authentication session
+	pendingAuth, err := session.LoadAuthState()
+	if err != nil {
+		return nil, fmt.Errorf("could not load auth state: %w", err)
+	}
+
+	if pendingAuth != nil {
+		// A pending session exists, try to complete it
+		token, err := onedrive.VerifyDeviceCode(config.ClientID, pendingAuth.DeviceCode, a.Config.Debug)
+		if err != nil {
+			if errors.Is(err, onedrive.ErrAuthorizationPending) {
+				// User has not yet completed the browser flow.
+				// Return a specific error to be handled by the command layer.
+				return nil, fmt.Errorf("%w: Please go to %s and enter code %s", ErrLoginPending, pendingAuth.VerificationURI, pendingAuth.UserCode)
+			}
+			// A different error occurred (e.g., code expired, user declined).
+			// The pending session is now invalid, so we clean it up.
+			_ = session.DeleteAuthState()
+			return nil, fmt.Errorf("authentication failed. Your login code may have expired. Please try again: %w", err)
+		}
+
+		// Success! User has authenticated.
+		a.Config.Token = *token
+		if err := a.Config.Save(); err != nil {
+			return nil, fmt.Errorf("saving token: %w", err)
+		}
+		// Clean up the now-used auth session file
+		if err := session.DeleteAuthState(); err != nil {
+			// Log this error, but don't fail the whole operation
+			log.Printf("Warning: could not delete auth session file: %v", err)
+		}
+		fmt.Println("Login successful!")
+	}
+
 	ctx, oauthConfig := onedrive.GetOauth2Config(config.ClientID)
 
 	if a.Config.Token.AccessToken == "" {
-		// The user is not logged in.
-		// We return a specific error to indicate that re-authentication is required.
-		// The command layer can then instruct the user to run 'auth login'.
 		return nil, onedrive.ErrReauthRequired
 	}
 
@@ -68,56 +104,7 @@ func (a *App) initializeOnedriveClient() (*http.Client, error) {
 		a.tokenRefreshCallback(token)
 	}
 
-	client := onedrive.NewClient(ctx, oauthConfig, a.Config.Token, tokenRefreshCallbackFunc)
-	if client == nil {
-		return nil, errors.New("client is nil")
-	} else {
-		return client, nil
-	}
-}
-
-func (a *App) authenticateOnedriveClient(
-	ctx context.Context,
-	oauthConfig *onedrive.OAuthConfig,
-) (err error) {
-	authURL, codeVerifier, err := onedrive.StartAuthentication(ctx, oauthConfig)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Visit the following URL in your browser and authorize the app:", authURL)
-	fmt.Print("Enter the authorization code: ")
-
-	var redirectURL string
-	fmt.Scan(&redirectURL)
-
-	parsedUrl, err := url.Parse(redirectURL)
-	if err != nil {
-		return fmt.Errorf("parsing redirect URL: %v", err)
-	}
-
-	code := parsedUrl.Query().Get("code")
-	if code == "" {
-		return fmt.Errorf("authorization code not found in the URL")
-	}
-
-	token, err := onedrive.CompleteAuthentication(
-		ctx,
-		oauthConfig,
-		code,
-		codeVerifier,
-	)
-	if err != nil {
-		return err
-	}
-
-	a.Config.Token = *token
-	err = a.Config.Save()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return onedrive.NewClient(ctx, oauthConfig, a.Config.Token, tokenRefreshCallbackFunc), nil
 }
 
 func (a *App) tokenRefreshCallback(token onedrive.OAuthToken) {
@@ -127,37 +114,22 @@ func (a *App) tokenRefreshCallback(token onedrive.OAuthToken) {
 	}
 }
 
-// WhoAmI fetches and displays the current user's information.
-func (a *App) WhoAmI() error {
-	user, err := a.SDK.GetMe()
-	if err != nil {
-		return err
-	}
-	ui.DisplayUser(user)
-	return nil
+// GetMe fetches the current user's information.
+func (a *App) GetMe() (onedrive.User, error) {
+	return a.SDK.GetMe()
 }
 
-// Logout clears the stored credentials.
-func (a *App) Logout() error {
-	a.Config.Token = onedrive.OAuthToken{}
-	if err := a.Config.Save(); err != nil {
+// Logout clears the stored credentials and any pending auth session.
+func Logout(cfg *config.Configuration) error {
+	cfg.Token = onedrive.OAuthToken{}
+	if err := cfg.Save(); err != nil {
 		return fmt.Errorf("could not clear token: %w", err)
 	}
-	ui.Success("You have been logged out.")
-	return nil
-}
-
-// Status checks and displays the current authentication status.
-func (a *App) Status() error {
-	// A successful call to GetMe indicates we are logged in.
-	user, err := a.SDK.GetMe()
-	if err != nil {
-		if errors.Is(err, onedrive.ErrReauthRequired) {
-			fmt.Println("You are not logged in. Please run 'onedrive-client auth login'.")
-			return nil
-		}
-		return fmt.Errorf("could not get status: %w", err)
+	// Also delete any pending auth session
+	if err := session.DeleteAuthState(); err != nil {
+		// Don't fail the whole logout if this fails, but log it.
+		log.Printf("Warning: could not delete auth session file during logout: %v", err)
 	}
-	fmt.Printf("You are logged in as: %s (%s)\n", user.DisplayName, user.UserPrincipalName)
+	ui.Success("You have been logged out.")
 	return nil
 }

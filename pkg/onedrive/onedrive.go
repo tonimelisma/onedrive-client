@@ -28,11 +28,11 @@ const (
 	rootUrl        = "https://graph.microsoft.com/v1.0/"
 )
 
-// OAuthToken represents an OAuth2 Token.
-type OAuthToken oauth2.Token
-
-// OAuthConfig represents an OAuth2 Config.
-type OAuthConfig oauth2.Config
+var (
+	customAuthURL   = oAuthAuthURL
+	customTokenURL  = oAuthTokenURL
+	customDeviceURL = oAuthDeviceURL
+)
 
 // Sentinel errors
 var (
@@ -47,6 +47,19 @@ var (
 	ErrAuthorizationDeclined = errors.New("authorization declined")
 	ErrTokenExpired          = errors.New("token expired")
 )
+
+// SetCustomEndpoints allows overriding the default OAuth endpoints for testing.
+func SetCustomEndpoints(authURL, tokenURL, deviceURL string) {
+	customAuthURL = authURL
+	customTokenURL = tokenURL
+	customDeviceURL = deviceURL
+}
+
+// OAuthToken represents an OAuth2 Token.
+type OAuthToken oauth2.Token
+
+// OAuthConfig represents an OAuth2 Config.
+type OAuthConfig oauth2.Config
 
 // Custom token source to allow for caching refreshed tokens
 // (golang oauth2 library issue #84, not fixed for 6 years and counting)
@@ -676,22 +689,18 @@ func NewClient(ctx context.Context, oauthConfig *OAuthConfig, token OAuthToken, 
 
 // GetOauth2Config returns the OAuth2 configuration.
 func GetOauth2Config(clientID string) (context.Context, *OAuthConfig) {
-	logger.Debug("Creating OAuth2 configuration in getOauth2Config")
-	if clientID == "" {
-		return nil, nil
-	}
-
-	// Creating a new oauth2.Config object that we'll cast to our type conversion
-	// We maintain type conversion for oauth2 so users of the SDK don't have to import it
-	oauth2Config := oauth2.Config{
+	ctx := context.Background()
+	oauthConfig := &oauth2.Config{
 		ClientID: clientID,
 		Scopes:   oAuthScopes,
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  oAuthAuthURL,
-			TokenURL: oAuthTokenURL,
+			AuthURL:  customAuthURL,
+			TokenURL: customTokenURL,
 		},
+		RedirectURL: "http://localhost:53682/",
 	}
-	return context.Background(), (*OAuthConfig)(&oauth2Config)
+
+	return ctx, (*OAuthConfig)(oauthConfig)
 }
 
 // GetMe retrieves the profile of the currently signed-in user.
@@ -719,9 +728,9 @@ func InitiateDeviceCodeFlow(clientID string, debug bool) (*DeviceCodeResponse, e
 	data.Set("client_id", clientID)
 	data.Set("scope", strings.Join(oAuthScopes, " "))
 
-	res, err := apiCallWithDebug("POST", oAuthDeviceURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()), debug)
+	res, err := apiCallWithDebug("POST", customDeviceURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()), debug)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("requesting device code: %w", err)
 	}
 	defer res.Body.Close()
 
@@ -740,9 +749,9 @@ func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*OAuthTok
 	data.Set("client_id", clientID)
 	data.Set("device_code", deviceCode)
 
-	res, err := apiCallWithDebug("POST", oAuthTokenURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()), debug)
+	res, err := apiCallWithDebug("POST", customTokenURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()), debug)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("verifying device code: %w", err)
 	}
 	defer res.Body.Close()
 
