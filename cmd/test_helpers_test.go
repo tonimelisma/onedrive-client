@@ -27,6 +27,8 @@ type MockSDK struct {
 	UploadChunkFunc                func(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
 	GetUploadSessionStatusFunc     func(uploadURL string) (onedrive.UploadSession, error)
 	CancelUploadSessionFunc        func(uploadURL string) error
+	UploadFileFunc                 func(localPath, remotePath string) (onedrive.DriveItem, error)
+	GetRootDriveItemsFunc          func() (onedrive.DriveItemList, error)
 }
 
 func (m *MockSDK) GetDrives() (onedrive.DriveList, error) {
@@ -125,6 +127,20 @@ func (m *MockSDK) CancelUploadSession(uploadURL string) error {
 		return m.CancelUploadSessionFunc(uploadURL)
 	}
 	return nil
+}
+
+func (m *MockSDK) UploadFile(localPath, remotePath string) (onedrive.DriveItem, error) {
+	if m.UploadFileFunc != nil {
+		return m.UploadFileFunc(localPath, remotePath)
+	}
+	return onedrive.DriveItem{}, nil
+}
+
+func (m *MockSDK) GetRootDriveItems() (onedrive.DriveItemList, error) {
+	if m.GetRootDriveItemsFunc != nil {
+		return m.GetRootDriveItemsFunc()
+	}
+	return onedrive.DriveItemList{}, nil
 }
 
 // newTestApp creates a new app instance with a mock SDK for testing.

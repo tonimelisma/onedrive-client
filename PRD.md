@@ -90,8 +90,16 @@ As a user, I want to perform standard file and folder operations from the comman
     *   **Command:** `onedrive-client files mkdir <remote-path>`
 *   **[x] User Story 2.6 (Large Files):** I want to upload files larger than 4MB, so that I can transfer large assets to my cloud storage. The upload must be resumable.
     *   **Status:** Complete. The `upload` command automatically uses a resumable session.
-*   **[ ] User Story 2.7 (Large Files):** I want to download files larger than 4MB without consuming excessive memory, and the download should be resumable.
-    *   **Status:** Not Started. The current download implementation is not suitable for large files.
+*   **[x] User Story 2.7 (Large Files):** I want to download files larger than 4MB without consuming excessive memory, and the download should be resumable.
+    *   **Status:** Complete. The `download` command uses resumable chunked downloads.
+*   **[x] User Story 2.7a (Upload Session Management):** I want to cancel an active resumable upload session if I no longer need it.
+    *   **Command:** `onedrive-client files cancel-upload <upload-url>`
+*   **[x] User Story 2.7b (Upload Session Management):** I want to check the status of a resumable upload session to see its progress.
+    *   **Command:** `onedrive-client files get-upload-status <upload-url>`
+*   **[x] User Story 2.7c (Simple Upload):** I want to upload small files using a simple, non-resumable method for better performance.
+    *   **Command:** `onedrive-client files upload-simple <local-file> <remote-path>`
+*   **[x] User Story 2.7d (Legacy Support):** I want to access the deprecated root listing method for compatibility.
+    *   **Command:** `onedrive-client files list-root-deprecated`
 *   **[ ] User Story 2.8:** I want to delete a file or folder from my OneDrive.
     *   **Command:** `onedrive-client files rm <remote-path>`
 *   **[ ] User Story 2.9:** I want to move a file or folder from one location to another.

@@ -96,6 +96,62 @@ var filesDownloadCmd = &cobra.Command{
 	},
 }
 
+var filesCancelUploadCmd = &cobra.Command{
+	Use:   "cancel-upload <upload-url>",
+	Short: "Cancel a resumable upload session",
+	Long:  "Cancels an active resumable upload session using its upload URL.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesCancelUploadLogic(a, cmd, args)
+	},
+}
+
+var filesGetUploadStatusCmd = &cobra.Command{
+	Use:   "get-upload-status <upload-url>",
+	Short: "Get the status of a resumable upload session",
+	Long:  "Retrieves the current status of a resumable upload session using its upload URL.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesGetUploadStatusLogic(a, cmd, args)
+	},
+}
+
+var filesUploadSimpleCmd = &cobra.Command{
+	Use:   "upload-simple <local-file> <remote-path>",
+	Short: "Upload a file using simple upload",
+	Long:  "Uploads a local file to a specific path in your OneDrive using non-resumable upload. Suitable for small files only.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesUploadSimpleLogic(a, cmd, args)
+	},
+}
+
+var filesListRootDeprecatedCmd = &cobra.Command{
+	Use:   "list-root-deprecated",
+	Short: "List items in the root drive (deprecated)",
+	Long:  "Lists items in the root drive using the deprecated GetRootDriveItems method. Use 'files list /' instead.",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesListRootDeprecatedLogic(a, cmd, args)
+	},
+}
+
 func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	path := "/"
 	if len(args) > 0 {
@@ -373,6 +429,71 @@ func filesDownloadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func filesCancelUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	uploadURL := args[0]
+	if uploadURL == "" {
+		return fmt.Errorf("upload URL cannot be empty")
+	}
+
+	err := a.SDK.CancelUploadSession(uploadURL)
+	if err != nil {
+		return fmt.Errorf("cancelling upload session: %w", err)
+	}
+
+	ui.PrintSuccess("Upload session cancelled successfully.\n")
+	return nil
+}
+
+func filesGetUploadStatusLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	uploadURL := args[0]
+	if uploadURL == "" {
+		return fmt.Errorf("upload URL cannot be empty")
+	}
+
+	status, err := a.SDK.GetUploadSessionStatus(uploadURL)
+	if err != nil {
+		return fmt.Errorf("getting upload session status: %w", err)
+	}
+
+	fmt.Printf("Upload Session Status:\n")
+	fmt.Printf("  Upload URL: %s\n", uploadURL)
+	fmt.Printf("  Expiration: %s\n", status.ExpirationDateTime)
+	if len(status.NextExpectedRanges) > 0 {
+		fmt.Printf("  Next Expected Ranges: %v\n", status.NextExpectedRanges)
+	} else {
+		fmt.Printf("  Status: Upload completed\n")
+	}
+	return nil
+}
+
+func filesUploadSimpleLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	localPath := args[0]
+	remotePath := args[1]
+
+	// Validate that local file exists
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+		return fmt.Errorf("local file '%s' does not exist", localPath)
+	}
+
+	item, err := a.SDK.UploadFile(localPath, remotePath)
+	if err != nil {
+		return fmt.Errorf("uploading file: %w", err)
+	}
+
+	ui.PrintSuccess("File '%s' uploaded successfully to '%s' (ID: %s).\n", localPath, remotePath, item.ID)
+	return nil
+}
+
+func filesListRootDeprecatedLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	items, err := a.SDK.GetRootDriveItems()
+	if err != nil {
+		return fmt.Errorf("getting root drive items: %w", err)
+	}
+
+	ui.DisplayDriveItems(items)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(filesCmd)
 	filesCmd.AddCommand(filesListCmd)
@@ -380,4 +501,8 @@ func init() {
 	filesCmd.AddCommand(filesMkdirCmd)
 	filesCmd.AddCommand(filesUploadCmd)
 	filesCmd.AddCommand(filesDownloadCmd)
+	filesCmd.AddCommand(filesCancelUploadCmd)
+	filesCmd.AddCommand(filesGetUploadStatusCmd)
+	filesCmd.AddCommand(filesUploadSimpleCmd)
+	filesCmd.AddCommand(filesListRootDeprecatedCmd)
 }

@@ -106,6 +106,20 @@ Large file uploads are handled via resumable sessions to be resilient to network
 4.  **Chunking**: The file is then uploaded in chunks. After each successful chunk upload, the progress is implicitly saved on the server side. If the command is interrupted, running it again will resume from the last completed chunk.
 5.  **Completion**: Upon successful upload of all chunks, the session file is deleted.
 
+#### Upload Session Management
+The application provides advanced upload session management capabilities for fine-grained control over resumable uploads.
+1.  **Session Status**: The `files get-upload-status` command allows users to query the current status of any active upload session using its upload URL.
+2.  **Session Cancellation**: The `files cancel-upload` command enables users to cancel unwanted upload sessions, freeing server resources.
+3.  **Simple Uploads**: The `files upload-simple` command provides a non-resumable upload option optimized for small files that don't require session management.
+4.  **Legacy Support**: The `files list-root-deprecated` command maintains compatibility with the older root listing method.
+
+#### Resumable Downloads
+Large file downloads are handled via chunked downloads with session state management for resumption.
+1.  **`files download`**: The command checks for existing session files to resume interrupted downloads.
+2.  **Chunked Downloads**: Files are downloaded in chunks using HTTP Range requests to minimize memory usage.
+3.  **Session Tracking**: Download progress is saved to session files, allowing seamless resumption after interruption.
+4.  **Completion**: Upon successful download, the session file is automatically cleaned up.
+
 ---
 
 ## 3. Future Architecture
@@ -126,10 +140,11 @@ This section outlines planned improvements and the long-term vision.
 
 #### B. Implement Resumable Downloads (Complete)
 *   **Goal:** Support downloading large files without consuming excessive memory and allow downloads to be resumed.
-*   **Why:** The current `files download` implementation is not streamed and is unsuitable for large files. Feature parity with uploads is needed.
-*   **How-To:**
-    1.  The SDK will need a new function that accepts an `io.Writer` and downloads the file in chunks using HTTP Range requests.
-    2.  The `files download` command will need to be updated to use this new function and manage a session file similar to the upload process.
+*   **Status:** Complete. The `files download` command now supports chunked, resumable downloads using HTTP Range requests and session files for state management.
+*   **Implementation:** 
+    1.  The SDK provides `DownloadFileChunk()` function that accepts byte ranges and returns an `io.ReadCloser`.
+    2.  The `files download` command manages session files to track download progress and resume interrupted downloads.
+    3.  Downloads use the same session management pattern as uploads for consistency.
 
 ### 3.2. The Sync Engine (v1.0+ Vision)
 

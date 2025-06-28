@@ -22,6 +22,8 @@ type SDK interface {
 	UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
 	GetUploadSessionStatus(uploadURL string) (onedrive.UploadSession, error)
 	CancelUploadSession(uploadURL string) error
+	UploadFile(localPath, remotePath string) (onedrive.DriveItem, error)
+	GetRootDriveItems() (onedrive.DriveItemList, error)
 }
 
 // OneDriveSDK implements the SDK interface by calling the real OneDrive API.
@@ -92,4 +94,14 @@ func (s *OneDriveSDK) GetUploadSessionStatus(uploadURL string) (onedrive.UploadS
 // CancelUploadSession calls the real onedrive.CancelUploadSession function.
 func (s *OneDriveSDK) CancelUploadSession(uploadURL string) error {
 	return onedrive.CancelUploadSession(uploadURL)
+}
+
+// UploadFile calls the real onedrive.UploadFile function.
+func (s *OneDriveSDK) UploadFile(localPath, remotePath string) (onedrive.DriveItem, error) {
+	return onedrive.UploadFile(s.client, localPath, remotePath)
+}
+
+// GetRootDriveItems calls the real onedrive.GetRootDriveItems function.
+func (s *OneDriveSDK) GetRootDriveItems() (onedrive.DriveItemList, error) {
+	return onedrive.GetRootDriveItems(s.client)
 }

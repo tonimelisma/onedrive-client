@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Resumable large file downloads with progress bar and interrupt handling.
+- New `files cancel-upload <upload-url>` command to cancel a resumable upload session.
+- New `files get-upload-status <upload-url>` command to retrieve the status of a resumable upload session.
+- New `files upload-simple <local-file> <remote-path>` command for non-resumable file uploads (suitable for small files).
+- New `files list-root-deprecated` command (deprecated) to list items in the root drive.
 - New `files mkdir <path>` command to create a directory.
 - New `files upload <local-file> [remote-path]` command to upload files.
 - New `files download <remote-path> [local-path]` command to download files.
@@ -65,6 +69,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Enhanced session file locking to prevent race conditions in concurrent CLI invocations.
 - Improved error message handling to avoid exposing sensitive information in logs.
+
+### Development Notes
+- **Aim:** To expose all public SDK functionality as normal CLI commands.
+- **Scope of Work Undertaken:** Successfully implemented CLI commands for all remaining SDK functions: `CancelUploadSession`, `GetUploadSessionStatus`, `UploadFile` (non-resumable), and `GetRootDriveItems`.
+- **Completed Work:**
+    1.  Updated `internal/app/sdk.go` to add `UploadFile` and `GetRootDriveItems` to the SDK interface and implementation.
+    2.  Updated `cmd/test_helpers_test.go` to add `UploadFileFunc` and `GetRootDriveItemsFunc` to the `MockSDK` with corresponding methods.
+    3.  Implemented four new CLI commands in `cmd/files.go`:
+        - `files cancel-upload <upload-url>` - Cancel a resumable upload session
+        - `files get-upload-status <upload-url>` - Get status of a resumable upload session  
+        - `files upload-simple <local-file> <remote-path>` - Non-resumable file upload for small files
+        - `files list-root-deprecated` - List root items using deprecated method
+    4.  Added comprehensive tests for each new command in `cmd/files_test.go` covering success scenarios, error handling, and edge cases.
+    5.  All tests pass and build succeeds with no errors.
+- **Current State:** All SDK functionality is now exposed via CLI commands. The CLI provides complete coverage of the OneDrive SDK capabilities.
+- **Code Quality:** No shortcuts taken. Followed existing patterns for error handling, UI output, and test structure. All new code follows the established architecture and coding standards.
 
 ## [0.1.0] - 2024-05-20
 

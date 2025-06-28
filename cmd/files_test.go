@@ -129,8 +129,6 @@ func TestFilesUploadLogic(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "Expected session file to be deleted after successful upload")
 }
 
-
-
 func TestFilesDownloadResumableLogic(t *testing.T) {
 	// Create a dummy file for download
 	content := strings.Repeat("a", int(chunkSize)+100)
@@ -191,4 +189,143 @@ func TestFilesDownloadResumableLogic(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = os.Stat(sessionFilePath)
 	assert.True(t, os.IsNotExist(err), "Expected session file to be deleted after successful download")
+}
+
+func TestFilesCancelUploadLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		CancelUploadSessionFunc: func(uploadURL string) error {
+			assert.Equal(t, "http://mock-upload-url.com", uploadURL)
+			return nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesCancelUploadLogic(a, &cobra.Command{}, []string{"http://mock-upload-url.com"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Upload session cancelled successfully")
+}
+
+func TestFilesCancelUploadLogicEmptyURL(t *testing.T) {
+	mockSDK := &MockSDK{}
+	a := newTestApp(mockSDK)
+
+	err := filesCancelUploadLogic(a, &cobra.Command{}, []string{""})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "upload URL cannot be empty")
+}
+
+func TestFilesGetUploadStatusLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		GetUploadSessionStatusFunc: func(uploadURL string) (onedrive.UploadSession, error) {
+			assert.Equal(t, "http://mock-upload-url.com", uploadURL)
+			return onedrive.UploadSession{
+				UploadURL:          uploadURL,
+				ExpirationDateTime: "2024-12-01T12:00:00Z",
+				NextExpectedRanges: []string{"1024-2047", "2048-"},
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesGetUploadStatusLogic(a, &cobra.Command{}, []string{"http://mock-upload-url.com"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Upload Session Status:")
+	assert.Contains(t, output, "http://mock-upload-url.com")
+	assert.Contains(t, output, "2024-12-01T12:00:00Z")
+	assert.Contains(t, output, "1024-2047")
+}
+
+func TestFilesGetUploadStatusLogicCompleted(t *testing.T) {
+	mockSDK := &MockSDK{
+		GetUploadSessionStatusFunc: func(uploadURL string) (onedrive.UploadSession, error) {
+			return onedrive.UploadSession{
+				UploadURL:          uploadURL,
+				ExpirationDateTime: "2024-12-01T12:00:00Z",
+				NextExpectedRanges: []string{}, // Empty means completed
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesGetUploadStatusLogic(a, &cobra.Command{}, []string{"http://mock-upload-url.com"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Status: Upload completed")
+}
+
+func TestFilesUploadSimpleLogic(t *testing.T) {
+	// Create a dummy file for upload
+	tmpFile, err := ioutil.TempFile("", "test-upload-simple-*.txt")
+	assert.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+	_, err = tmpFile.WriteString("test content")
+	assert.NoError(t, err)
+	tmpFile.Close()
+
+	mockSDK := &MockSDK{
+		UploadFileFunc: func(localPath, remotePath string) (onedrive.DriveItem, error) {
+			assert.Equal(t, tmpFile.Name(), localPath)
+			assert.Equal(t, "/remote/path/test.txt", remotePath)
+			return onedrive.DriveItem{
+				ID:   "mock-item-id-123",
+				Name: "test.txt",
+				Size: 12,
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesUploadSimpleLogic(a, &cobra.Command{}, []string{tmpFile.Name(), "/remote/path/test.txt"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "uploaded successfully")
+	assert.Contains(t, output, "mock-item-id-123")
+}
+
+func TestFilesUploadSimpleLogicFileNotExists(t *testing.T) {
+	mockSDK := &MockSDK{}
+	a := newTestApp(mockSDK)
+
+	err := filesUploadSimpleLogic(a, &cobra.Command{}, []string{"/nonexistent/file.txt", "/remote/path/test.txt"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not exist")
+}
+
+func TestFilesListRootDeprecatedLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		GetRootDriveItemsFunc: func() (onedrive.DriveItemList, error) {
+			return onedrive.DriveItemList{
+				Value: []onedrive.DriveItem{
+					{Name: "deprecated-file1.txt", Size: 200},
+					{Name: "deprecated-folder", Folder: &struct {
+						ChildCount int `json:"childCount"`
+						View       struct {
+							ViewType  string `json:"viewType"`
+							SortBy    string `json:"sortBy"`
+							SortOrder string `json:"sortOrder"`
+						} `json:"view"`
+					}{ChildCount: 2}},
+				},
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesListRootDeprecatedLogic(a, &cobra.Command{}, []string{})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "deprecated-file1.txt")
+	assert.Contains(t, output, "deprecated-folder")
 }
