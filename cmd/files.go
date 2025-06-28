@@ -152,6 +152,76 @@ var filesListRootDeprecatedCmd = &cobra.Command{
 	},
 }
 
+var filesRmCmd = &cobra.Command{
+	Use:   "rm <remote-path>",
+	Short: "Delete a file or folder",
+	Long:  "Deletes a file or folder from your OneDrive. Items are moved to the recycle bin, not permanently deleted.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesRmLogic(a, cmd, args)
+	},
+}
+
+var filesCopyCmd = &cobra.Command{
+	Use:   "copy <source-path> <destination-path> [new-name]",
+	Short: "Copy a file or folder",
+	Long:  "Creates a copy of a file or folder in OneDrive. The copy operation is asynchronous by default. Use --wait to block until completion.",
+	Args:  cobra.RangeArgs(2, 3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesCopyLogic(a, cmd, args)
+	},
+}
+
+var filesCopyStatusCmd = &cobra.Command{
+	Use:   "copy-status <monitor-url>",
+	Short: "Check the status of a copy operation",
+	Long:  "Monitors the progress of an asynchronous copy operation using the monitor URL returned by the copy command.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesCopyStatusLogic(a, cmd, args)
+	},
+}
+
+var filesMvCmd = &cobra.Command{
+	Use:   "mv <source-path> <destination-path>",
+	Short: "Move a file or folder",
+	Long:  "Moves a file or folder to a new location in your OneDrive.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesMvLogic(a, cmd, args)
+	},
+}
+
+var filesRenameCmd = &cobra.Command{
+	Use:   "rename <remote-path> <new-name>",
+	Short: "Rename a file or folder",
+	Long:  "Renames a file or folder in your OneDrive.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesRenameLogic(a, cmd, args)
+	},
+}
+
 func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	path := "/"
 	if len(args) > 0 {
@@ -494,6 +564,148 @@ func filesListRootDeprecatedLogic(a *app.App, cmd *cobra.Command, args []string)
 	return nil
 }
 
+func filesRmLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	if remotePath == "" {
+		return fmt.Errorf("remote path cannot be empty")
+	}
+
+	err := a.SDK.DeleteDriveItem(remotePath)
+	if err != nil {
+		return fmt.Errorf("deleting drive item: %w", err)
+	}
+
+	ui.PrintSuccess("Drive item '%s' deleted successfully.\n", remotePath)
+	return nil
+}
+
+func filesCopyLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	sourcePath := args[0]
+	destinationPath := args[1]
+	newName := ""
+	if len(args) == 3 {
+		newName = args[2]
+	}
+
+	if sourcePath == "" || destinationPath == "" {
+		return fmt.Errorf("source path and destination path cannot be empty")
+	}
+
+	wait, _ := cmd.Flags().GetBool("wait")
+
+	monitorURL, err := a.SDK.CopyDriveItem(sourcePath, destinationPath, newName)
+	if err != nil {
+		return fmt.Errorf("copying drive item: %w", err)
+	}
+
+	if !wait {
+		// Fire-and-forget mode
+		ui.PrintSuccess("Drive item '%s' copy initiated successfully.\n", sourcePath)
+		fmt.Printf("Monitor URL: %s\n", monitorURL)
+		fmt.Printf("Use 'files copy-status %s' to check progress.\n", monitorURL)
+		return nil
+	}
+
+	// Wait mode - poll until completion
+	fmt.Printf("Copying '%s'...\n", sourcePath)
+	for {
+		status, err := a.SDK.MonitorCopyOperation(monitorURL)
+		if err != nil {
+			return fmt.Errorf("monitoring copy operation: %w", err)
+		}
+
+		switch status.Status {
+		case "completed":
+			ui.PrintSuccess("Copy completed successfully!\n")
+			if status.ResourceLocation != "" {
+				fmt.Printf("New resource location: %s\n", status.ResourceLocation)
+			}
+			return nil
+		case "failed":
+			if status.Error != nil {
+				return fmt.Errorf("copy operation failed: %s - %s", status.Error.Code, status.Error.Message)
+			}
+			return fmt.Errorf("copy operation failed: %s", status.StatusDescription)
+		case "inProgress":
+			if status.PercentageComplete > 0 {
+				fmt.Printf("\rProgress: %d%% - %s", status.PercentageComplete, status.StatusDescription)
+			} else {
+				fmt.Printf("\rProgress: %s", status.StatusDescription)
+			}
+		default:
+			fmt.Printf("\rStatus: %s", status.StatusDescription)
+		}
+
+		// Wait 2 seconds before next poll
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func filesCopyStatusLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	monitorURL := args[0]
+	if monitorURL == "" {
+		return fmt.Errorf("monitor URL cannot be empty")
+	}
+
+	status, err := a.SDK.MonitorCopyOperation(monitorURL)
+	if err != nil {
+		return fmt.Errorf("getting copy status: %w", err)
+	}
+
+	fmt.Printf("Copy Operation Status:\n")
+	fmt.Printf("  Monitor URL: %s\n", monitorURL)
+	fmt.Printf("  Status: %s\n", status.Status)
+	if status.PercentageComplete > 0 {
+		fmt.Printf("  Progress: %d%%\n", status.PercentageComplete)
+	}
+	fmt.Printf("  Description: %s\n", status.StatusDescription)
+
+	if status.Status == "completed" && status.ResourceLocation != "" {
+		fmt.Printf("  Resource Location: %s\n", status.ResourceLocation)
+	}
+
+	if status.Status == "failed" && status.Error != nil {
+		fmt.Printf("  Error Code: %s\n", status.Error.Code)
+		fmt.Printf("  Error Message: %s\n", status.Error.Message)
+	}
+
+	return nil
+}
+
+func filesMvLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	sourcePath := args[0]
+	destinationPath := args[1]
+
+	if sourcePath == "" || destinationPath == "" {
+		return fmt.Errorf("source path and destination path cannot be empty")
+	}
+
+	item, err := a.SDK.MoveDriveItem(sourcePath, destinationPath)
+	if err != nil {
+		return fmt.Errorf("moving drive item: %w", err)
+	}
+
+	ui.PrintSuccess("Drive item '%s' moved successfully to '%s'.\n", sourcePath, item.ParentReference.Path)
+	return nil
+}
+
+func filesRenameLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	newName := args[1]
+
+	if remotePath == "" || newName == "" {
+		return fmt.Errorf("remote path and new name cannot be empty")
+	}
+
+	item, err := a.SDK.UpdateDriveItem(remotePath, newName)
+	if err != nil {
+		return fmt.Errorf("renaming drive item: %w", err)
+	}
+
+	ui.PrintSuccess("Drive item renamed successfully to '%s'.\n", item.Name)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(filesCmd)
 	filesCmd.AddCommand(filesListCmd)
@@ -505,4 +717,12 @@ func init() {
 	filesCmd.AddCommand(filesGetUploadStatusCmd)
 	filesCmd.AddCommand(filesUploadSimpleCmd)
 	filesCmd.AddCommand(filesListRootDeprecatedCmd)
+	filesCmd.AddCommand(filesRmCmd)
+	filesCmd.AddCommand(filesCopyCmd)
+	filesCmd.AddCommand(filesCopyStatusCmd)
+	filesCmd.AddCommand(filesMvCmd)
+	filesCmd.AddCommand(filesRenameCmd)
+
+	// Add flags
+	filesCopyCmd.Flags().Bool("wait", false, "Wait for copy operation to complete instead of returning immediately")
 }

@@ -124,3 +124,15 @@ type User struct {
 	UserPrincipalName string `json:"userPrincipalName"`
 	ID                string `json:"id"`
 }
+
+// CopyOperationStatus represents the status of an async copy operation.
+type CopyOperationStatus struct {
+	Status             string `json:"status"`             // "inProgress", "completed", "failed"
+	PercentageComplete int    `json:"percentageComplete"` // 0-100
+	StatusDescription  string `json:"statusDescription"`  // Human readable status
+	Error              *struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+	ResourceLocation string `json:"resourceLocation,omitempty"` // URL of completed item
+}

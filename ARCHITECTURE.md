@@ -127,6 +127,35 @@ Large file downloads are handled via chunked downloads with session state manage
 3.  **Session Tracking**: Download progress is saved to session files, allowing seamless resumption after interruption.
 4.  **Completion**: Upon successful download, the session file is automatically cleaned up.
 
+#### Progress Monitoring for Async Operations
+The application implements a sophisticated progress monitoring system for async operations like file copying, providing users with flexible control over operation tracking.
+
+**Hybrid Monitoring Approach:**
+1. **Fire-and-Forget (Default)**: `files copy src dest` returns immediately with a monitor URL for later checking
+2. **Blocking Mode**: `files copy --wait src dest` polls until completion with real-time progress updates  
+3. **Manual Monitoring**: `files copy-status <monitor-url>` allows checking any operation's status
+
+**Implementation Details:**
+- Copy operations return HTTP 202 with Location header containing monitor URL
+- Monitor URL supports polling with different HTTP status codes indicating progress:
+  - 202: Operation in progress (may include percentage complete)
+  - 303: Operation completed (Location header points to new resource)
+  - 4xx/5xx: Operation failed with error details
+- Progress updates include status, percentage completion, and descriptive messages
+- Blocking mode polls every 2 seconds until completion or failure
+
+#### Core File System Operations
+The application provides full CRUD operations for OneDrive files and folders through four core SDK functions:
+
+1. **`DeleteDriveItem()`**: Uses DELETE HTTP method to move items to recycle bin (not permanent deletion)
+2. **`CopyDriveItem()`**: Uses POST to `/copy` endpoint, returns monitor URL for async operation tracking
+3. **`MoveDriveItem()`**: Uses PATCH to update `parentReference` property for item relocation
+4. **`UpdateDriveItem()`**: Uses PATCH to update item properties like `name` for renaming
+
+**Path-Based Addressing:** All operations use the existing `BuildPathURL()` pattern for consistent URL construction (`/me/drive/root:/path:`).
+
+**Error Handling:** Leverages existing `apiCall()` function for standardized OneDrive API error categorization and retry logic.
+
 #### E2E Testing Infrastructure
 The application includes a comprehensive end-to-end testing framework that validates functionality against real OneDrive accounts, ensuring API integration reliability and catching regressions that unit tests might miss.
 
@@ -168,6 +197,36 @@ The E2E testing implementation discovered and helped fix several critical bugs:
 - **All Known Issues Resolved**: Successfully fixed directory listing URL construction, download redirect handling, error message format recognition, and test isolation issues
 
 The framework successfully validates core OneDrive SDK integration and provides a solid foundation for regression testing with 100% reliability.
+
+##### Future Enhancement: True CLI End-to-End Testing
+While the current E2E framework provides excellent SDK-level integration testing, there is an identified need for true CLI end-to-end testing that validates the complete user experience:
+
+**Current E2E Tests (SDK Level):**
+```go
+// Tests SDK functionality directly
+item, err := helper.App.SDK.UploadFile(localFile, remotePath)
+```
+
+**Future CLI E2E Tests (True End-to-End):**
+```bash
+# Tests actual CLI commands
+./onedrive-client files upload test.txt /remote/path/test.txt
+./onedrive-client files list /remote/path/
+./onedrive-client files download /remote/path/test.txt ./downloaded.txt
+```
+
+**Planned CLI E2E Testing Components:**
+1. **CLI Test Harness**: Execute actual CLI binary using `exec.Command()` 
+2. **Output Validation**: Parse and validate CLI output formatting, progress bars, table display
+3. **Command Interface Testing**: Validate argument parsing, flag handling, help text
+4. **Workflow Testing**: Complete user scenarios from authentication through file operations
+5. **Error Handling**: CLI-specific error messages, exit codes, recovery scenarios
+
+**Implementation Strategy:**
+- Maintain both SDK and CLI test suites for comprehensive coverage
+- Reuse authentication infrastructure from current E2E framework
+- Focus on user experience validation that SDK tests cannot cover
+- Integrate with existing test isolation and cleanup procedures
 
 ---
 

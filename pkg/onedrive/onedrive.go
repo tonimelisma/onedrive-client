@@ -874,3 +874,200 @@ func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*OAuthTok
 
 	return &token, nil
 }
+
+// DeleteDriveItem deletes a file or folder by its path.
+// Items are moved to the recycle bin, not permanently deleted.
+func DeleteDriveItem(client *http.Client, path string) error {
+	logger.Debug("DeleteDriveItem called with path: ", path)
+
+	url := BuildPathURL(path)
+	res, err := apiCall(client, "DELETE", url, "", nil)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	// DELETE returns 204 No Content on success
+	if res.StatusCode != 204 {
+		return fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
+	return nil
+}
+
+// CopyDriveItem creates a copy of a DriveItem.
+// Returns the monitoring URL for tracking the async copy operation.
+func CopyDriveItem(client *http.Client, sourcePath, destinationParentPath, newName string) (string, error) {
+	logger.Debug("CopyDriveItem called with sourcePath: ", sourcePath, " destinationParentPath: ", destinationParentPath, " newName: ", newName)
+
+	url := BuildPathURL(sourcePath) + ":/copy"
+
+	// Get the destination parent ID for the parentReference
+	parentItem, err := GetDriveItemByPath(client, destinationParentPath)
+	if err != nil {
+		return "", fmt.Errorf("getting destination parent: %w", err)
+	}
+
+	requestBody := map[string]interface{}{
+		"parentReference": map[string]interface{}{
+			"id": parentItem.ID,
+		},
+	}
+
+	// Add name if specified
+	if newName != "" {
+		requestBody["name"] = newName
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("marshalling copy request: %w", err)
+	}
+
+	res, err := apiCall(client, "POST", url, "application/json", strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	// Copy returns 202 Accepted with Location header for monitoring
+	if res.StatusCode != 202 {
+		return "", fmt.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+
+	monitorURL := res.Header.Get("Location")
+	if monitorURL == "" {
+		return "", fmt.Errorf("no monitoring URL returned")
+	}
+
+	return monitorURL, nil
+}
+
+// MoveDriveItem moves a DriveItem to a new parent folder.
+func MoveDriveItem(client *http.Client, sourcePath, destinationParentPath string) (DriveItem, error) {
+	logger.Debug("MoveDriveItem called with sourcePath: ", sourcePath, " destinationParentPath: ", destinationParentPath)
+	var item DriveItem
+
+	url := BuildPathURL(sourcePath)
+
+	// Get the destination parent ID for the parentReference
+	parentItem, err := GetDriveItemByPath(client, destinationParentPath)
+	if err != nil {
+		return item, fmt.Errorf("getting destination parent: %w", err)
+	}
+
+	requestBody := map[string]interface{}{
+		"parentReference": map[string]interface{}{
+			"id": parentItem.ID,
+		},
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return item, fmt.Errorf("marshalling move request: %w", err)
+	}
+
+	res, err := apiCall(client, "PATCH", url, "application/json", strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return item, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
+		return item, fmt.Errorf("decoding item failed: %v", err)
+	}
+
+	return item, nil
+}
+
+// UpdateDriveItem updates properties of a DriveItem, such as renaming it.
+func UpdateDriveItem(client *http.Client, path, newName string) (DriveItem, error) {
+	logger.Debug("UpdateDriveItem called with path: ", path, " newName: ", newName)
+	var item DriveItem
+
+	url := BuildPathURL(path)
+
+	requestBody := map[string]interface{}{
+		"name": newName,
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return item, fmt.Errorf("marshalling update request: %w", err)
+	}
+
+	res, err := apiCall(client, "PATCH", url, "application/json", strings.NewReader(string(jsonBody)))
+	if err != nil {
+		return item, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
+		return item, fmt.Errorf("decoding item failed: %v", err)
+	}
+
+	return item, nil
+}
+
+// MonitorCopyOperation checks the status of an async copy operation.
+func MonitorCopyOperation(client *http.Client, monitorURL string) (CopyOperationStatus, error) {
+	logger.Debug("MonitorCopyOperation called with monitorURL: ", monitorURL)
+	var status CopyOperationStatus
+
+	req, err := http.NewRequest("GET", monitorURL, nil)
+	if err != nil {
+		return status, fmt.Errorf("creating monitor request: %w", err)
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return status, fmt.Errorf("monitoring copy operation: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == 202 {
+		// Operation still in progress
+		status.Status = "inProgress"
+		status.StatusDescription = "Copy operation is still in progress"
+
+		// Try to get progress info from response if available
+		if err := json.NewDecoder(res.Body).Decode(&status); err != nil {
+			// If we can't decode, just return the basic status
+			return status, nil
+		}
+		return status, nil
+	} else if res.StatusCode == 303 {
+		// Operation completed successfully - redirect to the new resource
+		status.Status = "completed"
+		status.PercentageComplete = 100
+		status.StatusDescription = "Copy operation completed successfully"
+		status.ResourceLocation = res.Header.Get("Location")
+		return status, nil
+	} else if res.StatusCode >= 400 {
+		// Operation failed
+		status.Status = "failed"
+		status.StatusDescription = "Copy operation failed"
+
+		// Try to get error details
+		var errorResponse struct {
+			Error struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+
+		if err := json.NewDecoder(res.Body).Decode(&errorResponse); err == nil {
+			status.Error = &struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			}{
+				Code:    errorResponse.Error.Code,
+				Message: errorResponse.Error.Message,
+			}
+		}
+		return status, nil
+	}
+
+	// Unexpected status code
+	return status, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+}

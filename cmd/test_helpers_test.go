@@ -29,6 +29,11 @@ type MockSDK struct {
 	CancelUploadSessionFunc        func(uploadURL string) error
 	UploadFileFunc                 func(localPath, remotePath string) (onedrive.DriveItem, error)
 	GetRootDriveItemsFunc          func() (onedrive.DriveItemList, error)
+	DeleteDriveItemFunc            func(path string) error
+	CopyDriveItemFunc              func(sourcePath, destinationParentPath, newName string) (string, error)
+	MoveDriveItemFunc              func(sourcePath, destinationParentPath string) (onedrive.DriveItem, error)
+	UpdateDriveItemFunc            func(path, newName string) (onedrive.DriveItem, error)
+	MonitorCopyOperationFunc       func(monitorURL string) (onedrive.CopyOperationStatus, error)
 }
 
 func (m *MockSDK) GetDrives() (onedrive.DriveList, error) {
@@ -141,6 +146,45 @@ func (m *MockSDK) GetRootDriveItems() (onedrive.DriveItemList, error) {
 		return m.GetRootDriveItemsFunc()
 	}
 	return onedrive.DriveItemList{}, nil
+}
+
+func (m *MockSDK) DeleteDriveItem(path string) error {
+	if m.DeleteDriveItemFunc != nil {
+		return m.DeleteDriveItemFunc(path)
+	}
+	return nil
+}
+
+func (m *MockSDK) CopyDriveItem(sourcePath, destinationParentPath, newName string) (string, error) {
+	if m.CopyDriveItemFunc != nil {
+		return m.CopyDriveItemFunc(sourcePath, destinationParentPath, newName)
+	}
+	return "mock-monitor-url", nil
+}
+
+func (m *MockSDK) MoveDriveItem(sourcePath, destinationParentPath string) (onedrive.DriveItem, error) {
+	if m.MoveDriveItemFunc != nil {
+		return m.MoveDriveItemFunc(sourcePath, destinationParentPath)
+	}
+	return onedrive.DriveItem{}, nil
+}
+
+func (m *MockSDK) UpdateDriveItem(path, newName string) (onedrive.DriveItem, error) {
+	if m.UpdateDriveItemFunc != nil {
+		return m.UpdateDriveItemFunc(path, newName)
+	}
+	return onedrive.DriveItem{Name: newName}, nil
+}
+
+func (m *MockSDK) MonitorCopyOperation(monitorURL string) (onedrive.CopyOperationStatus, error) {
+	if m.MonitorCopyOperationFunc != nil {
+		return m.MonitorCopyOperationFunc(monitorURL)
+	}
+	return onedrive.CopyOperationStatus{
+		Status:             "completed",
+		PercentageComplete: 100,
+		StatusDescription:  "Copy completed successfully",
+	}, nil
 }
 
 // newTestApp creates a new app instance with a mock SDK for testing.

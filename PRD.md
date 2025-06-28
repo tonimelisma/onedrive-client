@@ -43,9 +43,10 @@ This release will build on the core by adding destructive operations, resumable 
 
 **Features:**
 *   Ability to download large files resiliently. `[x]`
-*   Ability to delete files and folders (`rm`). `[ ]`
-*   Ability to move files and folders (`mv`). `[ ]`
-*   Ability to rename items (`rename`). `[ ]`
+*   Ability to delete files and folders (`rm`). `[x]`
+*   Ability to move files and folders (`mv`). `[x]`
+*   Ability to rename items (`rename`). `[x]`
+*   Ability to copy files and folders (`copy`) with progress monitoring. `[x]`
 *   Ability to search for items within the drive (`search`). `[ ]`
 *   Ability to view items shared with the user. `[ ]`
 
@@ -100,13 +101,17 @@ As a user, I want to perform standard file and folder operations from the comman
     *   **Command:** `onedrive-client files upload-simple <local-file> <remote-path>`
 *   **[x] User Story 2.7d (Legacy Support):** I want to access the deprecated root listing method for compatibility.
     *   **Command:** `onedrive-client files list-root-deprecated`
-*   **[ ] User Story 2.8:** I want to delete a file or folder from my OneDrive.
+*   **[x] User Story 2.8:** I want to delete a file or folder from my OneDrive.
     *   **Command:** `onedrive-client files rm <remote-path>`
-*   **[ ] User Story 2.9:** I want to move a file or folder from one location to another.
+*   **[x] User Story 2.9:** I want to move a file or folder from one location to another.
     *   **Command:** `onedrive-client files mv <source-path> <destination-path>`
-*   **[ ] User Story 2.10:** I want to rename a file or folder.
+*   **[x] User Story 2.10:** I want to rename a file or folder.
     *   **Command:** `onedrive-client files rename <remote-path> <new-name>`
-*   **[ ] User Story 2.11:** I want to search for files and folders across my entire drive by a query string.
+*   **[x] User Story 2.11:** I want to copy a file or folder to another location.
+    *   **Command:** `onedrive-client files copy <source-path> <destination-path> [new-name]`
+    *   **Advanced:** `onedrive-client files copy --wait <source-path> <destination-path> [new-name]` for blocking operation
+    *   **Monitoring:** `onedrive-client files copy-status <monitor-url>` to check progress
+*   **[ ] User Story 2.12:** I want to search for files and folders across my entire drive by a query string.
     *   **Command:** `onedrive-client files search "<query>"`
 
 ---
@@ -156,3 +161,31 @@ As a developer, I want comprehensive end-to-end testing against real OneDrive ac
 3. Run E2E tests: `go test -tags=e2e -v ./e2e/...`
 
 **Current Status:** Framework operational with 100% test pass rate. All previously known limitations have been successfully resolved, achieving comprehensive coverage of all available SDK functionality with robust error handling and test isolation.
+
+---
+
+### `[ ]` Epic 6: True CLI End-to-End Testing (Future Enhancement)
+
+As a developer, I want comprehensive end-to-end testing of the actual CLI commands to ensure the complete user experience works correctly, including command parsing, output formatting, and error handling.
+
+*   **[ ] User Story 6.1:** I want automated tests that execute the actual CLI binary to test the complete command execution path.
+    *   **Implementation:** Tests using `exec.Command()` to run `./onedrive-client` commands
+*   **[ ] User Story 6.2:** I want CLI output format validation to ensure consistent and correct user interface behavior.
+    *   **Test Coverage:** Command help text, progress bars, table formatting, success/error messages
+*   **[ ] User Story 6.3:** I want CLI argument and flag parsing validation to catch command-line interface regressions.
+    *   **Test Coverage:** Flag validation, argument parsing, error handling for invalid inputs
+*   **[ ] User Story 6.4:** I want CLI workflow testing to validate complete user scenarios from start to finish.
+    *   **Test Coverage:** Authentication flows, file operations, command chaining, error recovery
+*   **[ ] User Story 6.5:** I want CLI-specific error handling validation to ensure proper error messages and exit codes.
+    *   **Implementation:** Tests for network failures, authentication errors, file system errors
+
+**Distinction from Current E2E Tests:**
+- **Current E2E Tests:** Test SDK functionality directly (`helper.App.SDK.UploadFile()`)
+- **Future CLI E2E Tests:** Test actual CLI commands (`./onedrive-client files upload test.txt /remote/`)
+
+**Implementation Plan:**
+1. Create CLI test harness using `exec.Command()` 
+2. Implement output parsing and validation utilities
+3. Add CLI-specific test scenarios covering all commands
+4. Integrate with existing E2E test infrastructure for authentication
+5. Maintain both SDK and CLI test suites for comprehensive coverage

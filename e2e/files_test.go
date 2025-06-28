@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path"
+	"strings"
 	"testing"
 	"time"
 )
@@ -307,17 +309,21 @@ func TestDriveOperations(t *testing.T) {
 
 func TestErrorHandling(t *testing.T) {
 	helper := NewE2ETestHelper(t)
+	helper.LogTestInfo(t)
 
 	t.Run("NonExistentFile", func(t *testing.T) {
 		nonExistentPath := helper.GetTestPath("does-not-exist.txt")
 
 		_, err := helper.App.SDK.GetDriveItemByPath(nonExistentPath)
 		if err == nil {
-			t.Error("Expected error for non-existent file")
+			t.Error("Expected error for non-existent file, but got none")
 		}
 
-		// Verify the error is the expected type
-		helper.AssertFileNotExists(t, nonExistentPath)
+		// Check that error message contains expected text
+		errorStr := err.Error()
+		if !strings.Contains(errorStr, "itemNotFound") && !strings.Contains(errorStr, "resource not found") {
+			t.Errorf("Error message doesn't contain expected text. Got: %s", errorStr)
+		}
 	})
 
 	t.Run("InvalidUploadSession", func(t *testing.T) {
@@ -327,5 +333,135 @@ func TestErrorHandling(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for invalid upload session URL")
 		}
+	})
+}
+
+func TestFileManipulationOperations(t *testing.T) {
+	helper := NewE2ETestHelper(t)
+	helper.LogTestInfo(t)
+
+	t.Run("CopyFile", func(t *testing.T) {
+		// First upload a file to copy
+		testContent := []byte("Content for copy test.\nThis file will be copied.\n")
+		localFile := helper.CreateTestFile(t, "copy-source.txt", testContent)
+		sourcePath := helper.GetTestPath("copy-source.txt")
+
+		_, err := helper.App.SDK.UploadFile(localFile, sourcePath)
+		if err != nil {
+			t.Fatalf("Failed to upload source file for copy test: %v", err)
+		}
+		helper.WaitForFile(t, sourcePath, 30*time.Second)
+
+		// Now copy the file
+		destinationParentPath := helper.TestDir
+		newName := "copied-file.txt"
+		monitorURL, err := helper.App.SDK.CopyDriveItem(sourcePath, destinationParentPath, newName)
+		if err != nil {
+			t.Fatalf("Failed to copy file: %v", err)
+		}
+
+		if monitorURL == "" {
+			t.Error("Expected monitor URL but got empty string")
+		}
+
+		// Wait and verify the copied file exists
+		copiedPath := helper.GetTestPath(newName)
+		helper.WaitForFile(t, copiedPath, 60*time.Second)
+		helper.AssertFileExists(t, copiedPath)
+
+		t.Logf("✓ File copied successfully. Monitor URL: %s", monitorURL)
+	})
+
+	t.Run("RenameFile", func(t *testing.T) {
+		// First upload a file to rename
+		testContent := []byte("Content for rename test.\nThis file will be renamed.\n")
+		localFile := helper.CreateTestFile(t, "rename-original.txt", testContent)
+		originalPath := helper.GetTestPath("rename-original.txt")
+
+		_, err := helper.App.SDK.UploadFile(localFile, originalPath)
+		if err != nil {
+			t.Fatalf("Failed to upload file for rename test: %v", err)
+		}
+		helper.WaitForFile(t, originalPath, 30*time.Second)
+
+		// Now rename the file
+		newName := "renamed-file.txt"
+		item, err := helper.App.SDK.UpdateDriveItem(originalPath, newName)
+		if err != nil {
+			t.Fatalf("Failed to rename file: %v", err)
+		}
+
+		if item.Name != newName {
+			t.Errorf("Expected renamed file to have name %s, got %s", newName, item.Name)
+		}
+
+		// Verify the renamed file exists and original doesn't
+		renamedPath := helper.GetTestPath(newName)
+		helper.WaitForFile(t, renamedPath, 30*time.Second)
+		helper.AssertFileExists(t, renamedPath)
+		helper.AssertFileNotExists(t, originalPath)
+
+		t.Logf("✓ File renamed successfully to: %s", item.Name)
+	})
+
+	t.Run("MoveFile", func(t *testing.T) {
+		// First create a subdirectory for moving
+		subDirName := "move-destination"
+		subDirPath := helper.GetTestPath(subDirName)
+		_, err := helper.App.SDK.CreateFolder(helper.TestDir, subDirName)
+		if err != nil {
+			t.Fatalf("Failed to create subdirectory for move test: %v", err)
+		}
+		helper.WaitForFile(t, subDirPath, 30*time.Second)
+
+		// Upload a file to move
+		testContent := []byte("Content for move test.\nThis file will be moved.\n")
+		localFile := helper.CreateTestFile(t, "move-source.txt", testContent)
+		sourcePath := helper.GetTestPath("move-source.txt")
+
+		_, err = helper.App.SDK.UploadFile(localFile, sourcePath)
+		if err != nil {
+			t.Fatalf("Failed to upload file for move test: %v", err)
+		}
+		helper.WaitForFile(t, sourcePath, 30*time.Second)
+
+		// Now move the file
+		item, err := helper.App.SDK.MoveDriveItem(sourcePath, subDirPath)
+		if err != nil {
+			t.Fatalf("Failed to move file: %v", err)
+		}
+
+		// Verify the file is in the new location and not in the old location
+		movedPath := path.Join(subDirPath, "move-source.txt")
+		helper.WaitForFile(t, movedPath, 30*time.Second)
+		helper.AssertFileExists(t, movedPath)
+		helper.AssertFileNotExists(t, sourcePath)
+
+		t.Logf("✓ File moved successfully to: %s", item.ParentReference.Path)
+	})
+
+	t.Run("DeleteFile", func(t *testing.T) {
+		// First upload a file to delete
+		testContent := []byte("Content for delete test.\nThis file will be deleted.\n")
+		localFile := helper.CreateTestFile(t, "delete-test.txt", testContent)
+		filePath := helper.GetTestPath("delete-test.txt")
+
+		_, err := helper.App.SDK.UploadFile(localFile, filePath)
+		if err != nil {
+			t.Fatalf("Failed to upload file for delete test: %v", err)
+		}
+		helper.WaitForFile(t, filePath, 30*time.Second)
+
+		// Now delete the file
+		err = helper.App.SDK.DeleteDriveItem(filePath)
+		if err != nil {
+			t.Fatalf("Failed to delete file: %v", err)
+		}
+
+		// Verify the file no longer exists
+		time.Sleep(5 * time.Second) // Give some time for deletion to propagate
+		helper.AssertFileNotExists(t, filePath)
+
+		t.Logf("✓ File deleted successfully")
 	})
 }

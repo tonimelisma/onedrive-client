@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Core File System Operations**: Implemented essential file management commands for OneDrive:
+  - `files rm <remote-path>` - Delete files and folders (moved to recycle bin)
+  - `files copy <source-path> <destination-path> [new-name]` - Copy files and folders with async operation
+  - `files mv <source-path> <destination-path>` - Move files and folders to new locations
+  - `files rename <remote-path> <new-name>` - Rename files and folders
+- **Progress Monitoring System**: Advanced copy operation monitoring with flexible user control:
+  - Default fire-and-forget mode returns monitor URL for later checking
+  - `--wait` flag for blocking copy operations with real-time progress
+  - `files copy-status <monitor-url>` command to check status of any copy operation
+  - Comprehensive status reporting (inProgress, completed, failed) with percentage completion
+- **Enhanced SDK Layer**: Added four new core functions to OneDrive SDK:
+  - `DeleteDriveItem()` - DELETE operation for file/folder removal
+  - `CopyDriveItem()` - POST operation for async copy with monitoring URL
+  - `MoveDriveItem()` - PATCH operation for moving items between directories
+  - `UpdateDriveItem()` - PATCH operation for renaming and property updates
+  - `MonitorCopyOperation()` - GET operation for tracking async copy progress
 - **E2E Testing Framework**: Comprehensive end-to-end testing framework in `e2e/` directory that tests against real OneDrive accounts using the CLI's existing device code flow authentication.
   - Test isolation with unique timestamped directories (`/E2E-Tests/test-{timestamp}`)
   - Automated authentication using existing `config.json` from CLI login

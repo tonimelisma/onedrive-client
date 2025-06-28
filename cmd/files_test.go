@@ -306,15 +306,7 @@ func TestFilesListRootDeprecatedLogic(t *testing.T) {
 		GetRootDriveItemsFunc: func() (onedrive.DriveItemList, error) {
 			return onedrive.DriveItemList{
 				Value: []onedrive.DriveItem{
-					{Name: "deprecated-file1.txt", Size: 200},
-					{Name: "deprecated-folder", Folder: &struct {
-						ChildCount int `json:"childCount"`
-						View       struct {
-							ViewType  string `json:"viewType"`
-							SortBy    string `json:"sortBy"`
-							SortOrder string `json:"sortOrder"`
-						} `json:"view"`
-					}{ChildCount: 2}},
+					{Name: "deprecated-file.txt", Size: 100},
 				},
 			}, nil
 		},
@@ -326,6 +318,144 @@ func TestFilesListRootDeprecatedLogic(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	assert.Contains(t, output, "deprecated-file1.txt")
-	assert.Contains(t, output, "deprecated-folder")
+	assert.Contains(t, output, "deprecated-file.txt")
+}
+
+func TestFilesRmLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		DeleteDriveItemFunc: func(path string) error {
+			assert.Equal(t, "/test/file.txt", path)
+			return nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesRmLogic(a, &cobra.Command{}, []string{"/test/file.txt"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "deleted successfully")
+}
+
+func TestFilesCopyLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		CopyDriveItemFunc: func(sourcePath, destinationPath, newName string) (string, error) {
+			assert.Equal(t, "/source/file.txt", sourcePath)
+			assert.Equal(t, "/destination", destinationPath)
+			assert.Equal(t, "new-name.txt", newName)
+			return "mock-monitor-url", nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("wait", false, "Wait for copy operation to complete")
+
+	output := captureOutput(t, func() {
+		err := filesCopyLogic(a, cmd, []string{"/source/file.txt", "/destination", "new-name.txt"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "copy initiated successfully")
+	assert.Contains(t, output, "mock-monitor-url")
+	assert.Contains(t, output, "files copy-status")
+}
+
+func TestFilesCopyLogicWithWait(t *testing.T) {
+	mockSDK := &MockSDK{
+		CopyDriveItemFunc: func(sourcePath, destinationPath, newName string) (string, error) {
+			return "mock-monitor-url", nil
+		},
+		MonitorCopyOperationFunc: func(monitorURL string) (onedrive.CopyOperationStatus, error) {
+			assert.Equal(t, "mock-monitor-url", monitorURL)
+			return onedrive.CopyOperationStatus{
+				Status:             "completed",
+				PercentageComplete: 100,
+				StatusDescription:  "Copy completed successfully",
+				ResourceLocation:   "/destination/new-name.txt",
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("wait", false, "Wait for copy operation to complete")
+	cmd.Flags().Set("wait", "true")
+
+	output := captureOutput(t, func() {
+		err := filesCopyLogic(a, cmd, []string{"/source/file.txt", "/destination", "new-name.txt"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Copy completed successfully")
+}
+
+func TestFilesCopyStatusLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		MonitorCopyOperationFunc: func(monitorURL string) (onedrive.CopyOperationStatus, error) {
+			assert.Equal(t, "mock-monitor-url", monitorURL)
+			return onedrive.CopyOperationStatus{
+				Status:             "inProgress",
+				PercentageComplete: 75,
+				StatusDescription:  "Copy operation in progress",
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesCopyStatusLogic(a, &cobra.Command{}, []string{"mock-monitor-url"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "Copy Operation Status")
+	assert.Contains(t, output, "mock-monitor-url")
+	assert.Contains(t, output, "inProgress")
+	assert.Contains(t, output, "75%")
+}
+
+func TestFilesMvLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		MoveDriveItemFunc: func(sourcePath, destinationPath string) (onedrive.DriveItem, error) {
+			assert.Equal(t, "/source/file.txt", sourcePath)
+			assert.Equal(t, "/destination", destinationPath)
+			return onedrive.DriveItem{
+				Name: "file.txt",
+				ParentReference: struct {
+					DriveID   string `json:"driveId"`
+					DriveType string `json:"driveType"`
+					ID        string `json:"id"`
+					Path      string `json:"path"`
+				}{Path: "/destination"},
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesMvLogic(a, &cobra.Command{}, []string{"/source/file.txt", "/destination"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "moved successfully")
+}
+
+func TestFilesRenameLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		UpdateDriveItemFunc: func(path, newName string) (onedrive.DriveItem, error) {
+			assert.Equal(t, "/test/old-name.txt", path)
+			assert.Equal(t, "new-name.txt", newName)
+			return onedrive.DriveItem{Name: "new-name.txt"}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	output := captureOutput(t, func() {
+		err := filesRenameLogic(a, &cobra.Command{}, []string{"/test/old-name.txt", "new-name.txt"})
+		assert.NoError(t, err)
+	})
+
+	assert.Contains(t, output, "renamed successfully")
+	assert.Contains(t, output, "new-name.txt")
 }

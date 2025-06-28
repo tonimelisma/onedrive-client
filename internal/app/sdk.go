@@ -24,6 +24,11 @@ type SDK interface {
 	CancelUploadSession(uploadURL string) error
 	UploadFile(localPath, remotePath string) (onedrive.DriveItem, error)
 	GetRootDriveItems() (onedrive.DriveItemList, error)
+	DeleteDriveItem(path string) error
+	CopyDriveItem(sourcePath, destinationParentPath, newName string) (string, error)
+	MoveDriveItem(sourcePath, destinationParentPath string) (onedrive.DriveItem, error)
+	UpdateDriveItem(path, newName string) (onedrive.DriveItem, error)
+	MonitorCopyOperation(monitorURL string) (onedrive.CopyOperationStatus, error)
 }
 
 // OneDriveSDK implements the SDK interface by calling the real OneDrive API.
@@ -104,4 +109,29 @@ func (s *OneDriveSDK) UploadFile(localPath, remotePath string) (onedrive.DriveIt
 // GetRootDriveItems calls the real onedrive.GetRootDriveItems function.
 func (s *OneDriveSDK) GetRootDriveItems() (onedrive.DriveItemList, error) {
 	return onedrive.GetRootDriveItems(s.client)
+}
+
+// DeleteDriveItem calls the real onedrive.DeleteDriveItem function.
+func (s *OneDriveSDK) DeleteDriveItem(path string) error {
+	return onedrive.DeleteDriveItem(s.client, path)
+}
+
+// CopyDriveItem calls the real onedrive.CopyDriveItem function.
+func (s *OneDriveSDK) CopyDriveItem(sourcePath, destinationParentPath, newName string) (string, error) {
+	return onedrive.CopyDriveItem(s.client, sourcePath, destinationParentPath, newName)
+}
+
+// MoveDriveItem calls the real onedrive.MoveDriveItem function.
+func (s *OneDriveSDK) MoveDriveItem(sourcePath, destinationParentPath string) (onedrive.DriveItem, error) {
+	return onedrive.MoveDriveItem(s.client, sourcePath, destinationParentPath)
+}
+
+// UpdateDriveItem calls the real onedrive.UpdateDriveItem function.
+func (s *OneDriveSDK) UpdateDriveItem(path, newName string) (onedrive.DriveItem, error) {
+	return onedrive.UpdateDriveItem(s.client, path, newName)
+}
+
+// MonitorCopyOperation calls the real onedrive.MonitorCopyOperation function.
+func (s *OneDriveSDK) MonitorCopyOperation(monitorURL string) (onedrive.CopyOperationStatus, error) {
+	return onedrive.MonitorCopyOperation(s.client, monitorURL)
 }
