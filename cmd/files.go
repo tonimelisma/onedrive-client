@@ -211,7 +211,7 @@ var filesMvCmd = &cobra.Command{
 var filesRenameCmd = &cobra.Command{
 	Use:   "rename <remote-path> <new-name>",
 	Short: "Rename a file or folder",
-	Long:  "Renames a file or folder in your OneDrive.",
+	Long:  "Renames a file or folder to a new name.",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
@@ -219,6 +219,48 @@ var filesRenameCmd = &cobra.Command{
 			return fmt.Errorf("error creating app: %w", err)
 		}
 		return filesRenameLogic(a, cmd, args)
+	},
+}
+
+var filesSearchCmd = &cobra.Command{
+	Use:   "search \"<query>\"",
+	Short: "Search for files and folders",
+	Long:  "Searches for files and folders across your entire OneDrive by query string. The search includes file names, content, and metadata.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesSearchLogic(a, cmd, args)
+	},
+}
+
+var filesRecentCmd = &cobra.Command{
+	Use:   "recent",
+	Short: "List recently accessed files",
+	Long:  "Lists files and folders that have been recently accessed by you. This includes items from your own drive as well as items you have access to from other drives.",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesRecentLogic(a, cmd, args)
+	},
+}
+
+var filesSpecialCmd = &cobra.Command{
+	Use:   "special <folder-name>",
+	Short: "Access a special folder",
+	Long:  "Accesses well-known special folders in your OneDrive. Valid folder names: documents, photos, cameraroll, approot, music, recordings.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesSpecialLogic(a, cmd, args)
 	},
 }
 
@@ -706,6 +748,46 @@ func filesRenameLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	query := args[0]
+	if query == "" {
+		return fmt.Errorf("search query cannot be empty")
+	}
+
+	items, err := a.SDK.SearchDriveItems(query)
+	if err != nil {
+		return fmt.Errorf("searching drive items: %w", err)
+	}
+
+	ui.DisplaySearchResults(items, query)
+	return nil
+}
+
+func filesRecentLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	items, err := a.SDK.GetRecentItems()
+	if err != nil {
+		return fmt.Errorf("getting recent items: %w", err)
+	}
+
+	ui.DisplayRecentItems(items)
+	return nil
+}
+
+func filesSpecialLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	folderName := args[0]
+	if folderName == "" {
+		return fmt.Errorf("folder name cannot be empty")
+	}
+
+	item, err := a.SDK.GetSpecialFolder(folderName)
+	if err != nil {
+		return fmt.Errorf("getting special folder: %w", err)
+	}
+
+	ui.DisplaySpecialFolder(item, folderName)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(filesCmd)
 	filesCmd.AddCommand(filesListCmd)
@@ -722,6 +804,9 @@ func init() {
 	filesCmd.AddCommand(filesCopyStatusCmd)
 	filesCmd.AddCommand(filesMvCmd)
 	filesCmd.AddCommand(filesRenameCmd)
+	filesCmd.AddCommand(filesSearchCmd)
+	filesCmd.AddCommand(filesRecentCmd)
+	filesCmd.AddCommand(filesSpecialCmd)
 
 	// Add flags
 	filesCopyCmd.Flags().Bool("wait", false, "Wait for copy operation to complete instead of returning immediately")

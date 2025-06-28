@@ -29,6 +29,10 @@ type SDK interface {
 	MoveDriveItem(sourcePath, destinationParentPath string) (onedrive.DriveItem, error)
 	UpdateDriveItem(path, newName string) (onedrive.DriveItem, error)
 	MonitorCopyOperation(monitorURL string) (onedrive.CopyOperationStatus, error)
+	SearchDriveItems(query string) (onedrive.DriveItemList, error)
+	GetSharedWithMe() (onedrive.DriveItemList, error)
+	GetRecentItems() (onedrive.DriveItemList, error)
+	GetSpecialFolder(folderName string) (onedrive.DriveItem, error)
 }
 
 // OneDriveSDK implements the SDK interface by calling the real OneDrive API.
@@ -134,4 +138,24 @@ func (s *OneDriveSDK) UpdateDriveItem(path, newName string) (onedrive.DriveItem,
 // MonitorCopyOperation calls the real onedrive.MonitorCopyOperation function.
 func (s *OneDriveSDK) MonitorCopyOperation(monitorURL string) (onedrive.CopyOperationStatus, error) {
 	return onedrive.MonitorCopyOperation(s.client, monitorURL)
+}
+
+// SearchDriveItems calls the real onedrive.SearchDriveItems function.
+func (s *OneDriveSDK) SearchDriveItems(query string) (onedrive.DriveItemList, error) {
+	return onedrive.SearchDriveItems(s.client, query)
+}
+
+// GetSharedWithMe calls the real onedrive.GetSharedWithMe function.
+func (s *OneDriveSDK) GetSharedWithMe() (onedrive.DriveItemList, error) {
+	return onedrive.GetSharedWithMe(s.client)
+}
+
+// GetRecentItems calls the real onedrive.GetRecentItems function.
+func (s *OneDriveSDK) GetRecentItems() (onedrive.DriveItemList, error) {
+	return onedrive.GetRecentItems(s.client)
+}
+
+// GetSpecialFolder calls the real onedrive.GetSpecialFolder function.
+func (s *OneDriveSDK) GetSpecialFolder(folderName string) (onedrive.DriveItem, error) {
+	return onedrive.GetSpecialFolder(s.client, folderName)
 }

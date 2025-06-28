@@ -1071,3 +1071,100 @@ func MonitorCopyOperation(client *http.Client, monitorURL string) (CopyOperation
 	// Unexpected status code
 	return status, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 }
+
+// SearchDriveItems searches for items in the drive by query string.
+func SearchDriveItems(client *http.Client, query string) (DriveItemList, error) {
+	logger.Debug("SearchDriveItems called with query: ", query)
+	var items DriveItemList
+
+	// URL encode the query parameter
+	encodedQuery := url.QueryEscape(query)
+	searchURL := customRootURL + "me/drive/root/search(q='" + encodedQuery + "')"
+
+	res, err := apiCall(client, "GET", searchURL, "", nil)
+	if err != nil {
+		return items, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
+		return items, fmt.Errorf("decoding search results failed: %v", err)
+	}
+
+	return items, nil
+}
+
+// GetSharedWithMe retrieves items that have been shared with the current user.
+func GetSharedWithMe(client *http.Client) (DriveItemList, error) {
+	logger.Debug("GetSharedWithMe called")
+	var items DriveItemList
+
+	sharedURL := customRootURL + "me/drive/sharedWithMe"
+
+	res, err := apiCall(client, "GET", sharedURL, "", nil)
+	if err != nil {
+		return items, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
+		return items, fmt.Errorf("decoding shared items failed: %v", err)
+	}
+
+	return items, nil
+}
+
+// GetRecentItems retrieves items that have been recently accessed by the current user.
+func GetRecentItems(client *http.Client) (DriveItemList, error) {
+	logger.Debug("GetRecentItems called")
+	var items DriveItemList
+
+	recentURL := customRootURL + "me/drive/recent"
+
+	res, err := apiCall(client, "GET", recentURL, "", nil)
+	if err != nil {
+		return items, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
+		return items, fmt.Errorf("decoding recent items failed: %v", err)
+	}
+
+	return items, nil
+}
+
+// GetSpecialFolder retrieves a special folder by its well-known name.
+// Valid folder names: documents, photos, cameraroll, approot, music, recordings
+func GetSpecialFolder(client *http.Client, folderName string) (DriveItem, error) {
+	logger.Debug("GetSpecialFolder called with folderName: ", folderName)
+	var item DriveItem
+
+	// Validate folder name
+	validFolders := map[string]bool{
+		"documents":  true,
+		"photos":     true,
+		"cameraroll": true,
+		"approot":    true,
+		"music":      true,
+		"recordings": true,
+	}
+
+	if !validFolders[folderName] {
+		return item, fmt.Errorf("invalid special folder name: %s. Valid names are: documents, photos, cameraroll, approot, music, recordings", folderName)
+	}
+
+	specialURL := customRootURL + "me/drive/special/" + folderName
+
+	res, err := apiCall(client, "GET", specialURL, "", nil)
+	if err != nil {
+		return item, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
+		return item, fmt.Errorf("decoding special folder failed: %v", err)
+	}
+
+	return item, nil
+}

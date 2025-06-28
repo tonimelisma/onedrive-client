@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -458,4 +459,175 @@ func TestFilesRenameLogic(t *testing.T) {
 
 	assert.Contains(t, output, "renamed successfully")
 	assert.Contains(t, output, "new-name.txt")
+}
+
+func TestFilesSearchLogic(t *testing.T) {
+	tests := []struct {
+		name        string
+		query       string
+		mockItems   onedrive.DriveItemList
+		mockError   error
+		expectError bool
+	}{
+		{
+			name:  "successful search",
+			query: "test",
+			mockItems: onedrive.DriveItemList{
+				Value: []onedrive.DriveItem{
+					{Name: "test-file.txt", Size: 1024},
+					{Name: "another-test.docx", Size: 2048},
+				},
+			},
+			mockError:   nil,
+			expectError: false,
+		},
+		{
+			name:        "empty query",
+			query:       "",
+			mockItems:   onedrive.DriveItemList{},
+			mockError:   nil,
+			expectError: true,
+		},
+		{
+			name:        "search error",
+			query:       "test",
+			mockItems:   onedrive.DriveItemList{},
+			mockError:   errors.New("search failed"),
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSDK := &MockSDK{
+				SearchDriveItemsFunc: func(query string) (onedrive.DriveItemList, error) {
+					if query == tt.query {
+						return tt.mockItems, tt.mockError
+					}
+					return onedrive.DriveItemList{}, errors.New("unexpected query")
+				},
+			}
+
+			app := newTestApp(mockSDK)
+			cmd := &cobra.Command{}
+
+			err := filesSearchLogic(app, cmd, []string{tt.query})
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestFilesRecentLogic(t *testing.T) {
+	tests := []struct {
+		name        string
+		mockItems   onedrive.DriveItemList
+		mockError   error
+		expectError bool
+	}{
+		{
+			name: "successful recent items",
+			mockItems: onedrive.DriveItemList{
+				Value: []onedrive.DriveItem{
+					{Name: "recent-file.txt", Size: 1024, LastModifiedDateTime: time.Now()},
+					{Name: "another-recent.docx", Size: 2048, LastModifiedDateTime: time.Now()},
+				},
+			},
+			mockError:   nil,
+			expectError: false,
+		},
+		{
+			name:        "recent items error",
+			mockItems:   onedrive.DriveItemList{},
+			mockError:   errors.New("recent items failed"),
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSDK := &MockSDK{
+				GetRecentItemsFunc: func() (onedrive.DriveItemList, error) {
+					return tt.mockItems, tt.mockError
+				},
+			}
+
+			app := newTestApp(mockSDK)
+			cmd := &cobra.Command{}
+
+			err := filesRecentLogic(app, cmd, []string{})
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestFilesSpecialLogic(t *testing.T) {
+	tests := []struct {
+		name        string
+		folderName  string
+		mockItem    onedrive.DriveItem
+		mockError   error
+		expectError bool
+	}{
+		{
+			name:       "successful special folder",
+			folderName: "documents",
+			mockItem: onedrive.DriveItem{
+				Name: "Documents",
+				ID:   "12345",
+				SpecialFolder: &struct {
+					Name string `json:"name"`
+				}{Name: "documents"},
+			},
+			mockError:   nil,
+			expectError: false,
+		},
+		{
+			name:        "empty folder name",
+			folderName:  "",
+			mockItem:    onedrive.DriveItem{},
+			mockError:   nil,
+			expectError: true,
+		},
+		{
+			name:        "special folder error",
+			folderName:  "documents",
+			mockItem:    onedrive.DriveItem{},
+			mockError:   errors.New("special folder failed"),
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockSDK := &MockSDK{
+				GetSpecialFolderFunc: func(folderName string) (onedrive.DriveItem, error) {
+					if folderName == tt.folderName {
+						return tt.mockItem, tt.mockError
+					}
+					return onedrive.DriveItem{}, errors.New("unexpected folder name")
+				},
+			}
+
+			app := newTestApp(mockSDK)
+			cmd := &cobra.Command{}
+
+			err := filesSpecialLogic(app, cmd, []string{tt.folderName})
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

@@ -129,3 +129,121 @@ func NewProgressBar(maxBytes int) *progressbar.ProgressBar {
 		progressbar.OptionFullWidth(),
 	)
 }
+
+// DisplaySearchResults prints search results with query context.
+func DisplaySearchResults(items onedrive.DriveItemList, query string) {
+	if len(items.Value) == 0 {
+		fmt.Printf("No items found for query: %s\n", query)
+		return
+	}
+
+	fmt.Printf("Search results for '%s' (%d items):\n", query, len(items.Value))
+	fmt.Printf("%-50s %10s %15s %s\n", "Name", "Size", "Type", "Modified")
+	fmt.Println(strings.Repeat("-", 90))
+
+	for _, item := range items.Value {
+		itemType := "File"
+		if item.Folder != nil {
+			itemType = "Folder"
+		}
+		modifiedTime := item.LastModifiedDateTime.Format("2006-01-02")
+
+		name := item.Name
+		if len(name) > 45 {
+			name = name[:42] + "..."
+		}
+
+		fmt.Printf("%-50s %10s %15s %s\n", name, formatBytes(item.Size), itemType, modifiedTime)
+	}
+}
+
+// DisplaySharedItems prints items shared with the user, highlighting remote items.
+func DisplaySharedItems(items onedrive.DriveItemList) {
+	if len(items.Value) == 0 {
+		fmt.Println("No items have been shared with you.")
+		return
+	}
+
+	fmt.Printf("Items shared with you (%d items):\n", len(items.Value))
+	fmt.Printf("%-50s %10s %15s %20s %s\n", "Name", "Size", "Type", "Shared Date", "Owner")
+	fmt.Println(strings.Repeat("-", 110))
+
+	for _, item := range items.Value {
+		itemType := "File"
+		if item.Folder != nil {
+			itemType = "Folder"
+		}
+
+		name := item.Name
+		if len(name) > 45 {
+			name = name[:42] + "..."
+		}
+
+		sharedDate := "N/A"
+		owner := "N/A"
+
+		// Check if this is a remote item (shared from another drive)
+		if item.RemoteItem != nil {
+			// Use the remote item's creation date as shared date approximation
+			sharedDate = item.CreatedDateTime.Format("2006-01-02")
+		}
+
+		// Try to get owner from CreatedBy
+		if item.CreatedBy.User.DisplayName != "" {
+			owner = item.CreatedBy.User.DisplayName
+		}
+
+		fmt.Printf("%-50s %10s %15s %20s %s\n", name, formatBytes(item.Size), itemType, sharedDate, owner)
+	}
+}
+
+// DisplayRecentItems prints recently accessed items with last access time.
+func DisplayRecentItems(items onedrive.DriveItemList) {
+	if len(items.Value) == 0 {
+		fmt.Println("No recent items found.")
+		return
+	}
+
+	fmt.Printf("Recently accessed items (%d items):\n", len(items.Value))
+	fmt.Printf("%-50s %10s %15s %20s\n", "Name", "Size", "Type", "Last Accessed")
+	fmt.Println(strings.Repeat("-", 100))
+
+	for _, item := range items.Value {
+		itemType := "File"
+		if item.Folder != nil {
+			itemType = "Folder"
+		}
+
+		name := item.Name
+		if len(name) > 45 {
+			name = name[:42] + "..."
+		}
+
+		// Use LastModifiedDateTime as proxy for last access if fileSystemInfo not available
+		accessTime := item.LastModifiedDateTime.Format("2006-01-02 15:04")
+		if !item.FileSystemInfo.LastModifiedDateTime.IsZero() {
+			accessTime = item.FileSystemInfo.LastModifiedDateTime.Format("2006-01-02 15:04")
+		}
+
+		fmt.Printf("%-50s %10s %15s %20s\n", name, formatBytes(item.Size), itemType, accessTime)
+	}
+}
+
+// DisplaySpecialFolder prints information about a special folder.
+func DisplaySpecialFolder(item onedrive.DriveItem, folderName string) {
+	fmt.Printf("Special folder '%s':\n", folderName)
+	fmt.Printf("           Name: %s\n", item.Name)
+	fmt.Printf("             ID: %s\n", item.ID)
+	fmt.Printf("        Created: %s\n", item.CreatedDateTime.Format("2006-01-02 15:04:05"))
+	fmt.Printf(" Last Modified: %s\n", item.LastModifiedDateTime.Format("2006-01-02 15:04:05"))
+	fmt.Printf("        Web URL: %s\n", item.WebURL)
+
+	if item.Folder != nil {
+		fmt.Printf("           Type: Folder\n")
+		fmt.Printf("   Child Count: %d\n", item.Folder.ChildCount)
+	}
+
+	if item.SpecialFolder != nil {
+		fmt.Printf("  Special Type: %s\n", item.SpecialFolder.Name)
+	}
+}

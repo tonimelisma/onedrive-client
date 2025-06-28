@@ -4,12 +4,15 @@ package e2e
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFileOperations(t *testing.T) {
@@ -463,5 +466,159 @@ func TestFileManipulationOperations(t *testing.T) {
 		helper.AssertFileNotExists(t, filePath)
 
 		t.Logf("✓ File deleted successfully")
+	})
+}
+
+func TestSearchOperations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E tests in short mode")
+	}
+
+	helper := NewE2ETestHelper(t)
+
+	t.Run("search for items", func(t *testing.T) {
+		// Test basic search functionality
+		items, err := helper.App.SDK.SearchDriveItems("test")
+		if err != nil {
+			// Search might return no results, which is acceptable
+			if !strings.Contains(err.Error(), "no results") {
+				t.Logf("Search returned error (this may be expected): %v", err)
+			}
+		} else {
+			t.Logf("Search returned %d items", len(items.Value))
+
+			// Verify the structure of returned items
+			for _, item := range items.Value {
+				assert.NotEmpty(t, item.ID, "Item should have an ID")
+				assert.NotEmpty(t, item.Name, "Item should have a name")
+			}
+		}
+	})
+
+	t.Run("search with special characters", func(t *testing.T) {
+		// Test search with special characters that need URL encoding
+		_, err := helper.App.SDK.SearchDriveItems("test & special chars")
+		// This should not fail due to URL encoding issues
+		if err != nil {
+			// Error is acceptable if it's not a URL encoding error
+			assert.NotContains(t, err.Error(), "invalid URL escape", "URL encoding should work properly")
+		}
+	})
+}
+
+func TestRecentItemsOperations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E tests in short mode")
+	}
+
+	helper := NewE2ETestHelper(t)
+
+	t.Run("get recent items", func(t *testing.T) {
+		items, err := helper.App.SDK.GetRecentItems()
+		if err != nil {
+			t.Logf("GetRecentItems returned error (this may be expected): %v", err)
+		} else {
+			t.Logf("Recent items returned %d items", len(items.Value))
+
+			// Verify the structure of returned items
+			for _, item := range items.Value {
+				assert.NotEmpty(t, item.ID, "Item should have an ID")
+				assert.NotEmpty(t, item.Name, "Item should have a name")
+
+				// Check if last modified time is present
+				assert.False(t, item.LastModifiedDateTime.IsZero(), "Item should have LastModifiedDateTime")
+			}
+		}
+	})
+}
+
+func TestSharedItemsOperations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E tests in short mode")
+	}
+
+	helper := NewE2ETestHelper(t)
+
+	t.Run("get shared items", func(t *testing.T) {
+		items, err := helper.App.SDK.GetSharedWithMe()
+		if err != nil {
+			t.Logf("GetSharedWithMe returned error (this may be expected): %v", err)
+		} else {
+			t.Logf("Shared items returned %d items", len(items.Value))
+
+			// Verify the structure of returned items
+			for _, item := range items.Value {
+				assert.NotEmpty(t, item.ID, "Item should have an ID")
+				assert.NotEmpty(t, item.Name, "Item should have a name")
+
+				// Check if this is a remote item (shared from another drive)
+				if item.RemoteItem != nil {
+					assert.NotEmpty(t, item.RemoteItem.ID, "Remote item should have an ID")
+					t.Logf("Found remote item: %s", item.Name)
+				}
+			}
+		}
+	})
+}
+
+func TestSpecialFolderOperations(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping E2E tests in short mode")
+	}
+
+	helper := NewE2ETestHelper(t)
+
+	specialFolders := []string{"documents", "photos", "music"}
+
+	for _, folderName := range specialFolders {
+		t.Run(fmt.Sprintf("get special folder %s", folderName), func(t *testing.T) {
+			item, err := helper.App.SDK.GetSpecialFolder(folderName)
+			if err != nil {
+				// Special folders might not exist or be accessible, which is acceptable
+				t.Logf("GetSpecialFolder(%s) returned error (this may be expected): %v", folderName, err)
+
+				// Check if it's a proper error format
+				if !strings.Contains(err.Error(), "403") && !strings.Contains(err.Error(), "404") {
+					// Other errors might indicate real issues
+					t.Logf("Unexpected error type for special folder: %v", err)
+				}
+			} else {
+				t.Logf("Special folder %s found: %s (ID: %s)", folderName, item.Name, item.ID)
+
+				// Verify the item structure
+				assert.NotEmpty(t, item.ID, "Special folder should have an ID")
+				assert.NotEmpty(t, item.Name, "Special folder should have a name")
+
+				// Check if it has the special folder facet
+				if item.SpecialFolder != nil {
+					assert.Equal(t, folderName, item.SpecialFolder.Name, "Special folder name should match requested name")
+				}
+
+				// Special folders should be folders
+				assert.NotNil(t, item.Folder, "Special folder should have folder facet")
+			}
+		})
+	}
+
+	t.Run("invalid special folder", func(t *testing.T) {
+		_, err := helper.App.SDK.GetSpecialFolder("invalid-folder")
+		assert.Error(t, err, "Invalid special folder should return an error")
+		assert.Contains(t, err.Error(), "invalid special folder name", "Error should mention invalid folder name")
+	})
+
+	// Test special folders that might be business-only
+	t.Run("business special folders", func(t *testing.T) {
+		businessFolders := []string{"cameraroll", "approot", "recordings"}
+
+		for _, folderName := range businessFolders {
+			t.Run(folderName, func(t *testing.T) {
+				_, err := helper.App.SDK.GetSpecialFolder(folderName)
+				if err != nil {
+					t.Logf("Business special folder %s not available (expected for personal accounts): %v", folderName, err)
+				} else {
+					t.Logf("Business special folder %s is available", folderName)
+				}
+			})
+		}
 	})
 }

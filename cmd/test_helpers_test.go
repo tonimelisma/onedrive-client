@@ -34,6 +34,10 @@ type MockSDK struct {
 	MoveDriveItemFunc              func(sourcePath, destinationParentPath string) (onedrive.DriveItem, error)
 	UpdateDriveItemFunc            func(path, newName string) (onedrive.DriveItem, error)
 	MonitorCopyOperationFunc       func(monitorURL string) (onedrive.CopyOperationStatus, error)
+	SearchDriveItemsFunc           func(query string) (onedrive.DriveItemList, error)
+	GetSharedWithMeFunc            func() (onedrive.DriveItemList, error)
+	GetRecentItemsFunc             func() (onedrive.DriveItemList, error)
+	GetSpecialFolderFunc           func(folderName string) (onedrive.DriveItem, error)
 }
 
 func (m *MockSDK) GetDrives() (onedrive.DriveList, error) {
@@ -185,6 +189,34 @@ func (m *MockSDK) MonitorCopyOperation(monitorURL string) (onedrive.CopyOperatio
 		PercentageComplete: 100,
 		StatusDescription:  "Copy completed successfully",
 	}, nil
+}
+
+func (m *MockSDK) SearchDriveItems(query string) (onedrive.DriveItemList, error) {
+	if m.SearchDriveItemsFunc != nil {
+		return m.SearchDriveItemsFunc(query)
+	}
+	return onedrive.DriveItemList{}, nil
+}
+
+func (m *MockSDK) GetSharedWithMe() (onedrive.DriveItemList, error) {
+	if m.GetSharedWithMeFunc != nil {
+		return m.GetSharedWithMeFunc()
+	}
+	return onedrive.DriveItemList{}, nil
+}
+
+func (m *MockSDK) GetRecentItems() (onedrive.DriveItemList, error) {
+	if m.GetRecentItemsFunc != nil {
+		return m.GetRecentItemsFunc()
+	}
+	return onedrive.DriveItemList{}, nil
+}
+
+func (m *MockSDK) GetSpecialFolder(folderName string) (onedrive.DriveItem, error) {
+	if m.GetSpecialFolderFunc != nil {
+		return m.GetSpecialFolderFunc(folderName)
+	}
+	return onedrive.DriveItem{}, nil
 }
 
 // newTestApp creates a new app instance with a mock SDK for testing.

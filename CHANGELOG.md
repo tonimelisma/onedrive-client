@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Search Functionality**: Implemented comprehensive search capabilities across OneDrive:
+  - `files search "<query>"` - Search for files and folders by name or content using Microsoft Graph API
+  - Proper URL encoding for search queries with special characters
+  - Formatted search results display with query context, item counts, and metadata
+  - E2E tests covering search operations with various query types
+- **Shared Content Management**: Added support for viewing and managing shared items:
+  - `shared list` - List all items shared with you from other OneDrive users
+  - New `cmd/shared.go` command module with dedicated shared content operations
+  - Special handling for remote items (cross-drive shared content) with owner information
+  - Graceful handling of access restrictions on personal OneDrive accounts
+- **Recent Items Access**: Implemented recent files functionality:
+  - `files recent` - List recently accessed files and folders
+  - Display with last access timestamps and file metadata
+  - Integration with OneDrive's activity tracking system
+- **Special Folder Access**: Added support for OneDrive's well-known special folders:
+  - `files special <folder-name>` - Access special folders like Documents, Photos, Music
+  - Support for all standard special folders: documents, photos, music, cameraroll, approot, recordings
+  - Validation of folder names with informative error messages
+  - Business account special folder support (cameraroll, approot, recordings)
+  - Special folder metadata display with creation dates and child counts
+- **Enhanced SDK Layer**: Added four new core functions to OneDrive SDK:
+  - `SearchDriveItems()` - GET operation with proper query encoding for search functionality
+  - `GetSharedWithMe()` - GET operation to retrieve items shared from other users
+  - `GetRecentItems()` - GET operation to fetch recently accessed files
+  - `GetSpecialFolder()` - GET operation with folder name validation for special folder access
+- **Enhanced Display Functions**: Added specialized UI display functions for new features:
+  - `DisplaySearchResults()` - Formatted search results with query context and item counts
+  - `DisplaySharedItems()` - Shared items display with owner information and shared dates
+  - `DisplayRecentItems()` - Recent items with last access timestamps
+  - `DisplaySpecialFolder()` - Special folder information with detailed metadata
+- **Comprehensive Testing**: Added extensive test coverage for all new functionality:
+  - Unit tests for all new SDK functions and command logic
+  - E2E tests for search operations with URL encoding validation
+  - E2E tests for recent items with timestamp verification
+  - E2E tests for shared items with graceful error handling
+  - E2E tests for all special folder types including business-only folders
+  - MockSDK updates to support all new functionality for testing
 - **Core File System Operations**: Implemented essential file management commands for OneDrive:
   - `files rm <remote-path>` - Delete files and folders (moved to recycle bin)
   - `files copy <source-path> <destination-path> [new-name]` - Copy files and folders with async operation
@@ -18,12 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--wait` flag for blocking copy operations with real-time progress
   - `files copy-status <monitor-url>` command to check status of any copy operation
   - Comprehensive status reporting (inProgress, completed, failed) with percentage completion
-- **Enhanced SDK Layer**: Added four new core functions to OneDrive SDK:
-  - `DeleteDriveItem()` - DELETE operation for file/folder removal
-  - `CopyDriveItem()` - POST operation for async copy with monitoring URL
-  - `MoveDriveItem()` - PATCH operation for moving items between directories
-  - `UpdateDriveItem()` - PATCH operation for renaming and property updates
-  - `MonitorCopyOperation()` - GET operation for tracking async copy progress
 - **E2E Testing Framework**: Comprehensive end-to-end testing framework in `e2e/` directory that tests against real OneDrive accounts using the CLI's existing device code flow authentication.
   - Test isolation with unique timestamped directories (`/E2E-Tests/test-{timestamp}`)
   - Automated authentication using existing `config.json` from CLI login
