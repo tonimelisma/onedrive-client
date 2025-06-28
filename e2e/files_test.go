@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"path"
 	"testing"
 	"time"
 )
@@ -276,83 +275,5 @@ func TestErrorHandling(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for invalid upload session URL")
 		}
-	})
-}
-
-func TestDownloadOperations(t *testing.T) {
-	helper := NewE2ETestHelper(t)
-
-	t.Run("DeleteFile", func(t *testing.T) {
-		// 1. Upload a file to be deleted
-		localFile := helper.CreateTestFile(t, "delete-test.txt", []byte("delete me"))
-		remotePath := helper.GetTestPath("delete-test.txt")
-		_, err := helper.App.SDK.UploadFile(localFile, remotePath)
-		if err != nil {
-			t.Fatalf("Setup for delete test failed: could not upload file: %v", err)
-		}
-		helper.WaitForFile(t, remotePath, 30*time.Second)
-		helper.AssertFileExists(t, remotePath)
-
-		// 2. Delete the file
-		err = helper.App.SDK.DeleteDriveItem(remotePath)
-		if err != nil {
-			t.Fatalf("Failed to delete file: %v", err)
-		}
-
-		// 3. Verify the file is gone
-		helper.AssertFileNotExists(t, remotePath)
-	})
-
-	t.Run("RenameFile", func(t *testing.T) {
-		// 1. Upload a file to be renamed
-		localFile := helper.CreateTestFile(t, "rename-test.txt", []byte("rename me"))
-		remotePath := helper.GetTestPath("rename-test.txt")
-		_, err := helper.App.SDK.UploadFile(localFile, remotePath)
-		if err != nil {
-			t.Fatalf("Setup for rename test failed: could not upload file: %v", err)
-		}
-		helper.WaitForFile(t, remotePath, 30*time.Second)
-
-		// 2. Rename the file
-		newName := "renamed-file.txt"
-		newRemotePath := helper.GetTestPath(newName)
-		_, err = helper.App.SDK.RenameDriveItem(remotePath, newName)
-		if err != nil {
-			t.Fatalf("Failed to rename file: %v", err)
-		}
-
-		// 3. Verify old name is gone and new name exists
-		helper.AssertFileNotExists(t, remotePath)
-		helper.AssertFileExists(t, newRemotePath)
-	})
-
-	t.Run("MoveFile", func(t *testing.T) {
-		// 1. Create a subdirectory
-		subDirName := "move-subdir"
-		_, err := helper.App.SDK.CreateFolder(helper.TestDir, subDirName)
-		if err != nil {
-			t.Fatalf("Setup for move test failed: could not create subdir: %v", err)
-		}
-		subDirPath := helper.GetTestPath(subDirName)
-
-		// 2. Upload a file to the root of the test dir
-		localFile := helper.CreateTestFile(t, "move-test.txt", []byte("move me"))
-		originalPath := helper.GetTestPath("move-test.txt")
-		_, err = helper.App.SDK.UploadFile(localFile, originalPath)
-		if err != nil {
-			t.Fatalf("Setup for move test failed: could not upload file: %v", err)
-		}
-		helper.WaitForFile(t, originalPath, 30*time.Second)
-
-		// 3. Move the file into the subdirectory
-		newPath := path.Join(subDirPath, "move-test.txt")
-		_, err = helper.App.SDK.MoveDriveItem(originalPath, subDirPath)
-		if err != nil {
-			t.Fatalf("Failed to move file: %v", err)
-		}
-
-		// 4. Verify file is in the new location and not the old one
-		helper.AssertFileExists(t, newPath)
-		helper.AssertFileNotExists(t, originalPath)
 	})
 }

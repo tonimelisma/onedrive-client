@@ -9,7 +9,7 @@ What's a reasonable increment of work to do next?
 4. Where are the soft spots in your analysis? Enumerate them to me.
 5. Read the rest of the files on disk required to harden the soft spots. Ensure you know each and every API that will be affected by your changes and have read the actual files on disk and know them before moving to the next step.
 6. Implement the required changes.
-7. Come up with a plan to test the changes. Implement the tests.
+7. Come up with a plan to test the changes, including unit tests, integration tests and e2e tests. Implement the tests.
 8. Build with verbose output and fix any build errors.
 9. Run all the tests with verbose output and fix any test errors.
 10. Update CHANGELOG.md, PRD.md, and ARCHITECTURE.md with any relevant changes. Document the detailed work you did, deviations from plan, code smells, shortcuts etc
