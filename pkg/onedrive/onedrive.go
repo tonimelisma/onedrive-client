@@ -740,7 +740,17 @@ func CompleteAuthentication(
 	if err != nil {
 		return nil, err
 	}
-	return (*OAuthToken)(token), err
+
+	// The standard library does not automatically set the Expiry field from the expires_in field.
+	// We must do it manually. If the Expiry is not set, the token source will believe the token
+	// never expires and will never attempt to refresh it.
+	if token.Expiry.IsZero() {
+		if expiresIn, ok := token.Extra("expires_in").(float64); ok {
+			token.Expiry = time.Now().Add(time.Duration(expiresIn) * time.Second)
+		}
+	}
+
+	return (*OAuthToken)(token), nil
 }
 
 // NewClient creates a new HTTP client with the given OAuth token source.
@@ -842,8 +852,7 @@ func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*OAuthTok
 	return &oauthTok, nil
 }
 
-// DeleteDriveItem deletes a file or folder by its path.
-// Items are moved to the recycle bin, not permanently deleted.
+// DeleteDriveItem deletes a file or folder from OneDrive.
 func DeleteDriveItem(client *http.Client, path string) error {
 	logger.Debug("DeleteDriveItem called with path: ", path)
 

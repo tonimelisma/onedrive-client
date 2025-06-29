@@ -354,15 +354,15 @@ item, err := helper.App.SDK.UploadFile(localFile, remotePath)
 #### Token Refresh Handling
 The application ensures that users are not unnecessarily logged out due to expired access tokens. It uses the standard features of the `golang.org/x/oauth2` library to provide seamless, automatic token refreshes.
 
-1.  **Client Initialization**: When the application starts, `internal/app` creates an `oauth2.TokenSource`.
-2.  **Persistence Wrapper**: This standard `TokenSource` is wrapped in a custom `persistingTokenSource`. This wrapper's only job is to monitor the token.
-3.  **Refresh and Persist**: When the `oauth2` library detects a 401 error, it uses the refresh token to get a new access token via the `TokenSource`. Our wrapper detects that the access token has changed, and it triggers a callback to save the new, valid token back to `config.json`. This process is atomic and thread-safe.
-4.  **Automatic Retry**: The `http.Client` provided by the `oauth2` library automatically retries the initial request that failed, making the entire refresh process transparent to the user.
+1.  **Correct Expiry Calculation**: The root cause of previous authentication failures was that the token's `Expiry` timestamp was not being calculated from the `expires_in` value provided by the server. This has been fixed. By ensuring the token has the correct expiry, we allow the `oauth2` library's default mechanisms to work as intended.
+2.  **Client Initialization**: When the application starts, `internal/app` creates a standard `oauth2.TokenSource`. Because the token now has a correct expiry date, this source will automatically detect when it needs to be refreshed.
+3.  **Persistence Wrapper**: This standard `TokenSource` is wrapped in a custom `persistingTokenSource`. This wrapper's only job is to monitor the token. When it detects that the `oauth2` library has refreshed the token (by seeing a new access token), it triggers a callback to save the new, valid token back to `config.json`.
+4.  **Transparent Refresh**: With a correct expiry and a persisting wrapper, the `http.Client` provided by the `oauth2` library handles everything transparently. Before a request is made, if the token is expired, the `TokenSource` refreshes it, the wrapper persists it, and the request proceeds with the new token.
 
 This architecture ensures a robust separation of concerns:
--   `pkg/onedrive` (SDK) knows nothing about token storage. It just makes API calls.
+-   `pkg/onedrive` (SDK) knows nothing about token storage or expiry calculation. It just makes API calls.
 -   `internal/config` knows how to save and load configuration, but knows nothing about OAuth.
--   `internal/app` is the orchestrator that connects the two, creating the intelligent client that the rest of the application uses.
+-   `internal/app` is the orchestrator that correctly initializes the token and connects the persistence wrapper, creating the intelligent client that the rest of the application uses.
 
 ---
 

@@ -266,6 +266,7 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 - Test helper function signatures and session file path construction in authentication tests.
 - Improved test output capture to properly handle log output without global state mutation.
 - Improved chunked upload test logic to handle SDK limitations with final chunk responses
+- **Critical Auth Fix**: Fixed a bug that prevented automatic token refreshes. The application was failing to set the token's `Expiry` time, causing the OAuth2 library to treat the token as if it never expired, which prevented the refresh mechanism from ever triggering.
 - **OAuth Robustness**: Implemented automatic, transparent token refresh. If an API call fails with a 401 Unauthorized error, the client now automatically uses the refresh token to get a new access token and retries the original request.
 - **Atomic Config Writes**: Configuration and token writes are now atomic (write to temp file + rename) to prevent corruption if the application is interrupted.
 - **Thread Safety**: Fixed a potential deadlock in the configuration saving mechanism.
