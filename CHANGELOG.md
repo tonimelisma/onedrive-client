@@ -9,7 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-**Epic 7: Comprehensive Microsoft Graph API Coverage - High/Medium Priority Features**
+**Epic 7: Comprehensive Microsoft Graph API Coverage - Advanced Features Implementation**
+
+- **Download-as-Format (`GET /drive/items/{item-id}/content?format={format}`)**: New `onedrive-client files download <remote-path> [local-path] --format <format>` command enables file format conversion at download time (e.g., convert .docx to .pdf)
+- **Folder-Scoped Search (`GET /drive/items/{item-id}/search(q='query')`)**: Enhanced search functionality with `onedrive-client files search "<query>" --in <remote-folder>` command for searching within specific directories
+- **Drive Activities (`GET /drive/activities`)**: New `onedrive-client drives activities` command displays activity history for the entire drive with comprehensive activity tracking
+- **Item Activities (`GET /drive/items/{item-id}/activities`)**: New `onedrive-client files activities <remote-path>` command shows activity history for specific files and folders
+- **Advanced Paging Support**: All new commands support comprehensive paging options:
+  - `--top <N>`: Limit results to N items (respects Microsoft Graph `$top` parameter)
+  - `--all`: Fetch all results across all pages automatically
+  - `--next <url>`: Resume from specific pagination URL for power users
+- **Enhanced Search Capabilities**: Upgraded search functionality with paging support:
+  - `onedrive-client files search "<query>" --top <N>`: Limit search results
+  - `onedrive-client files search "<query>" --all`: Get all search results across pages
+  - `onedrive-client files search "<query>" --in <folder>`: Search within specific folder
+
+### Technical Implementation Details
+
+- **New Models**: Added `Paging`, `Activity`, `ActivityList` structures in `pkg/onedrive/models.go` to support new functionality
+- **Pagination Helper**: Implemented `collectAllPages()` helper function for consistent pagination handling across all new APIs
+- **Enhanced SDK Functions**: Added comprehensive SDK functions with full paging support:
+  - `DownloadFileAsFormat()`: Format-specific download with redirect handling
+  - `SearchDriveItemsWithPaging()`: Enhanced search with pagination
+  - `SearchDriveItemsInFolder()`: Folder-scoped search with pagination
+  - `GetDriveActivities()`: Drive-level activity retrieval with paging
+  - `GetItemActivities()`: Item-specific activity retrieval with paging
+- **UI Enhancements**: Added `DisplayActivities()` function for formatted activity output with action type detection and proper formatting
+- **SDK Interface Extensions**: Updated SDK interface and MockSDK to support all new functionality with comprehensive test coverage
+- **Command Structure**: Enhanced command architecture with consistent flag patterns across all new commands
+
+### Progress Update
+
+Epic 7 now implements 25/30 API endpoints (83% complete), up from 20/30 (67% complete). Advanced features including activities tracking, format conversion, and enhanced search are now fully functional.
+
+**Epic 7: Comprehensive Microsoft Graph OneDrive API Coverage - High/Medium Priority Features**
 
 - **Delta Tracking (`GET /drive/root/delta`)**: New `onedrive-client delta [delta-token]` command enables efficient synchronization by tracking changes since last sync using Microsoft Graph delta queries
 - **Specific Drive Access (`GET /drives/{drive-id}`)**: New `onedrive-client drives get <drive-id>` command retrieves detailed metadata for any drive by ID

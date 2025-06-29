@@ -326,29 +326,89 @@ func DisplayDrive(drive onedrive.Drive) {
 	fmt.Printf("          State: %s\n", drive.Quota.State)
 }
 
-// DisplayFileVersions prints all versions of a file with details.
+// DisplayFileVersions displays file version information in a formatted table
 func DisplayFileVersions(versions onedrive.DriveItemVersionList, filePath string) {
 	if len(versions.Value) == 0 {
 		fmt.Printf("No versions found for file: %s\n", filePath)
 		return
 	}
 
-	fmt.Printf("File versions for '%s' (%d versions):\n", filePath, len(versions.Value))
-	fmt.Printf("%-20s %10s %20s %s\n", "Version ID", "Size", "Last Modified", "Modified By")
-	fmt.Println(strings.Repeat("-", 80))
+	fmt.Printf("File versions for: %s\n", filePath)
+	fmt.Printf("Found %d version(s)\n\n", len(versions.Value))
+
+	fmt.Printf("%-40s %12s %20s\n", "Version ID", "Size", "Last Modified")
+	fmt.Println(strings.Repeat("-", 75))
 
 	for _, version := range versions.Value {
+		size := formatBytes(version.Size)
+		lastModified := version.LastModifiedDateTime.Format("2006-01-02 15:04:05")
+
 		versionID := version.ID
-		if len(versionID) > 18 {
-			versionID = versionID[:15] + "..."
+		if len(versionID) > 38 {
+			versionID = versionID[:35] + "..."
 		}
 
-		modifiedTime := version.LastModifiedDateTime.Format("2006-01-02 15:04")
-		modifiedBy := "N/A"
-		if version.LastModifiedBy.User.DisplayName != "" {
-			modifiedBy = version.LastModifiedBy.User.DisplayName
+		fmt.Printf("%-40s %12s %20s\n", versionID, size, lastModified)
+	}
+}
+
+// DisplayActivities displays activity information in a formatted table
+func DisplayActivities(activities onedrive.ActivityList, title string) {
+	if len(activities.Value) == 0 {
+		fmt.Printf("No activities found for %s\n", title)
+		return
+	}
+
+	fmt.Printf("Activities for %s\n", title)
+	fmt.Printf("Found %d activit(ies)\n\n", len(activities.Value))
+
+	fmt.Printf("%-20s %-15s %-15s %s\n", "Date", "Actor", "Action", "Item")
+	fmt.Println(strings.Repeat("-", 80))
+
+	for _, activity := range activities.Value {
+		date := activity.Times.RecordedTime.Format("2006-01-02 15:04")
+		actor := activity.Actor.User.DisplayName
+		if actor == "" {
+			actor = "Unknown"
+		}
+		if len(actor) > 13 {
+			actor = actor[:10] + "..."
 		}
 
-		fmt.Printf("%-20s %10s %20s %s\n", versionID, formatBytes(version.Size), modifiedTime, modifiedBy)
+		// Determine action type
+		action := "Unknown"
+		if activity.Action.Create != nil {
+			action = "Create"
+		} else if activity.Action.Edit != nil {
+			action = "Edit"
+		} else if activity.Action.Delete != nil {
+			action = "Delete"
+		} else if activity.Action.Move != nil {
+			action = "Move"
+		} else if activity.Action.Rename != nil {
+			action = "Rename"
+		} else if activity.Action.Share != nil {
+			action = "Share"
+		} else if activity.Action.Comment != nil {
+			action = "Comment"
+		} else if activity.Action.Version != nil {
+			action = "Version"
+		} else if activity.Action.Restore != nil {
+			action = "Restore"
+		} else if activity.Action.Mention != nil {
+			action = "Mention"
+		}
+
+		if len(action) > 13 {
+			action = action[:10] + "..."
+		}
+
+		// Get item name if available
+		itemName := ""
+		if activity.DriveItem != nil {
+			itemName = activity.DriveItem.Name
+		}
+
+		fmt.Printf("%-20s %-15s %-15s %s\n", date, actor, action, itemName)
 	}
 }

@@ -20,6 +20,7 @@ type MockSDK struct {
 	VerifyDeviceCodeFunc           func(deviceCode string) (*onedrive.OAuthToken, error)
 	CreateFolderFunc               func(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFileFunc               func(remotePath, localPath string) error
+	DownloadFileAsFormatFunc       func(remotePath, localPath, format string) error
 	DownloadFileChunkFunc          func(url string, startByte, endByte int64) (io.ReadCloser, error)
 	GetDriveItemByPathFunc         func(path string) (onedrive.DriveItem, error)
 	GetDriveItemChildrenByPathFunc func(path string) (onedrive.DriveItemList, error)
@@ -35,6 +36,10 @@ type MockSDK struct {
 	UpdateDriveItemFunc            func(path, newName string) (onedrive.DriveItem, error)
 	MonitorCopyOperationFunc       func(monitorURL string) (onedrive.CopyOperationStatus, error)
 	SearchDriveItemsFunc           func(query string) (onedrive.DriveItemList, error)
+	SearchDriveItemsWithPagingFunc func(query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
+	SearchDriveItemsInFolderFunc   func(folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
+	GetDriveActivitiesFunc         func(paging onedrive.Paging) (onedrive.ActivityList, string, error)
+	GetItemActivitiesFunc          func(remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error)
 	GetSharedWithMeFunc            func() (onedrive.DriveItemList, error)
 	GetRecentItemsFunc             func() (onedrive.DriveItemList, error)
 	GetSpecialFolderFunc           func(folderName string) (onedrive.DriveItem, error)
@@ -89,6 +94,13 @@ func (m *MockSDK) CreateFolder(parentPath string, folderName string) (onedrive.D
 func (m *MockSDK) DownloadFile(remotePath, localPath string) error {
 	if m.DownloadFileFunc != nil {
 		return m.DownloadFileFunc(remotePath, localPath)
+	}
+	return nil
+}
+
+func (m *MockSDK) DownloadFileAsFormat(remotePath, localPath, format string) error {
+	if m.DownloadFileAsFormatFunc != nil {
+		return m.DownloadFileAsFormatFunc(remotePath, localPath, format)
 	}
 	return nil
 }
@@ -200,6 +212,34 @@ func (m *MockSDK) SearchDriveItems(query string) (onedrive.DriveItemList, error)
 		return m.SearchDriveItemsFunc(query)
 	}
 	return onedrive.DriveItemList{}, nil
+}
+
+func (m *MockSDK) SearchDriveItemsWithPaging(query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
+	if m.SearchDriveItemsWithPagingFunc != nil {
+		return m.SearchDriveItemsWithPagingFunc(query, paging)
+	}
+	return onedrive.DriveItemList{}, "", nil
+}
+
+func (m *MockSDK) SearchDriveItemsInFolder(folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
+	if m.SearchDriveItemsInFolderFunc != nil {
+		return m.SearchDriveItemsInFolderFunc(folderPath, query, paging)
+	}
+	return onedrive.DriveItemList{}, "", nil
+}
+
+func (m *MockSDK) GetDriveActivities(paging onedrive.Paging) (onedrive.ActivityList, string, error) {
+	if m.GetDriveActivitiesFunc != nil {
+		return m.GetDriveActivitiesFunc(paging)
+	}
+	return onedrive.ActivityList{}, "", nil
+}
+
+func (m *MockSDK) GetItemActivities(remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error) {
+	if m.GetItemActivitiesFunc != nil {
+		return m.GetItemActivitiesFunc(remotePath, paging)
+	}
+	return onedrive.ActivityList{}, "", nil
 }
 
 func (m *MockSDK) GetSharedWithMe() (onedrive.DriveItemList, error) {

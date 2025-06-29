@@ -187,3 +187,55 @@ type DriveItemVersion struct {
 type DriveItemVersionList struct {
 	Value []DriveItemVersion `json:"value"`
 }
+
+// Paging represents pagination options for API calls
+type Paging struct {
+	Top      int    `json:"top,omitempty"`      // 0 = Graph default
+	FetchAll bool   `json:"fetchAll,omitempty"` // true → ignore Top and NextLink, loop to end
+	NextLink string `json:"nextLink,omitempty"` // if non-empty start exactly from this URL
+}
+
+// Activity represents an activity that took place on an item or within a container
+type Activity struct {
+	ID     string `json:"id"`
+	Action struct {
+		Comment *struct{} `json:"comment,omitempty"`
+		Create  *struct{} `json:"create,omitempty"`
+		Delete  *struct{} `json:"delete,omitempty"`
+		Edit    *struct {
+			NewVersion string `json:"newVersion,omitempty"`
+		} `json:"edit,omitempty"`
+		Mention *struct {
+			Mentionees []struct {
+				User struct {
+					DisplayName string `json:"displayName"`
+				} `json:"user"`
+			} `json:"mentionees,omitempty"`
+		} `json:"mention,omitempty"`
+		Move   *struct{} `json:"move,omitempty"`
+		Rename *struct {
+			OldName string `json:"oldName,omitempty"`
+		} `json:"rename,omitempty"`
+		Restore *struct{} `json:"restore,omitempty"`
+		Share   *struct{} `json:"share,omitempty"`
+		Version *struct {
+			NewVersion string `json:"newVersion,omitempty"`
+		} `json:"version,omitempty"`
+	} `json:"action"`
+	Actor struct {
+		User struct {
+			DisplayName string `json:"displayName"`
+			ID          string `json:"id"`
+		} `json:"user"`
+	} `json:"actor"`
+	Times struct {
+		RecordedTime time.Time `json:"recordedTime"`
+	} `json:"times"`
+	DriveItem *DriveItem `json:"driveItem,omitempty"`
+}
+
+// ActivityList represents a collection of activities with pagination
+type ActivityList struct {
+	Value    []Activity `json:"value"`
+	NextLink string     `json:"@odata.nextLink,omitempty"`
+}

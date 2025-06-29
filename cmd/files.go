@@ -84,15 +84,40 @@ var filesUploadCmd = &cobra.Command{
 
 var filesDownloadCmd = &cobra.Command{
 	Use:   "download <remote-path> [local-path]",
-	Short: "Download a file",
-	Long:  "Downloads a file from your OneDrive. If local path is omitted, it saves to the current directory with the same name.",
+	Short: "Download a file from OneDrive",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a, err := app.NewApp(cmd)
+		app, err := app.NewApp(cmd)
 		if err != nil {
-			return fmt.Errorf("error creating app: %w", err)
+			return fmt.Errorf("initializing app: %w", err)
 		}
-		return filesDownloadLogic(a, cmd, args)
+
+		remotePath := args[0]
+
+		// Determine local path
+		localPath := ""
+		if len(args) > 1 {
+			localPath = args[1]
+		} else {
+			// Extract filename from remote path
+			parts := strings.Split(remotePath, "/")
+			localPath = parts[len(parts)-1]
+		}
+
+		// Check if format flag is specified
+		format, _ := cmd.Flags().GetString("format")
+		if format != "" {
+			err = app.SDK.DownloadFileAsFormat(remotePath, localPath, format)
+		} else {
+			err = app.SDK.DownloadFile(remotePath, localPath)
+		}
+
+		if err != nil {
+			return fmt.Errorf("downloading file: %w", err)
+		}
+
+		log.Printf("Downloaded '%s' to '%s'", remotePath, localPath)
+		return nil
 	},
 }
 
@@ -223,16 +248,50 @@ var filesRenameCmd = &cobra.Command{
 }
 
 var filesSearchCmd = &cobra.Command{
-	Use:   "search \"<query>\"",
+	Use:   "search <query>",
 	Short: "Search for files and folders",
-	Long:  "Searches for files and folders across your entire OneDrive by query string. The search includes file names, content, and metadata.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		a, err := app.NewApp(cmd)
+		app, err := app.NewApp(cmd)
 		if err != nil {
-			return fmt.Errorf("error creating app: %w", err)
+			return fmt.Errorf("initializing app: %w", err)
 		}
-		return filesSearchLogic(a, cmd, args)
+
+		query := args[0]
+
+		// Parse paging options
+		paging := onedrive.Paging{
+			Top:      topFlag,
+			FetchAll: allFlag,
+			NextLink: nextFlag,
+		}
+
+		// Check if folder-scoped search is requested
+		folderPath, _ := cmd.Flags().GetString("in")
+		var items onedrive.DriveItemList
+		var nextLink string
+
+		if folderPath != "" {
+			items, nextLink, err = app.SDK.SearchDriveItemsInFolder(folderPath, query, paging)
+		} else {
+			items, nextLink, err = app.SDK.SearchDriveItemsWithPaging(query, paging)
+		}
+
+		if err != nil {
+			return fmt.Errorf("searching files: %w", err)
+		}
+
+		ui.DisplaySearchResults(items, query)
+
+		if folderPath != "" {
+			fmt.Printf("Search performed in folder: %s\n", folderPath)
+		}
+
+		if nextLink != "" && !allFlag {
+			fmt.Printf("\nNext page available. Use --next '%s' to continue.\n", nextLink)
+		}
+
+		return nil
 	},
 }
 
@@ -300,6 +359,44 @@ var filesVersionsCmd = &cobra.Command{
 		return filesVersionsLogic(a, args[0])
 	},
 }
+
+var activitiesCmd = &cobra.Command{
+	Use:   "activities <remote-path>",
+	Short: "Show activity history for a file or folder",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		app, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("initializing app: %w", err)
+		}
+
+		remotePath := args[0]
+
+		// Parse paging options
+		paging := onedrive.Paging{
+			Top:      topFlag,
+			FetchAll: allFlag,
+			NextLink: nextFlag,
+		}
+
+		activities, nextLink, err := app.SDK.GetItemActivities(remotePath, paging)
+		if err != nil {
+			return fmt.Errorf("getting item activities: %w", err)
+		}
+
+		ui.DisplayActivities(activities, fmt.Sprintf("item: %s", remotePath))
+
+		if nextLink != "" && !allFlag {
+			fmt.Printf("\nNext page available. Use --next '%s' to continue.\n", nextLink)
+		}
+
+		return nil
+	},
+}
+
+var topFlag int
+var allFlag bool
+var nextFlag string
 
 func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	path := "/"
@@ -478,103 +575,6 @@ func uploadFileInChunks(a *app.App, localPath, remotePath string, uploadSession 
 	}
 
 	ui.PrintSuccess("File '%s' uploaded successfully to '%s'.\n", localPath, remotePath)
-	return nil
-}
-
-func filesDownloadLogic(a *app.App, cmd *cobra.Command, args []string) error {
-	remotePath := args[0]
-	localPath := filepath.Base(remotePath)
-	if len(args) == 2 {
-		localPath = args[1]
-	}
-
-	// Handle graceful interruption
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-sigs
-		fmt.Println("\nDownload interrupted. Run the command again to resume.")
-		os.Exit(0)
-	}()
-
-	// Get file metadata to know the total size
-	item, err := a.SDK.GetDriveItemByPath(remotePath)
-	if err != nil {
-		return fmt.Errorf("getting remote file info: %w", err)
-	}
-	totalSize := item.Size
-
-	// Check for existing session
-	state, err := session.Load(localPath, remotePath)
-	if err != nil {
-		return fmt.Errorf("loading session state: %w", err)
-	}
-
-	var startByte int64
-	var file *os.File
-
-	if state != nil {
-		fmt.Println("Resuming previous download session.")
-		startByte = state.CompletedBytes
-		file, err = os.OpenFile(localPath, os.O_WRONLY, 0644)
-		if err != nil {
-			return fmt.Errorf("opening local file for resuming: %w", err)
-		}
-	} else {
-		fmt.Println("Starting new download.")
-		file, err = os.Create(localPath)
-		if err != nil {
-			return fmt.Errorf("creating local file: %w", err)
-		}
-		state = &session.State{
-			LocalPath:  localPath,
-			RemotePath: remotePath,
-		}
-	}
-	defer file.Close()
-
-	if _, err := file.Seek(startByte, io.SeekStart); err != nil {
-		return fmt.Errorf("seeking file: %w", err)
-	}
-
-	bar := ui.NewProgressBar(int(totalSize))
-	bar.Set(int(startByte))
-
-	for startByte < totalSize {
-		endByte := startByte + chunkSize - 1
-		if endByte >= totalSize {
-			endByte = totalSize - 1
-		}
-
-		// The download URL is part of the DriveItem model, but not yet exposed in the SDK call.
-		// For now, we will construct it manually.
-		downloadURL := onedrive.BuildPathURL(remotePath) + ":/content"
-
-		body, err := a.SDK.DownloadFileChunk(downloadURL, startByte, endByte)
-		if err != nil {
-			return fmt.Errorf("downloading chunk: %w. Run command again to resume", err)
-		}
-
-		written, err := io.Copy(file, io.TeeReader(body, bar))
-		if err != nil {
-			body.Close()
-			return fmt.Errorf("writing chunk to file: %w", err)
-		}
-		body.Close()
-
-		startByte += written
-		state.CompletedBytes = startByte
-		if err := session.Save(state); err != nil {
-			return fmt.Errorf("saving session state: %w", err)
-		}
-	}
-
-	// Clean up session file on success
-	if err := session.Delete(localPath, remotePath); err != nil {
-		log.Printf("Warning: failed to delete session file %s: %v", remotePath, err)
-	}
-
-	ui.PrintSuccess("File '%s' downloaded successfully to '%s'.\n", remotePath, localPath)
 	return nil
 }
 
@@ -785,21 +785,6 @@ func filesRenameLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
-	query := args[0]
-	if query == "" {
-		return fmt.Errorf("search query cannot be empty")
-	}
-
-	items, err := a.SDK.SearchDriveItems(query)
-	if err != nil {
-		return fmt.Errorf("searching drive items: %w", err)
-	}
-
-	ui.DisplaySearchResults(items, query)
-	return nil
-}
-
 func filesRecentLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	items, err := a.SDK.GetRecentItems()
 	if err != nil {
@@ -886,7 +871,20 @@ func init() {
 	filesCmd.AddCommand(filesSpecialCmd)
 	filesCmd.AddCommand(filesShareCmd)
 	filesCmd.AddCommand(filesVersionsCmd)
+	filesCmd.AddCommand(activitiesCmd)
 
 	// Add flags
 	filesCopyCmd.Flags().Bool("wait", false, "Wait for copy operation to complete instead of returning immediately")
+	activitiesCmd.Flags().IntVar(&topFlag, "top", 0, "Maximum number of activities to return")
+	activitiesCmd.Flags().BoolVar(&allFlag, "all", false, "Fetch all activities across all pages")
+	activitiesCmd.Flags().StringVar(&nextFlag, "next", "", "Continue from this next link URL")
+
+	// Add download format flag
+	filesDownloadCmd.Flags().String("format", "", "Download file in specific format (e.g., pdf, docx)")
+
+	// Add search flags
+	filesSearchCmd.Flags().String("in", "", "Search within a specific folder")
+	filesSearchCmd.Flags().IntVar(&topFlag, "top", 0, "Maximum number of results to return")
+	filesSearchCmd.Flags().BoolVar(&allFlag, "all", false, "Fetch all results across all pages")
+	filesSearchCmd.Flags().StringVar(&nextFlag, "next", "", "Continue from this next link URL")
 }

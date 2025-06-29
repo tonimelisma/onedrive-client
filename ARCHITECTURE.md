@@ -171,6 +171,81 @@ The application provides comprehensive sharing link functionality for OneDrive f
 
 **Display Integration:** `DisplaySharingLink()` function provides formatted output of sharing link details consistent with application UI patterns.
 
+#### Advanced Features and Pagination (Latest Implementation)
+The application now provides comprehensive support for advanced Microsoft Graph OneDrive features with sophisticated pagination capabilities:
+
+**Download Format Conversion:**
+1. **`DownloadFileAsFormat()`**: Uses GET to `/drive/items/{item-id}/content?format={format}` endpoint for file format conversion
+   - **Format Support**: Enables conversion of Office documents (e.g., .docx to .pdf, .xlsx to .csv)
+   - **Redirect Handling**: Properly handles Microsoft Graph's 302 redirect pattern for download URLs
+   - **CLI Interface**: `onedrive-client files download <remote-path> [local-path] --format <format>` command
+   - **Error Handling**: Robust error handling for unsupported formats and conversion failures
+
+**Activities Tracking:**
+1. **`GetDriveActivities()`**: Uses GET to `/drive/activities` endpoint for drive-level activity history
+   - **Comprehensive Actions**: Tracks create, edit, delete, move, rename, share, comment, version, restore, and mention actions
+   - **Actor Information**: Captures user details and timestamps for all activities
+   - **CLI Interface**: `onedrive-client drives activities` command with full pagination support
+   
+2. **`GetItemActivities()`**: Uses GET to `/drive/items/{item-id}/activities` endpoint for item-specific activity history
+   - **Item-Specific Tracking**: Focused activity history for individual files and folders
+   - **Detailed Context**: Includes action-specific details like old names for rename operations
+   - **CLI Interface**: `onedrive-client files activities <remote-path>` command
+
+**Enhanced Search Capabilities:**
+1. **`SearchDriveItemsWithPaging()`**: Enhanced version of existing search with full pagination support
+   - **Backward Compatibility**: Maintains compatibility with existing search functionality
+   - **Pagination Control**: Supports `--top`, `--all`, and `--next` flags for flexible result management
+   
+2. **`SearchDriveItemsInFolder()`**: Uses GET to `/drive/items/{item-id}/search(q='query')` for folder-scoped search
+   - **Scoped Search**: Enables searching within specific directory trees
+   - **Path Resolution**: Automatically converts folder paths to item IDs for API calls
+   - **CLI Interface**: `onedrive-client files search "<query>" --in <remote-folder>` command
+
+**Advanced Pagination System:**
+The application implements a sophisticated pagination system that provides users with maximum flexibility:
+
+1. **Paging Structure**: 
+   ```go
+   type Paging struct {
+       Top      int    // 0 = Graph default (usually 200 items)
+       FetchAll bool   // true → follow all @odata.nextLink URLs
+       NextLink string // resume from specific pagination URL
+   }
+   ```
+
+2. **Pagination Helper**: `collectAllPages()` function centralizes pagination logic:
+   - **URL Parameter Handling**: Properly constructs `$top` query parameters
+   - **Link Following**: Automatically follows `@odata.nextLink` URLs when `FetchAll` is true
+   - **Resume Capability**: Supports resuming from any pagination URL for power users
+   - **Memory Efficient**: Uses `json.RawMessage` for intermediate processing to minimize memory usage
+
+3. **CLI Pagination Flags** (consistent across all commands):
+   - `--top <N>`: Limit results to N items (respects Microsoft Graph limits)
+   - `--all`: Automatically fetch all results across all pages
+   - `--next <url>`: Resume from specific pagination URL (exposed for power users)
+   - **Mutual Exclusivity**: `--all` overrides `--top` when both are specified
+
+4. **User Experience**: 
+   - **Default Behavior**: Returns first page (typically 200 items) for quick results
+   - **Progress Indication**: Shows next page availability when applicable
+   - **Power User Support**: Full pagination URLs exposed for scripting and automation
+
+**Implementation Details:**
+- **New Models**: `Activity`, `ActivityList`, `Paging` structures support comprehensive activity tracking and pagination
+- **Error Handling**: Uses standard `apiCall()` function for consistent error categorization across all new endpoints
+- **Display Functions**: `DisplayActivities()` provides formatted activity output with intelligent action type detection
+- **Test Coverage**: Comprehensive unit tests for all new functionality with MockSDK updates
+- **URL Construction**: Follows existing `customRootURL` + endpoint pattern with proper parameter encoding
+
+**Integration with Existing Architecture:**
+- **SDK Interface**: All new functions follow existing interface patterns for consistency and testability
+- **Command Structure**: New commands integrate seamlessly with existing Cobra command hierarchy
+- **UI Consistency**: Activity display follows established formatting patterns used throughout the application
+- **Session Management**: Pagination state can be managed externally using the exposed next link URLs
+
+This implementation significantly enhances the application's capabilities while maintaining architectural consistency and providing a foundation for future sync engine development through comprehensive activity tracking and efficient pagination.
+
 #### Delta Tracking and Version Control (Epic 7 Implementation)
 The application now provides advanced OneDrive synchronization capabilities through delta tracking and file version management:
 

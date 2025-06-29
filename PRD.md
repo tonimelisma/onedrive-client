@@ -191,10 +191,10 @@ As a developer, I want comprehensive coverage of Microsoft Graph OneDrive APIs t
     *   **Implementation:** `GetRootDriveItems()`, `GetDriveItemChildrenByPath("/")`
     *   **Command:** `onedrive-client files list` or `onedrive-client files list /`
 
-*   **[ ] User Story 7.5:** I want to view recent activity and changes across the entire drive.
+*   **[x] User Story 7.5:** I want to view recent activity and changes across the entire drive.
     *   **API:** `GET /drive/activities`
-    *   **Implementation:** Not implemented
-    *   **Command:** `onedrive-client drive activities` (proposed)
+    *   **Implementation:** `GetDriveActivities()`
+    *   **Command:** `onedrive-client drives activities`
 
 *   **[x] User Story 7.6:** I want to track changes and get delta information for all items in the drive.
     *   **API:** `GET /drive/root/delta`
@@ -223,10 +223,10 @@ As a developer, I want comprehensive coverage of Microsoft Graph OneDrive APIs t
     *   **Implementation:** `GetDriveItemChildrenByPath()`
     *   **Command:** `onedrive-client files list <remote-path>`
 
-*   **[ ] User Story 7.11:** I want to view activity history for a specific item.
+*   **[x] User Story 7.11:** I want to view activity history for a specific item.
     *   **API:** `GET /drive/items/{item-id}/activities`
-    *   **Implementation:** Not implemented
-    *   **Command:** `onedrive-client files activities <remote-path>` (proposed)
+    *   **Implementation:** `GetItemActivities()`
+    *   **Command:** `onedrive-client files activities <remote-path>`
 
 *   **[x] User Story 7.12:** I want to list all versions of a specific file.
     *   **API:** `GET /drive/items/{item-id}/versions`
@@ -253,10 +253,10 @@ As a developer, I want comprehensive coverage of Microsoft Graph OneDrive APIs t
     *   **Implementation:** `DownloadFile()`, `DownloadFileByItem()`, `DownloadFileChunk()`
     *   **Command:** `onedrive-client files download <remote-path> [local-path]`
 
-*   **[ ] User Story 7.17:** I want to download files in specific formats.
+*   **[x] User Story 7.17:** I want to download files in specific formats.
     *   **API:** `GET /drive/items/{item-id}/content?format={format}`
-    *   **Implementation:** Not implemented
-    *   **Command:** `onedrive-client files download <remote-path> [local-path] --format <format>` (proposed)
+    *   **Implementation:** `DownloadFileAsFormat()`
+    *   **Command:** `onedrive-client files download <remote-path> [local-path] --format <format>`
 
 *   **[x] User Story 7.18:** I want to delete items.
     *   **API:** `DELETE /drive/items/{item-id}`
@@ -268,10 +268,10 @@ As a developer, I want comprehensive coverage of Microsoft Graph OneDrive APIs t
     *   **Implementation:** `CopyDriveItem()`, `MonitorCopyOperation()`
     *   **Commands:** `onedrive-client files copy <source> <dest> [new-name]`, `onedrive-client files copy-status <monitor-url>`
 
-*   **[ ] User Story 7.20:** I want to search within specific folders.
+*   **[x] User Story 7.20:** I want to search within specific folders.
     *   **API:** `GET /drive/items/{item-id}/search(q='text')`
-    *   **Implementation:** Not implemented
-    *   **Command:** `onedrive-client files search "<query>" --in <remote-path>` (proposed)
+    *   **Implementation:** `SearchDriveItemsInFolder()`
+    *   **Command:** `onedrive-client files search "<query>" --in <remote-path>`
 
 *   **[ ] User Story 7.21:** I want to get thumbnail images for items.
     *   **API:** `GET /drive/items/{item-id}/thumbnails`
@@ -328,17 +328,19 @@ As a developer, I want comprehensive coverage of Microsoft Graph OneDrive APIs t
     *   **Command:** `onedrive-client files recent`
 
 **Implementation Status Summary:**
-- **Implemented:** 20/30 API endpoints (67%)
+- **Implemented:** 25/30 API endpoints (83%)
 - **Core file operations:** Complete coverage
 - **Drive management:** Enhanced coverage with drive-specific access
+- **Activities tracking:** Complete coverage for both drive-level and item-level activities
+- **Advanced search:** Complete coverage including folder-scoped search with pagination
+- **Download capabilities:** Complete coverage including format conversion
 - **Sharing:** Basic link creation implemented
-- **Advanced features:** Delta tracking and version control implemented; activities and detailed permissions remain
+- **Advanced features:** Delta tracking, version control, and activities fully implemented
 - **Synchronization:** Delta API enables efficient sync operations
 
 **Priority for Future Development:**
 1. **Medium Priority:** Advanced permissions management (invite, list, update, delete permissions)
-2. **Medium Priority:** Activities tracking for drives and items
-3. **Low Priority:** Thumbnails, preview features, download format conversion
+2. **Low Priority:** Thumbnails, preview features
 
 ---
 

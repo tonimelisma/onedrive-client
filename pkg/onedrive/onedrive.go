@@ -1263,15 +1263,15 @@ func GetDriveByID(client *http.Client, driveID string) (Drive, error) {
 	return drive, nil
 }
 
-// GetFileVersions gets all versions of a file by path
+// GetFileVersions gets all versions of a file by its path
 func GetFileVersions(client *http.Client, filePath string) (DriveItemVersionList, error) {
-	logger.Debug("GetFileVersions called with path: ", filePath)
+	logger.Debug("GetFileVersions called with filePath: ", filePath)
 	var versions DriveItemVersionList
 
-	// First, get the item to obtain its ID
+	// First get the item to get its ID
 	item, err := GetDriveItemByPath(client, filePath)
 	if err != nil {
-		return versions, fmt.Errorf("getting file item failed: %v", err)
+		return versions, fmt.Errorf("getting drive item: %w", err)
 	}
 
 	apiURL := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/versions"
@@ -1283,8 +1283,208 @@ func GetFileVersions(client *http.Client, filePath string) (DriveItemVersionList
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&versions); err != nil {
-		return versions, fmt.Errorf("decoding versions failed: %v", err)
+		return versions, fmt.Errorf("decoding file versions failed: %v", err)
 	}
 
 	return versions, nil
+}
+
+// collectAllPages is a helper function that follows @odata.nextLink to collect all pages
+func collectAllPages(client *http.Client, initialURL string, paging Paging) ([]json.RawMessage, string, error) {
+	var allItems []json.RawMessage
+	currentURL := initialURL
+
+	// If NextLink is provided, start from there
+	if paging.NextLink != "" {
+		currentURL = paging.NextLink
+	}
+
+	// Add $top parameter if specified
+	if paging.Top > 0 && paging.NextLink == "" {
+		separator := "?"
+		if strings.Contains(currentURL, "?") {
+			separator = "&"
+		}
+		currentURL += separator + "$top=" + fmt.Sprintf("%d", paging.Top)
+	}
+
+	for {
+		res, err := apiCall(client, "GET", currentURL, "", nil)
+		if err != nil {
+			return nil, "", err
+		}
+		defer res.Body.Close()
+
+		var response struct {
+			Value    []json.RawMessage `json:"value"`
+			NextLink string            `json:"@odata.nextLink"`
+		}
+
+		if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+			return nil, "", fmt.Errorf("decoding response failed: %v", err)
+		}
+
+		allItems = append(allItems, response.Value...)
+
+		// If not fetching all pages, or no more pages, break
+		if !paging.FetchAll || response.NextLink == "" {
+			return allItems, response.NextLink, nil
+		}
+
+		currentURL = response.NextLink
+	}
+}
+
+// DownloadFileAsFormat downloads a file from OneDrive in a specific format.
+func DownloadFileAsFormat(client *http.Client, remotePath, localPath, format string) error {
+	logger.Debug("DownloadFileAsFormat called with remotePath: ", remotePath, ", localPath: ", localPath, ", format: ", format)
+
+	url := BuildPathURL(remotePath) + ":/content?format=" + url.QueryEscape(format)
+	logger.Debug("Download URL with format constructed: ", url)
+
+	// Create request but don't follow redirects automatically
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("creating download request: %w", err)
+	}
+
+	// Get the response which should be a 302 redirect
+	res, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("download request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	logger.Debug("Download response status: ", res.StatusCode)
+
+	// Handle 302 redirect to pre-authenticated download URL
+	if res.StatusCode == http.StatusFound {
+		downloadURL := res.Header.Get("Location")
+		if downloadURL == "" {
+			return fmt.Errorf("no download URL found in redirect response")
+		}
+
+		logger.Debug("Following redirect to: ", downloadURL)
+		// Download from the pre-authenticated URL (no auth headers needed)
+		return downloadFromURL(downloadURL, localPath)
+	}
+
+	// If it's not a redirect, handle as direct download (fallback)
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed with status: %s", res.Status)
+	}
+
+	return saveResponseToFile(res, localPath)
+}
+
+// SearchDriveItemsInFolder searches for items within a specific folder.
+func SearchDriveItemsInFolder(client *http.Client, folderPath, query string, paging Paging) (DriveItemList, string, error) {
+	logger.Debug("SearchDriveItemsInFolder called with folderPath: ", folderPath, ", query: ", query)
+	var items DriveItemList
+
+	// First get the folder item to get its ID
+	folderItem, err := GetDriveItemByPath(client, folderPath)
+	if err != nil {
+		return items, "", fmt.Errorf("getting folder item: %w", err)
+	}
+
+	// URL encode the query parameter
+	encodedQuery := url.QueryEscape(query)
+	searchURL := customRootURL + "me/drive/items/" + url.PathEscape(folderItem.ID) + "/search(q='" + encodedQuery + "')"
+
+	rawItems, nextLink, err := collectAllPages(client, searchURL, paging)
+	if err != nil {
+		return items, "", err
+	}
+
+	// Convert raw messages to DriveItems
+	for _, rawItem := range rawItems {
+		var item DriveItem
+		if err := json.Unmarshal(rawItem, &item); err != nil {
+			return items, "", fmt.Errorf("unmarshaling drive item: %v", err)
+		}
+		items.Value = append(items.Value, item)
+	}
+
+	return items, nextLink, nil
+}
+
+// GetDriveActivities retrieves activities for the entire drive.
+func GetDriveActivities(client *http.Client, paging Paging) (ActivityList, string, error) {
+	logger.Debug("GetDriveActivities called")
+	var activities ActivityList
+
+	activitiesURL := customRootURL + "me/drive/activities"
+
+	rawItems, nextLink, err := collectAllPages(client, activitiesURL, paging)
+	if err != nil {
+		return activities, "", err
+	}
+
+	// Convert raw messages to Activities
+	for _, rawItem := range rawItems {
+		var activity Activity
+		if err := json.Unmarshal(rawItem, &activity); err != nil {
+			return activities, "", fmt.Errorf("unmarshaling activity: %v", err)
+		}
+		activities.Value = append(activities.Value, activity)
+	}
+
+	return activities, nextLink, nil
+}
+
+// GetItemActivities retrieves activities for a specific item.
+func GetItemActivities(client *http.Client, remotePath string, paging Paging) (ActivityList, string, error) {
+	logger.Debug("GetItemActivities called with remotePath: ", remotePath)
+	var activities ActivityList
+
+	// First get the item to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return activities, "", fmt.Errorf("getting drive item: %w", err)
+	}
+
+	activitiesURL := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/activities"
+
+	rawItems, nextLink, err := collectAllPages(client, activitiesURL, paging)
+	if err != nil {
+		return activities, "", err
+	}
+
+	// Convert raw messages to Activities
+	for _, rawItem := range rawItems {
+		var activity Activity
+		if err := json.Unmarshal(rawItem, &activity); err != nil {
+			return activities, "", fmt.Errorf("unmarshaling activity: %v", err)
+		}
+		activities.Value = append(activities.Value, activity)
+	}
+
+	return activities, nextLink, nil
+}
+
+// SearchDriveItemsWithPaging searches for items in the drive with paging support.
+func SearchDriveItemsWithPaging(client *http.Client, query string, paging Paging) (DriveItemList, string, error) {
+	logger.Debug("SearchDriveItemsWithPaging called with query: ", query)
+	var items DriveItemList
+
+	// URL encode the query parameter
+	encodedQuery := url.QueryEscape(query)
+	searchURL := customRootURL + "me/drive/root/search(q='" + encodedQuery + "')"
+
+	rawItems, nextLink, err := collectAllPages(client, searchURL, paging)
+	if err != nil {
+		return items, "", err
+	}
+
+	// Convert raw messages to DriveItems
+	for _, rawItem := range rawItems {
+		var item DriveItem
+		if err := json.Unmarshal(rawItem, &item); err != nil {
+			return items, "", fmt.Errorf("unmarshaling drive item: %v", err)
+		}
+		items.Value = append(items.Value, item)
+	}
+
+	return items, nextLink, nil
 }

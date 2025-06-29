@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
+	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 var drivesCmd = &cobra.Command{
@@ -56,6 +57,42 @@ var drivesGetCmd = &cobra.Command{
 	},
 }
 
+var drivesActivitiesCmd = &cobra.Command{
+	Use:   "activities",
+	Short: "Show activity history for the entire drive",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		app, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("initializing app: %w", err)
+		}
+
+		// Parse paging options
+		topFlag, _ := cmd.Flags().GetInt("top")
+		allFlag, _ := cmd.Flags().GetBool("all")
+		nextFlag, _ := cmd.Flags().GetString("next")
+
+		paging := onedrive.Paging{
+			Top:      topFlag,
+			FetchAll: allFlag,
+			NextLink: nextFlag,
+		}
+
+		activities, nextLink, err := app.SDK.GetDriveActivities(paging)
+		if err != nil {
+			return fmt.Errorf("getting drive activities: %w", err)
+		}
+
+		ui.DisplayActivities(activities, "drive")
+
+		if nextLink != "" && !allFlag {
+			fmt.Printf("\nNext page available. Use --next '%s' to continue.\n", nextLink)
+		}
+
+		return nil
+	},
+}
+
 func drivesListLogic(a *app.App) error {
 	drives, err := a.SDK.GetDrives()
 	if err != nil {
@@ -88,4 +125,9 @@ func init() {
 	drivesCmd.AddCommand(drivesListCmd)
 	drivesCmd.AddCommand(drivesQuotaCmd)
 	drivesCmd.AddCommand(drivesGetCmd)
+	drivesCmd.AddCommand(drivesActivitiesCmd)
+
+	drivesActivitiesCmd.Flags().Int("top", 0, "Maximum number of activities to return")
+	drivesActivitiesCmd.Flags().Bool("all", false, "Fetch all activities across all pages")
+	drivesActivitiesCmd.Flags().String("next", "", "Continue from this next link URL")
 }

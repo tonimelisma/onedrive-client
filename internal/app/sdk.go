@@ -17,6 +17,7 @@ type SDK interface {
 	GetMe() (onedrive.User, error)
 	CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFile(remotePath, localPath string) error
+	DownloadFileAsFormat(remotePath, localPath, format string) error
 	DownloadFileChunk(url string, startByte, endByte int64) (io.ReadCloser, error)
 	CreateUploadSession(remotePath string) (onedrive.UploadSession, error)
 	UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
@@ -30,6 +31,10 @@ type SDK interface {
 	UpdateDriveItem(path, newName string) (onedrive.DriveItem, error)
 	MonitorCopyOperation(monitorURL string) (onedrive.CopyOperationStatus, error)
 	SearchDriveItems(query string) (onedrive.DriveItemList, error)
+	SearchDriveItemsWithPaging(query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
+	SearchDriveItemsInFolder(folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
+	GetDriveActivities(paging onedrive.Paging) (onedrive.ActivityList, string, error)
+	GetItemActivities(remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error)
 	GetSharedWithMe() (onedrive.DriveItemList, error)
 	GetRecentItems() (onedrive.DriveItemList, error)
 	GetSpecialFolder(folderName string) (onedrive.DriveItem, error)
@@ -82,6 +87,11 @@ func (s *OneDriveSDK) CreateFolder(parentPath string, folderName string) (onedri
 // DownloadFile calls the real onedrive.DownloadFile function.
 func (s *OneDriveSDK) DownloadFile(remotePath, localPath string) error {
 	return onedrive.DownloadFile(s.client, remotePath, localPath)
+}
+
+// DownloadFileAsFormat downloads a file in a specific format
+func (sdk *OneDriveSDK) DownloadFileAsFormat(remotePath, localPath, format string) error {
+	return onedrive.DownloadFileAsFormat(sdk.client, remotePath, localPath, format)
 }
 
 // DownloadFileChunk calls the real onedrive.DownloadFileChunk function.
@@ -147,6 +157,26 @@ func (s *OneDriveSDK) MonitorCopyOperation(monitorURL string) (onedrive.CopyOper
 // SearchDriveItems calls the real onedrive.SearchDriveItems function.
 func (s *OneDriveSDK) SearchDriveItems(query string) (onedrive.DriveItemList, error) {
 	return onedrive.SearchDriveItems(s.client, query)
+}
+
+// SearchDriveItemsWithPaging searches for items with paging support
+func (sdk *OneDriveSDK) SearchDriveItemsWithPaging(query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
+	return onedrive.SearchDriveItemsWithPaging(sdk.client, query, paging)
+}
+
+// SearchDriveItemsInFolder searches for items within a specific folder
+func (sdk *OneDriveSDK) SearchDriveItemsInFolder(folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
+	return onedrive.SearchDriveItemsInFolder(sdk.client, folderPath, query, paging)
+}
+
+// GetDriveActivities retrieves activities for the entire drive
+func (sdk *OneDriveSDK) GetDriveActivities(paging onedrive.Paging) (onedrive.ActivityList, string, error) {
+	return onedrive.GetDriveActivities(sdk.client, paging)
+}
+
+// GetItemActivities retrieves activities for a specific item
+func (sdk *OneDriveSDK) GetItemActivities(remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error) {
+	return onedrive.GetItemActivities(sdk.client, remotePath, paging)
 }
 
 // GetSharedWithMe calls the real onedrive.GetSharedWithMe function.
