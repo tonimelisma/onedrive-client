@@ -42,6 +42,15 @@ type SDK interface {
 	GetDelta(deltaToken string) (onedrive.DeltaResponse, error)
 	GetDriveByID(driveID string) (onedrive.Drive, error)
 	GetFileVersions(filePath string) (onedrive.DriveItemVersionList, error)
+	// New Epic 7 methods for thumbnails, preview, and permissions
+	GetThumbnails(remotePath string) (onedrive.ThumbnailSetList, error)
+	GetThumbnailBySize(remotePath, thumbID, size string) (onedrive.Thumbnail, error)
+	PreviewItem(remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error)
+	InviteUsers(remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error)
+	ListPermissions(remotePath string) (onedrive.PermissionList, error)
+	GetPermission(remotePath, permissionID string) (onedrive.Permission, error)
+	UpdatePermission(remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error)
+	DeletePermission(remotePath, permissionID string) error
 }
 
 // OneDriveSDK implements the SDK interface by calling the real OneDrive API.
@@ -212,4 +221,44 @@ func (s *OneDriveSDK) GetDriveByID(driveID string) (onedrive.Drive, error) {
 // GetFileVersions calls the real onedrive.GetFileVersions function.
 func (s *OneDriveSDK) GetFileVersions(filePath string) (onedrive.DriveItemVersionList, error) {
 	return onedrive.GetFileVersions(s.client, filePath)
+}
+
+// GetThumbnails calls the real onedrive.GetThumbnails function.
+func (s *OneDriveSDK) GetThumbnails(remotePath string) (onedrive.ThumbnailSetList, error) {
+	return onedrive.GetThumbnails(s.client, remotePath)
+}
+
+// GetThumbnailBySize calls the real onedrive.GetThumbnailBySize function.
+func (s *OneDriveSDK) GetThumbnailBySize(remotePath, thumbID, size string) (onedrive.Thumbnail, error) {
+	return onedrive.GetThumbnailBySize(s.client, remotePath, thumbID, size)
+}
+
+// PreviewItem calls the real onedrive.PreviewItem function.
+func (s *OneDriveSDK) PreviewItem(remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error) {
+	return onedrive.PreviewItem(s.client, remotePath, request)
+}
+
+// InviteUsers calls the real onedrive.InviteUsers function.
+func (s *OneDriveSDK) InviteUsers(remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error) {
+	return onedrive.InviteUsers(s.client, remotePath, request)
+}
+
+// ListPermissions calls the real onedrive.ListPermissions function.
+func (s *OneDriveSDK) ListPermissions(remotePath string) (onedrive.PermissionList, error) {
+	return onedrive.ListPermissions(s.client, remotePath)
+}
+
+// GetPermission calls the real onedrive.GetPermission function.
+func (s *OneDriveSDK) GetPermission(remotePath, permissionID string) (onedrive.Permission, error) {
+	return onedrive.GetPermission(s.client, remotePath, permissionID)
+}
+
+// UpdatePermission calls the real onedrive.UpdatePermission function.
+func (s *OneDriveSDK) UpdatePermission(remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error) {
+	return onedrive.UpdatePermission(s.client, remotePath, permissionID, request)
+}
+
+// DeletePermission calls the real onedrive.DeletePermission function.
+func (s *OneDriveSDK) DeletePermission(remotePath, permissionID string) error {
+	return onedrive.DeletePermission(s.client, remotePath, permissionID)
 }

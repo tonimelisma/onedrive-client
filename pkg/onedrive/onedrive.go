@@ -1488,3 +1488,229 @@ func SearchDriveItemsWithPaging(client *http.Client, query string, paging Paging
 
 	return items, nextLink, nil
 }
+
+// GetThumbnails retrieves thumbnail images for a drive item.
+func GetThumbnails(client *http.Client, remotePath string) (ThumbnailSetList, error) {
+	logger.Debug("GetThumbnails called with remotePath: ", remotePath)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return ThumbnailSetList{}, fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/thumbnails"
+
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return ThumbnailSetList{}, err
+	}
+	defer res.Body.Close()
+
+	var thumbnails ThumbnailSetList
+	if err := json.NewDecoder(res.Body).Decode(&thumbnails); err != nil {
+		return ThumbnailSetList{}, fmt.Errorf("decoding thumbnails response: %v", err)
+	}
+
+	return thumbnails, nil
+}
+
+// GetThumbnailBySize retrieves a specific size thumbnail for a drive item.
+func GetThumbnailBySize(client *http.Client, remotePath, thumbID, size string) (Thumbnail, error) {
+	logger.Debug("GetThumbnailBySize called with remotePath: ", remotePath, ", thumbID: ", thumbID, ", size: ", size)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return Thumbnail{}, fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/thumbnails/" + url.PathEscape(thumbID) + "/" + url.PathEscape(size)
+
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return Thumbnail{}, err
+	}
+	defer res.Body.Close()
+
+	var thumbnail Thumbnail
+	if err := json.NewDecoder(res.Body).Decode(&thumbnail); err != nil {
+		return Thumbnail{}, fmt.Errorf("decoding thumbnail response: %v", err)
+	}
+
+	return thumbnail, nil
+}
+
+// PreviewItem creates a preview for a drive item.
+func PreviewItem(client *http.Client, remotePath string, request PreviewRequest) (PreviewResponse, error) {
+	logger.Debug("PreviewItem called with remotePath: ", remotePath)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return PreviewResponse{}, fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/preview"
+
+	var bodyReader io.Reader
+	if request.Page != "" || request.Zoom != 0 {
+		requestBody, err := json.Marshal(request)
+		if err != nil {
+			return PreviewResponse{}, fmt.Errorf("marshaling preview request: %v", err)
+		}
+		bodyReader = bytes.NewReader(requestBody)
+	}
+
+	res, err := apiCall(client, "POST", url, "application/json", bodyReader)
+	if err != nil {
+		return PreviewResponse{}, err
+	}
+	defer res.Body.Close()
+
+	var preview PreviewResponse
+	if err := json.NewDecoder(res.Body).Decode(&preview); err != nil {
+		return PreviewResponse{}, fmt.Errorf("decoding preview response: %v", err)
+	}
+
+	return preview, nil
+}
+
+// InviteUsers invites users to access a drive item.
+func InviteUsers(client *http.Client, remotePath string, request InviteRequest) (InviteResponse, error) {
+	logger.Debug("InviteUsers called with remotePath: ", remotePath)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return InviteResponse{}, fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/invite"
+
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		return InviteResponse{}, fmt.Errorf("marshaling invite request: %v", err)
+	}
+
+	res, err := apiCall(client, "POST", url, "application/json", bytes.NewReader(requestBody))
+	if err != nil {
+		return InviteResponse{}, err
+	}
+	defer res.Body.Close()
+
+	var invite InviteResponse
+	if err := json.NewDecoder(res.Body).Decode(&invite); err != nil {
+		return InviteResponse{}, fmt.Errorf("decoding invite response: %v", err)
+	}
+
+	return invite, nil
+}
+
+// ListPermissions lists all permissions on a drive item.
+func ListPermissions(client *http.Client, remotePath string) (PermissionList, error) {
+	logger.Debug("ListPermissions called with remotePath: ", remotePath)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return PermissionList{}, fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions"
+
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return PermissionList{}, err
+	}
+	defer res.Body.Close()
+
+	var permissions PermissionList
+	if err := json.NewDecoder(res.Body).Decode(&permissions); err != nil {
+		return PermissionList{}, fmt.Errorf("decoding permissions response: %v", err)
+	}
+
+	return permissions, nil
+}
+
+// GetPermission retrieves a specific permission on a drive item.
+func GetPermission(client *http.Client, remotePath, permissionID string) (Permission, error) {
+	logger.Debug("GetPermission called with remotePath: ", remotePath, ", permissionID: ", permissionID)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return Permission{}, fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
+
+	res, err := apiCall(client, "GET", url, "", nil)
+	if err != nil {
+		return Permission{}, err
+	}
+	defer res.Body.Close()
+
+	var permission Permission
+	if err := json.NewDecoder(res.Body).Decode(&permission); err != nil {
+		return Permission{}, fmt.Errorf("decoding permission response: %v", err)
+	}
+
+	return permission, nil
+}
+
+// UpdatePermission updates a specific permission on a drive item.
+func UpdatePermission(client *http.Client, remotePath, permissionID string, request UpdatePermissionRequest) (Permission, error) {
+	logger.Debug("UpdatePermission called with remotePath: ", remotePath, ", permissionID: ", permissionID)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return Permission{}, fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
+
+	requestBody, err := json.Marshal(request)
+	if err != nil {
+		return Permission{}, fmt.Errorf("marshaling update permission request: %v", err)
+	}
+
+	res, err := apiCall(client, "PATCH", url, "application/json", bytes.NewReader(requestBody))
+	if err != nil {
+		return Permission{}, err
+	}
+	defer res.Body.Close()
+
+	var permission Permission
+	if err := json.NewDecoder(res.Body).Decode(&permission); err != nil {
+		return Permission{}, fmt.Errorf("decoding permission response: %v", err)
+	}
+
+	return permission, nil
+}
+
+// DeletePermission deletes a specific permission on a drive item.
+func DeletePermission(client *http.Client, remotePath, permissionID string) error {
+	logger.Debug("DeletePermission called with remotePath: ", remotePath, ", permissionID: ", permissionID)
+
+	// Get the item first to get its ID
+	item, err := GetDriveItemByPath(client, remotePath)
+	if err != nil {
+		return fmt.Errorf("getting drive item: %w", err)
+	}
+
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
+
+	res, err := apiCall(client, "DELETE", url, "", nil)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK {
+		return fmt.Errorf("delete permission failed with status: %s", res.Status)
+	}
+
+	return nil
+}

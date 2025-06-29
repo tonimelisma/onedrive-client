@@ -239,3 +239,120 @@ type ActivityList struct {
 	Value    []Activity `json:"value"`
 	NextLink string     `json:"@odata.nextLink,omitempty"`
 }
+
+// Thumbnail represents a thumbnail image with size information
+type Thumbnail struct {
+	Height int    `json:"height"`
+	Width  int    `json:"width"`
+	URL    string `json:"url"`
+}
+
+// ThumbnailSet represents a collection of thumbnail sizes for an item
+type ThumbnailSet struct {
+	ID     string     `json:"id"`
+	Small  *Thumbnail `json:"small,omitempty"`
+	Medium *Thumbnail `json:"medium,omitempty"`
+	Large  *Thumbnail `json:"large,omitempty"`
+	Source *Thumbnail `json:"source,omitempty"`
+}
+
+// ThumbnailSetList represents a collection of thumbnail sets
+type ThumbnailSetList struct {
+	Value []ThumbnailSet `json:"value"`
+}
+
+// PreviewRequest represents the request body for item preview
+type PreviewRequest struct {
+	Page string  `json:"page,omitempty"` // Page number or name to preview
+	Zoom float64 `json:"zoom,omitempty"` // Zoom level (1.0 = 100%)
+}
+
+// PreviewResponse represents the response from the preview API
+type PreviewResponse struct {
+	GetURL         string `json:"getUrl,omitempty"`         // URL for GET request
+	PostURL        string `json:"postUrl,omitempty"`        // URL for POST request
+	PostParameters string `json:"postParameters,omitempty"` // Parameters for POST request
+}
+
+// Permission represents a sharing permission on an item
+type Permission struct {
+	ID                 string   `json:"id"`
+	Roles              []string `json:"roles"`                        // "read", "write", "owner"
+	ShareID            string   `json:"shareId,omitempty"`            // Share identifier
+	ExpirationDateTime string   `json:"expirationDateTime,omitempty"` // ISO 8601 format
+	HasPassword        bool     `json:"hasPassword,omitempty"`        // Whether password protected
+	PermissionScope    string   `json:"scope,omitempty"`              // "anonymous", "organization", "users"
+	GrantedToV2        *struct {
+		User *struct {
+			DisplayName string `json:"displayName"`
+			ID          string `json:"id"`
+			Email       string `json:"email,omitempty"`
+		} `json:"user,omitempty"`
+		SiteUser *struct {
+			DisplayName string `json:"displayName"`
+			ID          string `json:"id"`
+			LoginName   string `json:"loginName,omitempty"`
+			Email       string `json:"email,omitempty"`
+		} `json:"siteUser,omitempty"`
+	} `json:"grantedToV2,omitempty"`
+	GrantedToIdentitiesV2 []struct {
+		User *struct {
+			DisplayName string `json:"displayName"`
+			ID          string `json:"id"`
+			Email       string `json:"email,omitempty"`
+		} `json:"user,omitempty"`
+		SiteUser *struct {
+			DisplayName string `json:"displayName"`
+			ID          string `json:"id"`
+			LoginName   string `json:"loginName,omitempty"`
+			Email       string `json:"email,omitempty"`
+		} `json:"siteUser,omitempty"`
+	} `json:"grantedToIdentitiesV2,omitempty"`
+	Link *struct {
+		Type        string `json:"type"`              // "view", "edit", "embed"
+		Scope       string `json:"scope"`             // "anonymous", "organization"
+		WebURL      string `json:"webUrl"`            // The sharing URL
+		WebHTML     string `json:"webHtml,omitempty"` // HTML for embedding
+		Application struct {
+			ID          string `json:"id"`
+			DisplayName string `json:"displayName"`
+		} `json:"application,omitempty"`
+		PreventsDownload bool `json:"preventsDownload,omitempty"` // Whether download is prevented
+	} `json:"link,omitempty"`
+	InheritedFrom *struct {
+		DriveID string `json:"driveId"`
+		ID      string `json:"id"`
+		Path    string `json:"path"`
+	} `json:"inheritedFrom,omitempty"`
+}
+
+// PermissionList represents a collection of permissions
+type PermissionList struct {
+	Value []Permission `json:"value"`
+}
+
+// InviteRequest represents the request body for inviting users
+type InviteRequest struct {
+	Recipients []struct {
+		Email string `json:"email"`
+	} `json:"recipients"`
+	Message              string   `json:"message,omitempty"`              // Optional invitation message
+	RequireSignIn        bool     `json:"requireSignIn,omitempty"`        // Whether sign-in is required
+	SendInvitation       bool     `json:"sendInvitation,omitempty"`       // Whether to send email invitation
+	Roles                []string `json:"roles"`                          // "read", "write"
+	ExpirationDateTime   string   `json:"expirationDateTime,omitempty"`   // ISO 8601 format
+	Password             string   `json:"password,omitempty"`             // Optional password
+	RetainInheritedRoles bool     `json:"retainInheritedRoles,omitempty"` // Whether to retain inherited permissions
+}
+
+// InviteResponse represents the response from inviting users
+type InviteResponse struct {
+	Value []Permission `json:"value"` // Created permissions for invited users
+}
+
+// UpdatePermissionRequest represents the request body for updating permissions
+type UpdatePermissionRequest struct {
+	Roles              []string `json:"roles,omitempty"`              // "read", "write", "owner"
+	ExpirationDateTime string   `json:"expirationDateTime,omitempty"` // ISO 8601 format
+	Password           string   `json:"password,omitempty"`           // Optional password
+}

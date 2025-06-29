@@ -398,6 +398,112 @@ var topFlag int
 var allFlag bool
 var nextFlag string
 
+// New Epic 7 commands for thumbnails, preview, and permissions
+
+var filesThumbnailsCmd = &cobra.Command{
+	Use:   "thumbnails <remote-path>",
+	Short: "Get thumbnail images for a file",
+	Long:  "Retrieves thumbnail images in different sizes (small, medium, large) for a file in your OneDrive.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesThumbnailsLogic(a, cmd, args)
+	},
+}
+
+var filesPreviewCmd = &cobra.Command{
+	Use:   "preview <remote-path>",
+	Short: "Generate a preview for a file",
+	Long:  "Creates a preview URL for a file that can be embedded in web pages. Works with Office documents, PDFs, and images.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesPreviewLogic(a, cmd, args)
+	},
+}
+
+var filesInviteCmd = &cobra.Command{
+	Use:   "invite <remote-path> <email> [additional-emails...]",
+	Short: "Invite users to access a file or folder",
+	Long:  "Sends an invitation to one or more users to access a file or folder in your OneDrive.",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesInviteLogic(a, cmd, args)
+	},
+}
+
+var filesPermissionsCmd = &cobra.Command{
+	Use:   "permissions",
+	Short: "Manage permissions on files and folders",
+	Long:  "Provides commands to list, get, update, and delete permissions on files and folders.",
+}
+
+var filesPermissionsListCmd = &cobra.Command{
+	Use:   "list <remote-path>",
+	Short: "List all permissions on a file or folder",
+	Long:  "Lists all permissions (sharing links, user permissions, etc.) on a specific file or folder.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesPermissionsListLogic(a, cmd, args)
+	},
+}
+
+var filesPermissionsGetCmd = &cobra.Command{
+	Use:   "get <remote-path> <permission-id>",
+	Short: "Get details of a specific permission",
+	Long:  "Retrieves detailed information about a specific permission by its ID.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesPermissionsGetLogic(a, cmd, args)
+	},
+}
+
+var filesPermissionsUpdateCmd = &cobra.Command{
+	Use:   "update <remote-path> <permission-id>",
+	Short: "Update a specific permission",
+	Long:  "Updates an existing permission by changing its roles or expiration date.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesPermissionsUpdateLogic(a, cmd, args)
+	},
+}
+
+var filesPermissionsDeleteCmd = &cobra.Command{
+	Use:   "delete <remote-path> <permission-id>",
+	Short: "Delete a specific permission",
+	Long:  "Removes a specific permission from a file or folder.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesPermissionsDeleteLogic(a, cmd, args)
+	},
+}
+
 func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	path := "/"
 	if len(args) > 0 {
@@ -850,6 +956,173 @@ func filesVersionsLogic(a *app.App, filePath string) error {
 	return nil
 }
 
+// New Epic 7 logic functions for thumbnails, preview, and permissions
+
+func filesThumbnailsLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	if remotePath == "" {
+		return fmt.Errorf("remote path cannot be empty")
+	}
+
+	thumbnails, err := a.SDK.GetThumbnails(remotePath)
+	if err != nil {
+		return fmt.Errorf("getting thumbnails: %w", err)
+	}
+
+	ui.DisplayThumbnails(thumbnails, remotePath)
+	return nil
+}
+
+func filesPreviewLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	if remotePath == "" {
+		return fmt.Errorf("remote path cannot be empty")
+	}
+
+	// Parse optional flags
+	page, _ := cmd.Flags().GetString("page")
+	zoom, _ := cmd.Flags().GetFloat64("zoom")
+
+	request := onedrive.PreviewRequest{
+		Page: page,
+		Zoom: zoom,
+	}
+
+	preview, err := a.SDK.PreviewItem(remotePath, request)
+	if err != nil {
+		return fmt.Errorf("generating preview: %w", err)
+	}
+
+	ui.DisplayPreview(preview, remotePath)
+	return nil
+}
+
+func filesInviteLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	if remotePath == "" {
+		return fmt.Errorf("remote path cannot be empty")
+	}
+
+	// Extract emails from args
+	emails := args[1:]
+	if len(emails) == 0 {
+		return fmt.Errorf("at least one email address is required")
+	}
+
+	// Parse optional flags
+	message, _ := cmd.Flags().GetString("message")
+	roles, _ := cmd.Flags().GetStringSlice("roles")
+	requireSignIn, _ := cmd.Flags().GetBool("require-signin")
+	sendInvitation, _ := cmd.Flags().GetBool("send-invitation")
+
+	// Default to read access if no roles specified
+	if len(roles) == 0 {
+		roles = []string{"read"}
+	}
+
+	// Build recipients
+	recipients := make([]struct {
+		Email string `json:"email"`
+	}, len(emails))
+	for i, email := range emails {
+		recipients[i].Email = email
+	}
+
+	request := onedrive.InviteRequest{
+		Recipients:     recipients,
+		Message:        message,
+		RequireSignIn:  requireSignIn,
+		SendInvitation: sendInvitation,
+		Roles:          roles,
+	}
+
+	response, err := a.SDK.InviteUsers(remotePath, request)
+	if err != nil {
+		return fmt.Errorf("inviting users: %w", err)
+	}
+
+	ui.DisplayInviteResponse(response, remotePath)
+	return nil
+}
+
+func filesPermissionsListLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	if remotePath == "" {
+		return fmt.Errorf("remote path cannot be empty")
+	}
+
+	permissions, err := a.SDK.ListPermissions(remotePath)
+	if err != nil {
+		return fmt.Errorf("listing permissions: %w", err)
+	}
+
+	ui.DisplayPermissions(permissions, remotePath)
+	return nil
+}
+
+func filesPermissionsGetLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	permissionID := args[1]
+
+	if remotePath == "" || permissionID == "" {
+		return fmt.Errorf("remote path and permission ID cannot be empty")
+	}
+
+	permission, err := a.SDK.GetPermission(remotePath, permissionID)
+	if err != nil {
+		return fmt.Errorf("getting permission: %w", err)
+	}
+
+	ui.DisplaySinglePermission(permission, remotePath, permissionID)
+	return nil
+}
+
+func filesPermissionsUpdateLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	permissionID := args[1]
+
+	if remotePath == "" || permissionID == "" {
+		return fmt.Errorf("remote path and permission ID cannot be empty")
+	}
+
+	// Parse update flags
+	roles, _ := cmd.Flags().GetStringSlice("roles")
+	expiration, _ := cmd.Flags().GetString("expiration")
+	password, _ := cmd.Flags().GetString("password")
+
+	request := onedrive.UpdatePermissionRequest{
+		Roles:              roles,
+		ExpirationDateTime: expiration,
+		Password:           password,
+	}
+
+	permission, err := a.SDK.UpdatePermission(remotePath, permissionID, request)
+	if err != nil {
+		return fmt.Errorf("updating permission: %w", err)
+	}
+
+	ui.DisplaySinglePermission(permission, remotePath, permissionID)
+	ui.PrintSuccess("Permission updated successfully.\n")
+	return nil
+}
+
+func filesPermissionsDeleteLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	remotePath := args[0]
+	permissionID := args[1]
+
+	if remotePath == "" || permissionID == "" {
+		return fmt.Errorf("remote path and permission ID cannot be empty")
+	}
+
+	err := a.SDK.DeletePermission(remotePath, permissionID)
+	if err != nil {
+		return fmt.Errorf("deleting permission: %w", err)
+	}
+
+	ui.PrintSuccess("Permission '%s' deleted successfully from '%s'.\n", permissionID, remotePath)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(filesCmd)
 	filesCmd.AddCommand(filesListCmd)
@@ -872,6 +1145,16 @@ func init() {
 	filesCmd.AddCommand(filesShareCmd)
 	filesCmd.AddCommand(filesVersionsCmd)
 	filesCmd.AddCommand(activitiesCmd)
+	filesCmd.AddCommand(filesThumbnailsCmd)
+	filesCmd.AddCommand(filesPreviewCmd)
+	filesCmd.AddCommand(filesInviteCmd)
+	filesCmd.AddCommand(filesPermissionsCmd)
+
+	// Add permissions subcommands
+	filesPermissionsCmd.AddCommand(filesPermissionsListCmd)
+	filesPermissionsCmd.AddCommand(filesPermissionsGetCmd)
+	filesPermissionsCmd.AddCommand(filesPermissionsUpdateCmd)
+	filesPermissionsCmd.AddCommand(filesPermissionsDeleteCmd)
 
 	// Add flags
 	filesCopyCmd.Flags().Bool("wait", false, "Wait for copy operation to complete instead of returning immediately")
@@ -887,4 +1170,17 @@ func init() {
 	filesSearchCmd.Flags().IntVar(&topFlag, "top", 0, "Maximum number of results to return")
 	filesSearchCmd.Flags().BoolVar(&allFlag, "all", false, "Fetch all results across all pages")
 	filesSearchCmd.Flags().StringVar(&nextFlag, "next", "", "Continue from this next link URL")
+
+	// Add flags for new Epic 7 commands
+	filesPreviewCmd.Flags().String("page", "", "Page number or name to preview")
+	filesPreviewCmd.Flags().Float64("zoom", 1.0, "Zoom level (1.0 = 100%)")
+
+	filesInviteCmd.Flags().String("message", "", "Optional invitation message")
+	filesInviteCmd.Flags().StringSlice("roles", []string{"read"}, "Roles to grant (read, write)")
+	filesInviteCmd.Flags().Bool("require-signin", true, "Whether sign-in is required")
+	filesInviteCmd.Flags().Bool("send-invitation", true, "Whether to send email invitation")
+
+	filesPermissionsUpdateCmd.Flags().StringSlice("roles", nil, "Roles to set (read, write, owner)")
+	filesPermissionsUpdateCmd.Flags().String("expiration", "", "Expiration date/time (ISO 8601 format)")
+	filesPermissionsUpdateCmd.Flags().String("password", "", "Optional password")
 }

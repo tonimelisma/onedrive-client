@@ -2,9 +2,9 @@ Read @PRD.md  @ARCHITECTURE.md @CHANGELOG.md
 
 What's a reasonable increment of work to do next?
 
-1. Explain all of the work that needs to happen to successfully accomplish the next set of requirements. Explain clearly the body of work you seek to accomplish and the outcomes.
-1b. Explain which parts of the app the changes will touch: which classes and which files?
-2. Don't trust the markdown documents. Read the code as it is today on disk to understand its state and reason about it.
+1. Don't trust the markdown documents. Read the code as it is today on disk to understand its state and reason about it.
+2. Explain all of the work that needs to happen to successfully accomplish the next set of requirements. Explain clearly the body of work you seek to accomplish and the outcomes.
+2b. Explain which parts of the app the changes will touch: which classes and which files?
 3. Create a detailed plan, step by step on changes needed. Show it to me.
 4. Where are the soft spots in your analysis? Enumerate them to me.
 5. Read the rest of the files on disk required to harden the soft spots. Ensure you know each and every API that will be affected by your changes and have read the actual files on disk and know them before moving to the next step.

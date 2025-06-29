@@ -47,6 +47,15 @@ type MockSDK struct {
 	GetDeltaFunc                   func(deltaToken string) (onedrive.DeltaResponse, error)
 	GetDriveByIDFunc               func(driveID string) (onedrive.Drive, error)
 	GetFileVersionsFunc            func(filePath string) (onedrive.DriveItemVersionList, error)
+	// New Epic 7 function fields
+	GetThumbnailsFunc      func(remotePath string) (onedrive.ThumbnailSetList, error)
+	GetThumbnailBySizeFunc func(remotePath, thumbID, size string) (onedrive.Thumbnail, error)
+	PreviewItemFunc        func(remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error)
+	InviteUsersFunc        func(remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error)
+	ListPermissionsFunc    func(remotePath string) (onedrive.PermissionList, error)
+	GetPermissionFunc      func(remotePath, permissionID string) (onedrive.Permission, error)
+	UpdatePermissionFunc   func(remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error)
+	DeletePermissionFunc   func(remotePath, permissionID string) error
 }
 
 func (m *MockSDK) GetDrives() (onedrive.DriveList, error) {
@@ -289,6 +298,64 @@ func (m *MockSDK) GetFileVersions(filePath string) (onedrive.DriveItemVersionLis
 		return m.GetFileVersionsFunc(filePath)
 	}
 	return onedrive.DriveItemVersionList{}, nil
+}
+
+// New Epic 7 mock method implementations
+
+func (m *MockSDK) GetThumbnails(remotePath string) (onedrive.ThumbnailSetList, error) {
+	if m.GetThumbnailsFunc != nil {
+		return m.GetThumbnailsFunc(remotePath)
+	}
+	return onedrive.ThumbnailSetList{}, nil
+}
+
+func (m *MockSDK) GetThumbnailBySize(remotePath, thumbID, size string) (onedrive.Thumbnail, error) {
+	if m.GetThumbnailBySizeFunc != nil {
+		return m.GetThumbnailBySizeFunc(remotePath, thumbID, size)
+	}
+	return onedrive.Thumbnail{}, nil
+}
+
+func (m *MockSDK) PreviewItem(remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error) {
+	if m.PreviewItemFunc != nil {
+		return m.PreviewItemFunc(remotePath, request)
+	}
+	return onedrive.PreviewResponse{}, nil
+}
+
+func (m *MockSDK) InviteUsers(remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error) {
+	if m.InviteUsersFunc != nil {
+		return m.InviteUsersFunc(remotePath, request)
+	}
+	return onedrive.InviteResponse{}, nil
+}
+
+func (m *MockSDK) ListPermissions(remotePath string) (onedrive.PermissionList, error) {
+	if m.ListPermissionsFunc != nil {
+		return m.ListPermissionsFunc(remotePath)
+	}
+	return onedrive.PermissionList{}, nil
+}
+
+func (m *MockSDK) GetPermission(remotePath, permissionID string) (onedrive.Permission, error) {
+	if m.GetPermissionFunc != nil {
+		return m.GetPermissionFunc(remotePath, permissionID)
+	}
+	return onedrive.Permission{}, nil
+}
+
+func (m *MockSDK) UpdatePermission(remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error) {
+	if m.UpdatePermissionFunc != nil {
+		return m.UpdatePermissionFunc(remotePath, permissionID, request)
+	}
+	return onedrive.Permission{}, nil
+}
+
+func (m *MockSDK) DeletePermission(remotePath, permissionID string) error {
+	if m.DeletePermissionFunc != nil {
+		return m.DeletePermissionFunc(remotePath, permissionID)
+	}
+	return nil
 }
 
 // newTestApp creates a new app instance with a mock SDK for testing.

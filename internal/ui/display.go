@@ -412,3 +412,215 @@ func DisplayActivities(activities onedrive.ActivityList, title string) {
 		fmt.Printf("%-20s %-15s %-15s %s\n", date, actor, action, itemName)
 	}
 }
+
+// New Epic 7 display functions for thumbnails, preview, and permissions
+
+// DisplayThumbnails displays thumbnail information for a file
+func DisplayThumbnails(thumbnails onedrive.ThumbnailSetList, remotePath string) {
+	if len(thumbnails.Value) == 0 {
+		fmt.Printf("No thumbnails found for: %s\n", remotePath)
+		return
+	}
+
+	fmt.Printf("Thumbnails for: %s\n", remotePath)
+	fmt.Printf("Found %d thumbnail set(s)\n\n", len(thumbnails.Value))
+
+	for i, thumbSet := range thumbnails.Value {
+		fmt.Printf("Thumbnail Set %d (ID: %s):\n", i+1, thumbSet.ID)
+
+		if thumbSet.Small != nil {
+			fmt.Printf("  Small:  %dx%d - %s\n", thumbSet.Small.Width, thumbSet.Small.Height, thumbSet.Small.URL)
+		}
+		if thumbSet.Medium != nil {
+			fmt.Printf("  Medium: %dx%d - %s\n", thumbSet.Medium.Width, thumbSet.Medium.Height, thumbSet.Medium.URL)
+		}
+		if thumbSet.Large != nil {
+			fmt.Printf("  Large:  %dx%d - %s\n", thumbSet.Large.Width, thumbSet.Large.Height, thumbSet.Large.URL)
+		}
+		if thumbSet.Source != nil {
+			fmt.Printf("  Source: %dx%d - %s\n", thumbSet.Source.Width, thumbSet.Source.Height, thumbSet.Source.URL)
+		}
+		fmt.Println()
+	}
+}
+
+// DisplayPreview displays preview information for a file
+func DisplayPreview(preview onedrive.PreviewResponse, remotePath string) {
+	fmt.Printf("Preview generated for: %s\n", remotePath)
+
+	if preview.GetURL != "" {
+		fmt.Printf("  GET URL: %s\n", preview.GetURL)
+	}
+	if preview.PostURL != "" {
+		fmt.Printf("  POST URL: %s\n", preview.PostURL)
+	}
+	if preview.PostParameters != "" {
+		fmt.Printf("  POST Parameters: %s\n", preview.PostParameters)
+	}
+
+	if preview.GetURL == "" && preview.PostURL == "" {
+		fmt.Println("  No preview URLs available for this file")
+	}
+}
+
+// DisplayInviteResponse displays the result of inviting users to access a file
+func DisplayInviteResponse(response onedrive.InviteResponse, remotePath string) {
+	fmt.Printf("Invitation sent successfully for: %s\n", remotePath)
+
+	if len(response.Value) == 0 {
+		fmt.Println("No permissions were created")
+		return
+	}
+
+	fmt.Printf("Created %d permission(s):\n\n", len(response.Value))
+
+	for i, permission := range response.Value {
+		fmt.Printf("Permission %d:\n", i+1)
+		displayPermissionDetails(permission)
+		fmt.Println()
+	}
+}
+
+// DisplayPermissions displays a list of permissions for a file or folder
+func DisplayPermissions(permissions onedrive.PermissionList, remotePath string) {
+	if len(permissions.Value) == 0 {
+		fmt.Printf("No permissions found for: %s\n", remotePath)
+		return
+	}
+
+	fmt.Printf("Permissions for: %s\n", remotePath)
+	fmt.Printf("Found %d permission(s)\n\n", len(permissions.Value))
+
+	fmt.Printf("%-40s %-15s %-20s %s\n", "Permission ID", "Type", "Roles", "Granted To")
+	fmt.Println(strings.Repeat("-", 90))
+
+	for _, permission := range permissions.Value {
+		permID := permission.ID
+		if len(permID) > 38 {
+			permID = permID[:35] + "..."
+		}
+
+		permType := "Direct"
+		if permission.Link != nil {
+			permType = "Link"
+		}
+
+		roles := strings.Join(permission.Roles, ", ")
+		if len(roles) > 18 {
+			roles = roles[:15] + "..."
+		}
+
+		grantedTo := "Anonymous"
+		if permission.GrantedToV2 != nil {
+			if permission.GrantedToV2.User != nil {
+				grantedTo = permission.GrantedToV2.User.DisplayName
+				if permission.GrantedToV2.User.Email != "" {
+					grantedTo += " (" + permission.GrantedToV2.User.Email + ")"
+				}
+			} else if permission.GrantedToV2.SiteUser != nil {
+				grantedTo = permission.GrantedToV2.SiteUser.DisplayName
+				if permission.GrantedToV2.SiteUser.Email != "" {
+					grantedTo += " (" + permission.GrantedToV2.SiteUser.Email + ")"
+				}
+			}
+		}
+
+		fmt.Printf("%-40s %-15s %-20s %s\n", permID, permType, roles, grantedTo)
+	}
+}
+
+// DisplaySinglePermission displays detailed information about a single permission
+func DisplaySinglePermission(permission onedrive.Permission, remotePath, permissionID string) {
+	fmt.Printf("Permission details for: %s\n", remotePath)
+	fmt.Printf("Permission ID: %s\n\n", permissionID)
+
+	displayPermissionDetails(permission)
+}
+
+// displayPermissionDetails is a helper function to display permission details
+func displayPermissionDetails(permission onedrive.Permission) {
+	fmt.Printf("  ID: %s\n", permission.ID)
+	fmt.Printf("  Roles: %s\n", strings.Join(permission.Roles, ", "))
+
+	if permission.PermissionScope != "" {
+		fmt.Printf("  Scope: %s\n", permission.PermissionScope)
+	}
+
+	if permission.ExpirationDateTime != "" {
+		fmt.Printf("  Expires: %s\n", permission.ExpirationDateTime)
+	}
+
+	if permission.HasPassword {
+		fmt.Printf("  Password Protected: Yes\n")
+	}
+
+	if permission.ShareID != "" {
+		fmt.Printf("  Share ID: %s\n", permission.ShareID)
+	}
+
+	// Display link information if available
+	if permission.Link != nil {
+		fmt.Printf("  Link Type: %s\n", permission.Link.Type)
+		fmt.Printf("  Link Scope: %s\n", permission.Link.Scope)
+		fmt.Printf("  Link URL: %s\n", permission.Link.WebURL)
+
+		if permission.Link.WebHTML != "" {
+			fmt.Printf("  Embed HTML: %s\n", permission.Link.WebHTML)
+		}
+
+		if permission.Link.PreventsDownload {
+			fmt.Printf("  Prevents Download: Yes\n")
+		}
+	}
+
+	// Display granted to information
+	if permission.GrantedToV2 != nil {
+		fmt.Printf("  Granted To:\n")
+		if permission.GrantedToV2.User != nil {
+			fmt.Printf("    User: %s", permission.GrantedToV2.User.DisplayName)
+			if permission.GrantedToV2.User.Email != "" {
+				fmt.Printf(" (%s)", permission.GrantedToV2.User.Email)
+			}
+			fmt.Printf(" [ID: %s]\n", permission.GrantedToV2.User.ID)
+		}
+		if permission.GrantedToV2.SiteUser != nil {
+			fmt.Printf("    Site User: %s", permission.GrantedToV2.SiteUser.DisplayName)
+			if permission.GrantedToV2.SiteUser.Email != "" {
+				fmt.Printf(" (%s)", permission.GrantedToV2.SiteUser.Email)
+			}
+			fmt.Printf(" [ID: %s]\n", permission.GrantedToV2.SiteUser.ID)
+		}
+	}
+
+	// Display multiple granted identities if available
+	if len(permission.GrantedToIdentitiesV2) > 0 {
+		fmt.Printf("  Granted To Identities (%d):\n", len(permission.GrantedToIdentitiesV2))
+		for i, identity := range permission.GrantedToIdentitiesV2 {
+			fmt.Printf("    %d. ", i+1)
+			if identity.User != nil {
+				fmt.Printf("User: %s", identity.User.DisplayName)
+				if identity.User.Email != "" {
+					fmt.Printf(" (%s)", identity.User.Email)
+				}
+				fmt.Printf(" [ID: %s]\n", identity.User.ID)
+			}
+			if identity.SiteUser != nil {
+				fmt.Printf("Site User: %s", identity.SiteUser.DisplayName)
+				if identity.SiteUser.Email != "" {
+					fmt.Printf(" (%s)", identity.SiteUser.Email)
+				}
+				fmt.Printf(" [ID: %s]\n", identity.SiteUser.ID)
+			}
+		}
+	}
+
+	// Display inherited from information
+	if permission.InheritedFrom != nil {
+		fmt.Printf("  Inherited From:\n")
+		fmt.Printf("    Drive ID: %s\n", permission.InheritedFrom.DriveID)
+		fmt.Printf("    Item ID: %s\n", permission.InheritedFrom.ID)
+		if permission.InheritedFrom.Path != "" {
+			fmt.Printf("    Path: %s\n", permission.InheritedFrom.Path)
+		}
+	}
+}
