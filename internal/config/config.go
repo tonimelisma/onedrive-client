@@ -78,8 +78,12 @@ func (c *Configuration) Save() error {
 		}
 	}
 
-	if err := os.WriteFile(configFilePath, jsonData, 0600); err != nil {
-		return fmt.Errorf("writing configuration file: %v", err)
+	tmpPath := configFilePath + ".tmp"
+	if err := os.WriteFile(tmpPath, jsonData, 0600); err != nil {
+		return fmt.Errorf("writing temp configuration file: %v", err)
+	}
+	if err := os.Rename(tmpPath, configFilePath); err != nil {
+		return fmt.Errorf("renaming temp configuration file: %v", err)
 	}
 
 	return nil

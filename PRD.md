@@ -22,6 +22,11 @@ All interactions with the Microsoft Graph API are handled by an integrated **SDK
 
 **Future Goal:** For better reusability, the SDK in `pkg/onedrive` will be extracted into its own version-controlled Git repository. This will allow other applications to use the Go SDK for OneDrive without depending on the `onedrive-client` CLI application itself.
 
+### Technical Implementation Details
+#### 2025-06-29 OAuth Hardening
+* Expiry parsing and automatic refresh implemented (see CHANGELOG).
+* Atomic config persistence and refresh‐token preservation.
+
 ## 3. Epics, User Stories, and CLI Commands
 
 **Status Legend:**

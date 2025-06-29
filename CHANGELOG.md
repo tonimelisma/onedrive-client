@@ -266,6 +266,11 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 - Test helper function signatures and session file path construction in authentication tests.
 - Improved test output capture to properly handle log output without global state mutation.
 - Improved chunked upload test logic to handle SDK limitations with final chunk responses
+- **OAuth Robustness (internal auth overhaul)**
+  * Access token `expiry` is now populated from `expires_in`, enabling automatic token refresh.
+  * Refresh token is preserved when provider omits it during refresh.
+  * Configuration writes are atomic (temp file + rename) to avoid corruption on crash.
+  * Added unit tests `TestVerifyDeviceCodeSetsExpiry` and `TestCustomTokenSourceMergeRefreshToken`.
 
 ### Removed
 - Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.

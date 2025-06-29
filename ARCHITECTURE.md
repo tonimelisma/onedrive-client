@@ -349,6 +349,9 @@ item, err := helper.App.SDK.UploadFile(localFile, remotePath)
 - Focus on user experience validation that SDK tests cannot cover
 - Integrate with existing test isolation and cleanup procedures
 
+#### Token Refresh Handling (2025-06-29 update)
++OAuth wrapper now sets `Expiry` on the initial token (parsed from `expires_in`) and preserves `refresh_token` across refreshes.  `internal/config` writes are atomic to ensure config.json is never truncated.
+
 ---
 
 ## 3. Future Architecture

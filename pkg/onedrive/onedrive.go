@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	cv "github.com/nirasan/go-oauth-pkce-code-verifier"
 	"golang.org/x/oauth2"
@@ -83,7 +84,13 @@ func (cts *customTokenSource) Token() (*oauth2.Token, error) {
 		return nil, err
 	}
 
-	// Compare the new token with the cached token
+	if cts.cachedToken != nil {
+		// Preserve refresh_token if the provider omitted it on refresh
+		if token.RefreshToken == "" {
+			token.RefreshToken = cts.cachedToken.RefreshToken
+		}
+	}
+
 	if cts.cachedToken == nil || token.AccessToken != cts.cachedToken.AccessToken {
 		// Tokens are different, indicating a refresh
 		if cts.onTokenRefresh != nil {
@@ -774,6 +781,7 @@ func CompleteAuthentication(
 		return nil, fmt.Errorf("exchanging code for token: %v", err)
 	}
 
+	// oauth2.Config.Exchange already sets Expiry, nothing else needed
 	oauthToken := OAuthToken(*token)
 	return &oauthToken, nil
 }
@@ -867,12 +875,29 @@ func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*OAuthTok
 	}
 	defer res.Body.Close()
 
-	var token OAuthToken
-	if err := json.NewDecoder(res.Body).Decode(&token); err != nil {
+	// Microsoft returns JSON with expires_in seconds. Decode into helper struct.
+	var raw struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		TokenType    string `json:"token_type"`
+		ExpiresIn    int64  `json:"expires_in"`
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&raw); err != nil {
 		return nil, fmt.Errorf("decoding token failed: %v", err)
 	}
 
-	return &token, nil
+	tok := oauth2.Token{
+		AccessToken:  raw.AccessToken,
+		RefreshToken: raw.RefreshToken,
+		TokenType:    raw.TokenType,
+	}
+	if raw.ExpiresIn > 0 {
+		tok.Expiry = time.Now().Add(time.Duration(raw.ExpiresIn) * time.Second)
+	}
+
+	oauthTok := OAuthToken(tok)
+	return &oauthTok, nil
 }
 
 // DeleteDriveItem deletes a file or folder by its path.
