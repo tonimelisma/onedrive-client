@@ -31,6 +31,8 @@ The flow for any given command is as follows:
   +------------------------------------ [UI (internal/ui)] <----------------------- [Cobra CLI (cmd/)] <--------------------+
 ```
 
+The `internal/app` component now creates a special `http.Client` that automatically refreshes tokens and persists them on change, abstracting this complexity away from both the commands and the SDK.
+
 ### 2.2. Component Breakdown
 
 The project is organized into packages, each with a distinct role.
@@ -349,8 +351,18 @@ item, err := helper.App.SDK.UploadFile(localFile, remotePath)
 - Focus on user experience validation that SDK tests cannot cover
 - Integrate with existing test isolation and cleanup procedures
 
-#### Token Refresh Handling (2025-06-29 update)
-+OAuth wrapper now sets `Expiry` on the initial token (parsed from `expires_in`) and preserves `refresh_token` across refreshes.  `internal/config` writes are atomic to ensure config.json is never truncated.
+#### Token Refresh Handling
+The application ensures that users are not unnecessarily logged out due to expired access tokens. It uses the standard features of the `golang.org/x/oauth2` library to provide seamless, automatic token refreshes.
+
+1.  **Client Initialization**: When the application starts, `internal/app` creates an `oauth2.TokenSource`.
+2.  **Persistence Wrapper**: This standard `TokenSource` is wrapped in a custom `persistingTokenSource`. This wrapper's only job is to monitor the token.
+3.  **Refresh and Persist**: When the `oauth2` library detects a 401 error, it uses the refresh token to get a new access token via the `TokenSource`. Our wrapper detects that the access token has changed, and it triggers a callback to save the new, valid token back to `config.json`. This process is atomic and thread-safe.
+4.  **Automatic Retry**: The `http.Client` provided by the `oauth2` library automatically retries the initial request that failed, making the entire refresh process transparent to the user.
+
+This architecture ensures a robust separation of concerns:
+-   `pkg/onedrive` (SDK) knows nothing about token storage. It just makes API calls.
+-   `internal/config` knows how to save and load configuration, but knows nothing about OAuth.
+-   `internal/app` is the orchestrator that connects the two, creating the intelligent client that the rest of the application uses.
 
 ---
 

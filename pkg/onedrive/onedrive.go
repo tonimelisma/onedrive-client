@@ -68,40 +68,6 @@ type OAuthToken oauth2.Token
 // OAuthConfig represents an OAuth2 Config.
 type OAuthConfig oauth2.Config
 
-// Custom token source to allow for caching refreshed tokens
-// (golang oauth2 library issue #84, not fixed for 6 years and counting)
-
-type customTokenSource struct {
-	base           oauth2.TokenSource
-	cachedToken    *oauth2.Token
-	onTokenRefresh func(OAuthToken)
-}
-
-func (cts *customTokenSource) Token() (*oauth2.Token, error) {
-	logger.Debug("Token called in customTokenSource")
-	token, err := cts.base.Token()
-	if err != nil {
-		return nil, err
-	}
-
-	if cts.cachedToken != nil {
-		// Preserve refresh_token if the provider omitted it on refresh
-		if token.RefreshToken == "" {
-			token.RefreshToken = cts.cachedToken.RefreshToken
-		}
-	}
-
-	if cts.cachedToken == nil || token.AccessToken != cts.cachedToken.AccessToken {
-		// Tokens are different, indicating a refresh
-		if cts.onTokenRefresh != nil {
-			cts.onTokenRefresh(OAuthToken(*token))
-		}
-		cts.cachedToken = token // Update the cached token
-	}
-
-	return token, nil
-}
-
 // Logger is the interface that the SDK uses for logging.
 
 type Logger interface {
@@ -767,44 +733,21 @@ func CompleteAuthentication(
 	code string,
 	verifier string,
 ) (*OAuthToken, error) {
-	if oauthConfig == nil {
-		return nil, errors.New("oauth configuration is nil")
-	}
-
 	logger.Debug("Exchanging code for token in CompleteAuthentication")
 
-	// Creating a new oauth2.Config object that we'll cast to our type conversion
-	// We maintain type conversion for oauth2 so users of the SDK don't have to import it
-	nativeOAuthConfig := oauth2.Config(*oauthConfig)
-	token, err := nativeOAuthConfig.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
+	pkceCodeVerifier := oauth2.SetAuthURLParam("code_verifier", verifier)
+	token, err := (*oauth2.Config)(oauthConfig).Exchange(ctx, code, pkceCodeVerifier)
 	if err != nil {
-		return nil, fmt.Errorf("exchanging code for token: %v", err)
+		return nil, err
 	}
-
-	// oauth2.Config.Exchange already sets Expiry, nothing else needed
-	oauthToken := OAuthToken(*token)
-	return &oauthToken, nil
+	return (*OAuthToken)(token), err
 }
 
-// NewClient creates a new HTTP client with the given OAuth token.
-func NewClient(ctx context.Context, oauthConfig *OAuthConfig, token OAuthToken, tokenRefreshCallback func(OAuthToken)) *http.Client {
-	if ctx == nil || oauthConfig == nil {
-		return nil
-	}
-
-	// TODO Ensure the token is valid or initialized before using it
-
-	// Creating a new oauth2.Config object that we'll cast to our type conversion
-	// We maintain type conversion for oauth2 so users of the SDK don't have to import it
-	nativeOAuthConfig := oauth2.Config(*oauthConfig)
-	originalTokenSource := nativeOAuthConfig.TokenSource(ctx, (*oauth2.Token)(&token))
-	customTokenSource := &customTokenSource{
-		base:           originalTokenSource,
-		onTokenRefresh: tokenRefreshCallback,
-		cachedToken:    (*oauth2.Token)(&token),
-	}
-
-	return oauth2.NewClient(ctx, customTokenSource)
+// NewClient creates a new HTTP client with the given OAuth token source.
+// The caller is responsible for providing a TokenSource that can handle
+// persistence if required.
+func NewClient(ctx context.Context, tokenSource oauth2.TokenSource) *http.Client {
+	return oauth2.NewClient(ctx, tokenSource)
 }
 
 // GetOauth2Config returns the OAuth2 configuration.
@@ -817,7 +760,6 @@ func GetOauth2Config(clientID string) (context.Context, *OAuthConfig) {
 			AuthURL:  customAuthURL,
 			TokenURL: customTokenURL,
 		},
-		RedirectURL: "http://localhost:53682/",
 	}
 
 	return ctx, (*OAuthConfig)(oauthConfig)

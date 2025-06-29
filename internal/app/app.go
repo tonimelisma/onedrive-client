@@ -11,6 +11,7 @@ import (
 	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
+	"golang.org/x/oauth2"
 )
 
 var ErrLoginPending = errors.New("login pending")
@@ -100,17 +101,19 @@ func (a *App) initializeOnedriveClient() (*http.Client, error) {
 		return nil, onedrive.ErrReauthRequired
 	}
 
-	tokenRefreshCallbackFunc := func(token onedrive.OAuthToken) {
-		a.tokenRefreshCallback(token)
+	// Create a TokenSource that will refresh the token automatically
+	baseTokenSource := (*oauth2.Config)(oauthConfig).TokenSource(ctx, (*oauth2.Token)(&a.Config.Token))
+
+	// Define the callback for when a new token is fetched
+	onNewToken := func(token *oauth2.Token) error {
+		return a.Config.UpdateToken(onedrive.OAuthToken(*token))
 	}
 
-	return onedrive.NewClient(ctx, oauthConfig, a.Config.Token, tokenRefreshCallbackFunc), nil
-}
+	// Wrap the base TokenSource with our persisting layer
+	persistingSource := newPersistingTokenSource(baseTokenSource, (*oauth2.Token)(&a.Config.Token), onNewToken)
 
-func (a *App) tokenRefreshCallback(token onedrive.OAuthToken) {
-	if err := a.Config.UpdateToken(token); err != nil {
-		log.Fatalf("Error saving updated token to configuration on disk: %v\n", err)
-	}
+	// Create the final client using the persisting token source
+	return onedrive.NewClient(ctx, persistingSource), nil
 }
 
 // GetMe fetches the current user's information.

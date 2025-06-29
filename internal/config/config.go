@@ -56,7 +56,12 @@ func getConfigPath() (string, error) {
 func (c *Configuration) Save() error {
 	c.mu.Lock() // Lock for writing
 	defer c.mu.Unlock()
+	return c.saveUnlocked()
+}
 
+// saveUnlocked performs the actual file write without acquiring a lock.
+// It assumes the caller has already acquired the necessary lock.
+func (c *Configuration) saveUnlocked() error {
 	jsonData, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshalling config to JSON: %v", err)
@@ -132,5 +137,5 @@ func (c *Configuration) UpdateToken(token onedrive.OAuthToken) error {
 	defer c.mu.Unlock()
 
 	c.Token = token
-	return c.Save()
+	return c.saveUnlocked()
 }

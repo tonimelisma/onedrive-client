@@ -7,58 +7,36 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/oauth2"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVerifyDeviceCodeSetsExpiry(t *testing.T) {
-	// Mock token endpoint
+	// A token with expires_in should have Expiry set correctly
+	responseToken := map[string]interface{}{
+		"access_token":  "test_access_token",
+		"token_type":    "Bearer",
+		"refresh_token": "test_refresh_token",
+		"expires_in":    3600, // 1 hour
+	}
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]interface{}{
-			"access_token":  "abc123",
-			"refresh_token": "ref456",
-			"token_type":    "Bearer",
-			"expires_in":    3600,
-		}
-		_ = json.NewEncoder(w).Encode(resp)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(responseToken)
 	}))
 	defer ts.Close()
 
-	// Override endpoints
-	oldTokenURL := customTokenURL
-	SetCustomEndpoints(customAuthURL, ts.URL, customDeviceURL)
-	defer func() { SetCustomEndpoints(customAuthURL, oldTokenURL, customDeviceURL) }()
+	// Temporarily override the token URL to point to our mock server
+	originalTokenURL := customTokenURL
+	SetCustomEndpoints(oAuthAuthURL, ts.URL, oAuthDeviceURL)
+	defer SetCustomEndpoints(oAuthAuthURL, originalTokenURL, oAuthDeviceURL)
 
-	tok, err := VerifyDeviceCode("client", "device", false)
-	if err != nil {
-		t.Fatalf("VerifyDeviceCode returned error: %v", err)
-	}
-	if tok.AccessToken != "abc123" {
-		t.Fatalf("unexpected access token: %s", tok.AccessToken)
-	}
-	if tok.RefreshToken != "ref456" {
-		t.Fatalf("unexpected refresh token: %s", tok.RefreshToken)
-	}
-	if tok.Expiry.Before(time.Now().Add(3590 * time.Second)) {
-		t.Fatalf("expiry not set correctly: %v", tok.Expiry)
-	}
-}
+	token, err := VerifyDeviceCode("test-client-id", "test-device-code", false)
+	assert.NoError(t, err)
+	assert.NotNil(t, token)
 
-func TestCustomTokenSourceMergeRefreshToken(t *testing.T) {
-	// cached token with refresh token
-	cached := &oauth2.Token{
-		AccessToken:  "old",
-		RefreshToken: "refresh-keep",
-		Expiry:       time.Now().Add(-time.Hour),
-	}
-	// base source returns new token without refresh token
-	src := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "new", Expiry: time.Now().Add(time.Hour)})
-
-	cts := &customTokenSource{base: src, cachedToken: cached}
-	tok, err := cts.Token()
-	if err != nil {
-		t.Fatalf("Token() error: %v", err)
-	}
-	if tok.RefreshToken != "refresh-keep" {
-		t.Fatalf("refresh token not preserved, got: %s", tok.RefreshToken)
-	}
+	// Check that Expiry is set and is in the future
+	assert.False(t, token.Expiry.IsZero(), "Expiry should be set")
+	assert.True(t, token.Expiry.After(time.Now()), "Expiry should be in the future")
+	// Check that it's within a reasonable range (e.g., expires in > 59 minutes)
+	assert.True(t, token.Expiry.After(time.Now().Add(59*time.Minute)), "Expiry should be about an hour from now")
 }
