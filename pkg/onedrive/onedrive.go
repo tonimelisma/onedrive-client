@@ -1219,3 +1219,72 @@ func CreateSharingLink(client *http.Client, path, linkType, scope string) (Shari
 
 	return link, nil
 }
+
+// GetDelta gets changes to items in a drive using delta queries
+func GetDelta(client *http.Client, deltaToken string) (DeltaResponse, error) {
+	logger.Debug("GetDelta called with token: ", deltaToken)
+	var deltaResponse DeltaResponse
+
+	apiURL := customRootURL + "me/drive/root/delta"
+	if deltaToken != "" {
+		apiURL += "?token=" + url.QueryEscape(deltaToken)
+	}
+
+	res, err := apiCall(client, "GET", apiURL, "", nil)
+	if err != nil {
+		return deltaResponse, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&deltaResponse); err != nil {
+		return deltaResponse, fmt.Errorf("decoding delta response failed: %v", err)
+	}
+
+	return deltaResponse, nil
+}
+
+// GetDriveByID gets metadata for a specific drive by its ID
+func GetDriveByID(client *http.Client, driveID string) (Drive, error) {
+	logger.Debug("GetDriveByID called with ID: ", driveID)
+	var drive Drive
+
+	apiURL := customRootURL + "drives/" + url.PathEscape(driveID)
+
+	res, err := apiCall(client, "GET", apiURL, "", nil)
+	if err != nil {
+		return drive, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
+		return drive, fmt.Errorf("decoding drive failed: %v", err)
+	}
+
+	return drive, nil
+}
+
+// GetFileVersions gets all versions of a file by path
+func GetFileVersions(client *http.Client, filePath string) (DriveItemVersionList, error) {
+	logger.Debug("GetFileVersions called with path: ", filePath)
+	var versions DriveItemVersionList
+
+	// First, get the item to obtain its ID
+	item, err := GetDriveItemByPath(client, filePath)
+	if err != nil {
+		return versions, fmt.Errorf("getting file item failed: %v", err)
+	}
+
+	apiURL := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/versions"
+
+	res, err := apiCall(client, "GET", apiURL, "", nil)
+	if err != nil {
+		return versions, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&versions); err != nil {
+		return versions, fmt.Errorf("decoding versions failed: %v", err)
+	}
+
+	return versions, nil
+}

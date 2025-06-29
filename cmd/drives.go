@@ -42,6 +42,20 @@ var drivesQuotaCmd = &cobra.Command{
 	},
 }
 
+var drivesGetCmd = &cobra.Command{
+	Use:   "get <drive-id>",
+	Short: "Get metadata for a specific drive by ID",
+	Long:  "Retrieves detailed metadata for a specific OneDrive drive using its ID.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return drivesGetLogic(a, args[0])
+	},
+}
+
 func drivesListLogic(a *app.App) error {
 	drives, err := a.SDK.GetDrives()
 	if err != nil {
@@ -60,8 +74,18 @@ func drivesQuotaLogic(a *app.App) error {
 	return nil
 }
 
+func drivesGetLogic(a *app.App, driveID string) error {
+	drive, err := a.SDK.GetDriveByID(driveID)
+	if err != nil {
+		return err
+	}
+	ui.DisplayDrive(drive)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(drivesCmd)
 	drivesCmd.AddCommand(drivesListCmd)
 	drivesCmd.AddCommand(drivesQuotaCmd)
+	drivesCmd.AddCommand(drivesGetCmd)
 }

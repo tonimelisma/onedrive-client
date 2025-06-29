@@ -732,3 +732,74 @@ func TestFilesShareLogic(t *testing.T) {
 		})
 	}
 }
+
+func TestFilesVersionsLogic(t *testing.T) {
+	tests := []struct {
+		name            string
+		filePath        string
+		getVersionsFunc func(filePath string) (onedrive.DriveItemVersionList, error)
+		expectError     bool
+	}{
+		{
+			name:     "Get file versions successfully",
+			filePath: "/test/file.txt",
+			getVersionsFunc: func(filePath string) (onedrive.DriveItemVersionList, error) {
+				if filePath != "/test/file.txt" {
+					t.Errorf("Expected filePath '/test/file.txt', got %s", filePath)
+				}
+				return onedrive.DriveItemVersionList{
+					Value: []onedrive.DriveItemVersion{
+						{
+							ID:                   "version-1",
+							Size:                 1024,
+							LastModifiedDateTime: time.Now(),
+							LastModifiedBy: struct {
+								User struct {
+									DisplayName string `json:"displayName"`
+									ID          string `json:"id"`
+								} `json:"user"`
+							}{
+								User: struct {
+									DisplayName string `json:"displayName"`
+									ID          string `json:"id"`
+								}{
+									DisplayName: "Test User",
+									ID:          "user-1",
+								},
+							},
+						},
+					},
+				}, nil
+			},
+			expectError: false,
+		},
+		{
+			name:     "Empty file path",
+			filePath: "",
+			getVersionsFunc: func(filePath string) (onedrive.DriveItemVersionList, error) {
+				return onedrive.DriveItemVersionList{}, nil
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := captureOutput(t, func() {
+				mockSDK := &MockSDK{
+					GetFileVersionsFunc: tt.getVersionsFunc,
+				}
+				testApp := newTestApp(mockSDK)
+
+				err := filesVersionsLogic(testApp, tt.filePath)
+				if (err != nil) != tt.expectError {
+					t.Errorf("filesVersionsLogic() error = %v, expectError %v", err, tt.expectError)
+				}
+			})
+
+			if !tt.expectError && output == "" {
+				t.Error("Expected output but got none")
+			}
+		})
+	}
+}

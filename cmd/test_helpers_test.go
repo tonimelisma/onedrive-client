@@ -39,6 +39,9 @@ type MockSDK struct {
 	GetRecentItemsFunc             func() (onedrive.DriveItemList, error)
 	GetSpecialFolderFunc           func(folderName string) (onedrive.DriveItem, error)
 	CreateSharingLinkFunc          func(path, linkType, scope string) (onedrive.SharingLink, error)
+	GetDeltaFunc                   func(deltaToken string) (onedrive.DeltaResponse, error)
+	GetDriveByIDFunc               func(driveID string) (onedrive.Drive, error)
+	GetFileVersionsFunc            func(filePath string) (onedrive.DriveItemVersionList, error)
 }
 
 func (m *MockSDK) GetDrives() (onedrive.DriveList, error) {
@@ -224,25 +227,28 @@ func (m *MockSDK) CreateSharingLink(path, linkType, scope string) (onedrive.Shar
 	if m.CreateSharingLinkFunc != nil {
 		return m.CreateSharingLinkFunc(path, linkType, scope)
 	}
-	// Return a mock sharing link
-	return onedrive.SharingLink{
-		ID:    "mock-share-id",
-		Roles: []string{"read"},
-		Link: struct {
-			Type        string `json:"type"`
-			Scope       string `json:"scope"`
-			WebUrl      string `json:"webUrl"`
-			WebHtml     string `json:"webHtml,omitempty"`
-			Application struct {
-				Id          string `json:"id"`
-				DisplayName string `json:"displayName"`
-			} `json:"application,omitempty"`
-		}{
-			Type:   linkType,
-			Scope:  scope,
-			WebUrl: "https://1drv.ms/mock-share-url",
-		},
-	}, nil
+	return onedrive.SharingLink{}, nil
+}
+
+func (m *MockSDK) GetDelta(deltaToken string) (onedrive.DeltaResponse, error) {
+	if m.GetDeltaFunc != nil {
+		return m.GetDeltaFunc(deltaToken)
+	}
+	return onedrive.DeltaResponse{}, nil
+}
+
+func (m *MockSDK) GetDriveByID(driveID string) (onedrive.Drive, error) {
+	if m.GetDriveByIDFunc != nil {
+		return m.GetDriveByIDFunc(driveID)
+	}
+	return onedrive.Drive{}, nil
+}
+
+func (m *MockSDK) GetFileVersions(filePath string) (onedrive.DriveItemVersionList, error) {
+	if m.GetFileVersionsFunc != nil {
+		return m.GetFileVersionsFunc(filePath)
+	}
+	return onedrive.DriveItemVersionList{}, nil
 }
 
 // newTestApp creates a new app instance with a mock SDK for testing.

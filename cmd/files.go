@@ -287,6 +287,20 @@ Scopes:
 	},
 }
 
+var filesVersionsCmd = &cobra.Command{
+	Use:   "versions <remote-path>",
+	Short: "List all versions of a file",
+	Long:  "Lists all available versions of a specific file in your OneDrive, showing version history and details.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return filesVersionsLogic(a, args[0])
+	},
+}
+
 func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	path := "/"
 	if len(args) > 0 {
@@ -837,6 +851,20 @@ func filesShareLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func filesVersionsLogic(a *app.App, filePath string) error {
+	if filePath == "" {
+		return fmt.Errorf("file path cannot be empty")
+	}
+
+	versions, err := a.SDK.GetFileVersions(filePath)
+	if err != nil {
+		return fmt.Errorf("getting file versions: %w", err)
+	}
+
+	ui.DisplayFileVersions(versions, filePath)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(filesCmd)
 	filesCmd.AddCommand(filesListCmd)
@@ -857,6 +885,7 @@ func init() {
 	filesCmd.AddCommand(filesRecentCmd)
 	filesCmd.AddCommand(filesSpecialCmd)
 	filesCmd.AddCommand(filesShareCmd)
+	filesCmd.AddCommand(filesVersionsCmd)
 
 	// Add flags
 	filesCopyCmd.Flags().Bool("wait", false, "Wait for copy operation to complete instead of returning immediately")

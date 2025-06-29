@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+**Epic 7: Comprehensive Microsoft Graph API Coverage - High/Medium Priority Features**
+
+- **Delta Tracking (`GET /drive/root/delta`)**: New `onedrive-client delta [delta-token]` command enables efficient synchronization by tracking changes since last sync using Microsoft Graph delta queries
+- **Specific Drive Access (`GET /drives/{drive-id}`)**: New `onedrive-client drives get <drive-id>` command retrieves detailed metadata for any drive by ID
+- **File Versions (`GET /drive/items/{item-id}/versions`)**: New `onedrive-client files versions <remote-path>` command lists all versions of a specific file with version history and details
+
+### Technical Details
+
+- Added new models: `DeltaResponse`, `DriveItemVersion`, `DriveItemVersionList` in `pkg/onedrive/models.go`
+- Added new SDK functions: `GetDelta()`, `GetDriveByID()`, `GetFileVersions()` in `pkg/onedrive/onedrive.go`
+- Added new UI display functions: `DisplayDelta()`, `DisplayDrive()`, `DisplayFileVersions()` in `internal/ui/display.go`
+- Created new command module: `cmd/delta.go` for delta operations
+- Extended existing command modules: `cmd/drives.go` and `cmd/files.go` with new subcommands
+- Comprehensive unit test coverage for all new functionality
+- Updated SDK interface and mock implementations for testing
+
+### Progress
+
+Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% complete). Core synchronization and drive management features are now fully functional.
+
 - **Search Functionality**: Implemented comprehensive search capabilities across OneDrive:
   - `files search "<query>"` - Search for files and folders by name or content using Microsoft Graph API
   - Proper URL encoding for search queries with special characters

@@ -72,3 +72,70 @@ func TestDrivesQuotaLogic(t *testing.T) {
 	assert.Contains(t, output, "Remaining:")
 	assert.Contains(t, output, "State:     normal")
 }
+
+func TestDrivesGetLogic(t *testing.T) {
+	tests := []struct {
+		name         string
+		driveID      string
+		getDriveFunc func(driveID string) (onedrive.Drive, error)
+		expectError  bool
+	}{
+		{
+			name:    "Get drive by ID successfully",
+			driveID: "test-drive-id",
+			getDriveFunc: func(driveID string) (onedrive.Drive, error) {
+				if driveID != "test-drive-id" {
+					t.Errorf("Expected driveID 'test-drive-id', got %s", driveID)
+				}
+				return onedrive.Drive{
+					ID:        "test-drive-id",
+					Name:      "Test Drive",
+					DriveType: "personal",
+					Owner: struct {
+						User struct {
+							DisplayName string `json:"displayName"`
+						} `json:"user"`
+					}{
+						User: struct {
+							DisplayName string `json:"displayName"`
+						}{
+							DisplayName: "Test User",
+						},
+					},
+					Quota: struct {
+						Total     int64  `json:"total"`
+						Used      int64  `json:"used"`
+						Remaining int64  `json:"remaining"`
+						State     string `json:"state"`
+					}{
+						Total:     1000000000,
+						Used:      250000000,
+						Remaining: 750000000,
+						State:     "normal",
+					},
+				}, nil
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := captureOutput(t, func() {
+				mockSDK := &MockSDK{
+					GetDriveByIDFunc: tt.getDriveFunc,
+				}
+				testApp := newTestApp(mockSDK)
+
+				err := drivesGetLogic(testApp, tt.driveID)
+				if (err != nil) != tt.expectError {
+					t.Errorf("drivesGetLogic() error = %v, expectError %v", err, tt.expectError)
+				}
+			})
+
+			if !tt.expectError && output == "" {
+				t.Error("Expected output but got none")
+			}
+		})
+	}
+}

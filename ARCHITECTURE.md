@@ -171,6 +171,37 @@ The application provides comprehensive sharing link functionality for OneDrive f
 
 **Display Integration:** `DisplaySharingLink()` function provides formatted output of sharing link details consistent with application UI patterns.
 
+#### Delta Tracking and Version Control (Epic 7 Implementation)
+The application now provides advanced OneDrive synchronization capabilities through delta tracking and file version management:
+
+**Delta Tracking:**
+1. **`GetDelta()`**: Uses GET to `/drive/root/delta` endpoint for efficient change detection
+   - **Token Support**: Accepts optional delta token to track changes since last sync
+   - **Response Format**: Returns `DeltaResponse` with `@odata.deltaLink` and `@odata.nextLink` for pagination
+   - **Use Cases**: Enables efficient synchronization by returning only changed items
+   - **CLI Interface**: `onedrive-client delta [delta-token]` command for manual change tracking
+
+**Drive-Specific Operations:**
+1. **`GetDriveByID()`**: Uses GET to `/drives/{drive-id}` endpoint for specific drive access
+   - **Metadata Retrieval**: Returns complete drive information including quota, owner, and type
+   - **Multi-Drive Support**: Enables access to shared and organization drives beyond default personal drive
+   - **CLI Interface**: `onedrive-client drives get <drive-id>` command for drive inspection
+
+**File Version Management:**
+1. **`GetFileVersions()`**: Uses GET to `/drive/items/{item-id}/versions` endpoint for version history
+   - **Version Listing**: Returns complete version history with timestamps, sizes, and authors
+   - **Path Resolution**: Automatically converts file paths to item IDs using existing path resolution
+   - **CLI Interface**: `onedrive-client files versions <remote-path>` command for version inspection
+
+**Implementation Details:**
+- **New Models**: `DeltaResponse`, `DriveItemVersion`, `DriveItemVersionList` added to support API responses
+- **URL Construction**: Follows existing `customRootURL` + endpoint pattern with proper parameter encoding
+- **Error Handling**: Uses standard `apiCall()` function for consistent error categorization
+- **Display Functions**: `DisplayDelta()`, `DisplayDrive()`, `DisplayFileVersions()` provide formatted output
+- **Test Coverage**: Comprehensive unit tests for all new functionality with mock implementations
+
+**Synchronization Foundation:** Delta tracking provides the technical foundation for future sync engine implementation, enabling efficient detection of remote changes without full directory traversals.
+
 #### E2E Testing Infrastructure
 The application includes a comprehensive end-to-end testing framework that validates functionality against real OneDrive accounts, ensuring API integration reliability and catching regressions that unit tests might miss.
 

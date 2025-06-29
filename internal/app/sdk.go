@@ -34,6 +34,9 @@ type SDK interface {
 	GetRecentItems() (onedrive.DriveItemList, error)
 	GetSpecialFolder(folderName string) (onedrive.DriveItem, error)
 	CreateSharingLink(path, linkType, scope string) (onedrive.SharingLink, error)
+	GetDelta(deltaToken string) (onedrive.DeltaResponse, error)
+	GetDriveByID(driveID string) (onedrive.Drive, error)
+	GetFileVersions(filePath string) (onedrive.DriveItemVersionList, error)
 }
 
 // OneDriveSDK implements the SDK interface by calling the real OneDrive API.
@@ -164,4 +167,19 @@ func (s *OneDriveSDK) GetSpecialFolder(folderName string) (onedrive.DriveItem, e
 // CreateSharingLink calls the real onedrive.CreateSharingLink function.
 func (s *OneDriveSDK) CreateSharingLink(path, linkType, scope string) (onedrive.SharingLink, error) {
 	return onedrive.CreateSharingLink(s.client, path, linkType, scope)
+}
+
+// GetDelta calls the real onedrive.GetDelta function.
+func (s *OneDriveSDK) GetDelta(deltaToken string) (onedrive.DeltaResponse, error) {
+	return onedrive.GetDelta(s.client, deltaToken)
+}
+
+// GetDriveByID calls the real onedrive.GetDriveByID function.
+func (s *OneDriveSDK) GetDriveByID(driveID string) (onedrive.Drive, error) {
+	return onedrive.GetDriveByID(s.client, driveID)
+}
+
+// GetFileVersions calls the real onedrive.GetFileVersions function.
+func (s *OneDriveSDK) GetFileVersions(filePath string) (onedrive.DriveItemVersionList, error) {
+	return onedrive.GetFileVersions(s.client, filePath)
 }

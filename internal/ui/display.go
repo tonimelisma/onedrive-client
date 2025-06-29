@@ -272,3 +272,83 @@ func DisplaySharingLink(link onedrive.SharingLink) {
 		fmt.Printf("  Application: %s\n", link.Link.Application.DisplayName)
 	}
 }
+
+// DisplayDelta prints information about delta tracking results.
+func DisplayDelta(delta onedrive.DeltaResponse) {
+	if len(delta.Value) == 0 {
+		fmt.Println("No changes found.")
+		return
+	}
+
+	fmt.Printf("Delta tracking results (%d items):\n", len(delta.Value))
+	fmt.Printf("%-50s %10s %15s %20s\n", "Name", "Size", "Type", "Last Modified")
+	fmt.Println(strings.Repeat("-", 100))
+
+	for _, item := range delta.Value {
+		itemType := "File"
+		if item.Folder != nil {
+			itemType = "Folder"
+		}
+
+		name := item.Name
+		if len(name) > 45 {
+			name = name[:42] + "..."
+		}
+
+		modifiedTime := item.LastModifiedDateTime.Format("2006-01-02 15:04")
+
+		fmt.Printf("%-50s %10s %15s %20s\n", name, formatBytes(item.Size), itemType, modifiedTime)
+	}
+
+	if delta.DeltaLink != "" {
+		fmt.Printf("\nDelta Link (save for next sync): %s\n", delta.DeltaLink)
+	}
+	if delta.NextLink != "" {
+		fmt.Printf("Next Link (continue current sync): %s\n", delta.NextLink)
+	}
+}
+
+// DisplayDrive prints detailed information about a specific drive.
+func DisplayDrive(drive onedrive.Drive) {
+	fmt.Printf("Drive Information:\n")
+	fmt.Printf("           Name: %s\n", drive.Name)
+	fmt.Printf("             ID: %s\n", drive.ID)
+	fmt.Printf("           Type: %s\n", drive.DriveType)
+
+	if drive.Owner.User.DisplayName != "" {
+		fmt.Printf("          Owner: %s\n", drive.Owner.User.DisplayName)
+	}
+
+	fmt.Printf("  Storage Quota:\n")
+	fmt.Printf("          Total: %s\n", formatBytes(drive.Quota.Total))
+	fmt.Printf("           Used: %s\n", formatBytes(drive.Quota.Used))
+	fmt.Printf("      Remaining: %s\n", formatBytes(drive.Quota.Remaining))
+	fmt.Printf("          State: %s\n", drive.Quota.State)
+}
+
+// DisplayFileVersions prints all versions of a file with details.
+func DisplayFileVersions(versions onedrive.DriveItemVersionList, filePath string) {
+	if len(versions.Value) == 0 {
+		fmt.Printf("No versions found for file: %s\n", filePath)
+		return
+	}
+
+	fmt.Printf("File versions for '%s' (%d versions):\n", filePath, len(versions.Value))
+	fmt.Printf("%-20s %10s %20s %s\n", "Version ID", "Size", "Last Modified", "Modified By")
+	fmt.Println(strings.Repeat("-", 80))
+
+	for _, version := range versions.Value {
+		versionID := version.ID
+		if len(versionID) > 18 {
+			versionID = versionID[:15] + "..."
+		}
+
+		modifiedTime := version.LastModifiedDateTime.Format("2006-01-02 15:04")
+		modifiedBy := "N/A"
+		if version.LastModifiedBy.User.DisplayName != "" {
+			modifiedBy = version.LastModifiedBy.User.DisplayName
+		}
+
+		fmt.Printf("%-20s %10s %20s %s\n", versionID, formatBytes(version.Size), modifiedTime, modifiedBy)
+	}
+}

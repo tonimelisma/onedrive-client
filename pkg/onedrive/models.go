@@ -162,3 +162,28 @@ type SharingLink struct {
 	} `json:"link"`
 	ExpirationDateTime string `json:"expirationDateTime,omitempty"`
 }
+
+// DeltaResponse represents the response from a delta query
+type DeltaResponse struct {
+	Value     []DriveItem `json:"value"`
+	DeltaLink string      `json:"@odata.deltaLink,omitempty"`
+	NextLink  string      `json:"@odata.nextLink,omitempty"`
+}
+
+// DriveItemVersion represents a version of a file
+type DriveItemVersion struct {
+	ID                   string    `json:"id"`
+	LastModifiedDateTime time.Time `json:"lastModifiedDateTime"`
+	Size                 int64     `json:"size"`
+	LastModifiedBy       struct {
+		User struct {
+			DisplayName string `json:"displayName"`
+			ID          string `json:"id"`
+		} `json:"user"`
+	} `json:"lastModifiedBy"`
+}
+
+// DriveItemVersionList represents a collection of file versions
+type DriveItemVersionList struct {
+	Value []DriveItemVersion `json:"value"`
+}

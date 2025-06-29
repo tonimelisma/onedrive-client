@@ -22,40 +22,7 @@ All interactions with the Microsoft Graph API are handled by an integrated **SDK
 
 **Future Goal:** For better reusability, the SDK in `pkg/onedrive` will be extracted into its own version-controlled Git repository. This will allow other applications to use the Go SDK for OneDrive without depending on the `onedrive-client` CLI application itself.
 
-## 3. Release Plan
-
-### 3.1. Release v0.1: Core Operations (Complete)
-
-This initial release focuses on providing the most essential file management commands. It establishes the core authentication flow and command structure.
-
-**Features:**
-*   User authentication via OAuth 2.0 Device Code Flow. `[x]`
-*   Ability to list files and folders. `[x]`
-*   Ability to list all available drives and check quota. `[x]`
-*   Ability to view metadata for items (`stat`). `[x]`
-*   Ability to download files (`download`). `[x]`
-*   Ability to upload files, including large files via resumable sessions (`upload`). `[x]`
-*   Ability to create folders (`mkdir`). `[x]`
-
-### 3.2. Release v0.2: Advanced Management and Sharing (In Progress)
-
-This release will build on the core by adding destructive operations, resumable downloads, and sharing capabilities.
-
-**Features:**
-*   Ability to download large files resiliently. `[x]`
-*   Ability to delete files and folders (`rm`). `[x]`
-*   Ability to move files and folders (`mv`). `[x]`
-*   Ability to rename items (`rename`). `[x]`
-*   Ability to copy files and folders (`copy`) with progress monitoring. `[x]`
-*   Ability to search for items within the drive (`search`). `[ ]`
-*   Ability to view items shared with the user. `[ ]`
-
-### 3.3. Future Releases (Post-v0.2)
-
-*   **v1.0: The Sync Engine:** Introduction of a persistent background process to automatically keep a local directory in sync with a remote OneDrive folder.
-*   **Post-v1.0:** Performance enhancements, support for shared drive management, and other advanced features based on user feedback.
-
-## 4. Epics, User Stories, and CLI Commands
+## 3. Epics, User Stories, and CLI Commands
 
 **Status Legend:**
 *   `[ ]` - **Queued**: The task has not been started.
@@ -75,7 +42,7 @@ As a user, I want to get basic information about my OneDrive account and storage
 
 ---
 
-### `[/]` Epic 2: File and Folder Management
+### `[x]` Epic 2: File and Folder Management
 
 As a user, I want to perform standard file and folder operations from the command line.
 
@@ -111,12 +78,13 @@ As a user, I want to perform standard file and folder operations from the comman
     *   **Command:** `onedrive-client files copy <source-path> <destination-path> [new-name]`
     *   **Advanced:** `onedrive-client files copy --wait <source-path> <destination-path> [new-name]` for blocking operation
     *   **Monitoring:** `onedrive-client files copy-status <monitor-url>` to check progress
-*   **[ ] User Story 2.12:** I want to search for files and folders across my entire drive by a query string.
+*   **[x] User Story 2.12:** I want to search for files and folders across my entire drive by a query string.
     *   **Command:** `onedrive-client files search "<query>"`
+    *   **Implementation:** `SearchDriveItems()` (see Epic 7)
 
 ---
 
-### `[ ]` Epic 3: Sharing Management
+### `[x]` Epic 3: Sharing Management
 
 As a user, I want to see and manage content that has been shared with me, and create sharing links for my own content.
 
@@ -194,3 +162,214 @@ As a developer, I want comprehensive end-to-end testing of the actual CLI comman
 3. Add CLI-specific test scenarios covering all commands
 4. Integrate with existing E2E test infrastructure for authentication
 5. Maintain both SDK and CLI test suites for comprehensive coverage
+
+---
+
+### `[/]` Epic 7: Comprehensive Microsoft Graph OneDrive API Coverage
+
+As a developer, I want comprehensive coverage of Microsoft Graph OneDrive APIs to provide users with full OneDrive functionality through the CLI.
+
+#### Drive-Level Operations
+
+*   **[x] User Story 7.1:** I want to retrieve a list of all drives available to the user.
+    *   **API:** `GET /drives`
+    *   **Implementation:** `GetDrives()`
+    *   **Command:** `onedrive-client drives list`
+
+*   **[x] User Story 7.2:** I want to get metadata for the user's default drive including quota information.
+    *   **API:** `GET /drive` (equivalent to `GET /drive/root` for metadata)
+    *   **Implementation:** `GetDefaultDrive()`
+    *   **Command:** `onedrive-client drives quota`
+
+*   **[x] User Story 7.3:** I want to retrieve metadata for a specific drive by its ID.
+    *   **API:** `GET /drives/{drive-id}`
+    *   **Implementation:** `GetDriveByID()`
+    *   **Command:** `onedrive-client drives get <drive-id>`
+
+*   **[x] User Story 7.4:** I want to list children of the drive root folder.
+    *   **API:** `GET /drive/root/children`
+    *   **Implementation:** `GetRootDriveItems()`, `GetDriveItemChildrenByPath("/")`
+    *   **Command:** `onedrive-client files list` or `onedrive-client files list /`
+
+*   **[ ] User Story 7.5:** I want to view recent activity and changes across the entire drive.
+    *   **API:** `GET /drive/activities`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client drive activities` (proposed)
+
+*   **[x] User Story 7.6:** I want to track changes and get delta information for all items in the drive.
+    *   **API:** `GET /drive/root/delta`
+    *   **Implementation:** `GetDelta()`
+    *   **Command:** `onedrive-client delta [delta-token]`
+
+*   **[x] User Story 7.7:** I want to search for items across the entire drive.
+    *   **API:** `GET /drive/root/search(q='query')`
+    *   **Implementation:** `SearchDriveItems()`
+    *   **Command:** `onedrive-client files search "<query>"`
+
+*   **[x] User Story 7.8:** I want to access well-known special folders.
+    *   **API:** `GET /drive/special/{name}`
+    *   **Implementation:** `GetSpecialFolder()`
+    *   **Command:** `onedrive-client files special <folder-name>`
+
+#### Item Operations
+
+*   **[x] User Story 7.9:** I want to retrieve metadata for a specific item by its path.
+    *   **API:** `GET /drive/items/{item-id}` (implemented via path-based addressing)
+    *   **Implementation:** `GetDriveItemByPath()`
+    *   **Command:** `onedrive-client files stat <remote-path>`
+
+*   **[x] User Story 7.10:** I want to list children of a specific folder.
+    *   **API:** `GET /drive/items/{item-id}/children`
+    *   **Implementation:** `GetDriveItemChildrenByPath()`
+    *   **Command:** `onedrive-client files list <remote-path>`
+
+*   **[ ] User Story 7.11:** I want to view activity history for a specific item.
+    *   **API:** `GET /drive/items/{item-id}/activities`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files activities <remote-path>` (proposed)
+
+*   **[x] User Story 7.12:** I want to list all versions of a specific file.
+    *   **API:** `GET /drive/items/{item-id}/versions`
+    *   **Implementation:** `GetFileVersions()`
+    *   **Command:** `onedrive-client files versions <remote-path>`
+
+*   **[x] User Story 7.13:** I want to create new folders and items.
+    *   **API:** `POST /drive/items/{item-id}/children`
+    *   **Implementation:** `CreateFolder()`
+    *   **Command:** `onedrive-client files mkdir <remote-path>`
+
+*   **[x] User Story 7.14:** I want to update item properties like name.
+    *   **API:** `PATCH /drive/items/{item-id}`
+    *   **Implementation:** `UpdateDriveItem()`, `MoveDriveItem()`
+    *   **Commands:** `onedrive-client files rename <remote-path> <new-name>`, `onedrive-client files mv <source> <dest>`
+
+*   **[x] User Story 7.15:** I want to upload file content to items.
+    *   **API:** `PUT /drive/items/{item-id}/content`
+    *   **Implementation:** `UploadFile()` + upload session APIs
+    *   **Commands:** `onedrive-client files upload <local-file> [remote-path]`
+
+*   **[x] User Story 7.16:** I want to download file content from items.
+    *   **API:** `GET /drive/items/{item-id}/content`
+    *   **Implementation:** `DownloadFile()`, `DownloadFileByItem()`, `DownloadFileChunk()`
+    *   **Command:** `onedrive-client files download <remote-path> [local-path]`
+
+*   **[ ] User Story 7.17:** I want to download files in specific formats.
+    *   **API:** `GET /drive/items/{item-id}/content?format={format}`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files download <remote-path> [local-path] --format <format>` (proposed)
+
+*   **[x] User Story 7.18:** I want to delete items.
+    *   **API:** `DELETE /drive/items/{item-id}`
+    *   **Implementation:** `DeleteDriveItem()`
+    *   **Command:** `onedrive-client files rm <remote-path>`
+
+*   **[x] User Story 7.19:** I want to copy items to new locations.
+    *   **API:** `POST /drive/items/{item-id}/copy`
+    *   **Implementation:** `CopyDriveItem()`, `MonitorCopyOperation()`
+    *   **Commands:** `onedrive-client files copy <source> <dest> [new-name]`, `onedrive-client files copy-status <monitor-url>`
+
+*   **[ ] User Story 7.20:** I want to search within specific folders.
+    *   **API:** `GET /drive/items/{item-id}/search(q='text')`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files search "<query>" --in <remote-path>` (proposed)
+
+*   **[ ] User Story 7.21:** I want to get thumbnail images for items.
+    *   **API:** `GET /drive/items/{item-id}/thumbnails`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files thumbnails <remote-path>` (proposed)
+
+*   **[ ] User Story 7.22:** I want to preview items without downloading.
+    *   **API:** `POST /drive/items/{item-id}/preview`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files preview <remote-path>` (proposed)
+
+#### Sharing and Permissions
+
+*   **[x] User Story 7.23:** I want to create sharing links for items.
+    *   **API:** `POST /drive/items/{item-id}/createLink`
+    *   **Implementation:** `CreateSharingLink()`
+    *   **Command:** `onedrive-client files share <remote-path> <link-type> <scope>`
+
+*   **[ ] User Story 7.24:** I want to invite people and add permissions to items.
+    *   **API:** `POST /drive/items/{item-id}/invite`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files invite <remote-path> <email> <role>` (proposed)
+
+*   **[ ] User Story 7.25:** I want to list all permissions on an item.
+    *   **API:** `GET /drive/items/{item-id}/permissions`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files permissions list <remote-path>` (proposed)
+
+*   **[ ] User Story 7.26:** I want to get details of a specific permission.
+    *   **API:** `GET /drive/items/{item-id}/permissions/{id}`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files permissions get <remote-path> <permission-id>` (proposed)
+
+*   **[ ] User Story 7.27:** I want to update existing permissions.
+    *   **API:** `PATCH /drive/items/{item-id}/permissions/{id}`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files permissions update <remote-path> <permission-id> <role>` (proposed)
+
+*   **[ ] User Story 7.28:** I want to remove permissions from items.
+    *   **API:** `DELETE /drive/items/{item-id}/permissions/{perm-id}`
+    *   **Implementation:** Not implemented
+    *   **Command:** `onedrive-client files permissions delete <remote-path> <permission-id>` (proposed)
+
+#### Additional Features
+
+*   **[x] User Story 7.29:** I want to view items that have been shared with me.
+    *   **API:** `GET /drive/sharedWithMe` (non-standard endpoint)
+    *   **Implementation:** `GetSharedWithMe()`
+    *   **Command:** `onedrive-client shared list`
+
+*   **[x] User Story 7.30:** I want to view recently accessed items.
+    *   **API:** `GET /drive/recent` (non-standard endpoint)
+    *   **Implementation:** `GetRecentItems()`
+    *   **Command:** `onedrive-client files recent`
+
+**Implementation Status Summary:**
+- **Implemented:** 20/30 API endpoints (67%)
+- **Core file operations:** Complete coverage
+- **Drive management:** Enhanced coverage with drive-specific access
+- **Sharing:** Basic link creation implemented
+- **Advanced features:** Delta tracking and version control implemented; activities and detailed permissions remain
+- **Synchronization:** Delta API enables efficient sync operations
+
+**Priority for Future Development:**
+1. **Medium Priority:** Advanced permissions management (invite, list, update, delete permissions)
+2. **Medium Priority:** Activities tracking for drives and items
+3. **Low Priority:** Thumbnails, preview features, download format conversion
+
+---
+
+### `[ ]` Epic 8: Sync Engine (Future v1.0)
+
+As a user, I want to automatically keep a local directory synchronized with a remote OneDrive folder to eliminate manual file management overhead.
+
+*   **[ ] User Story 8.1:** I want to initialize a sync relationship between a local directory and a OneDrive folder.
+    *   **Command:** `onedrive-client sync init <local-path> <remote-path>` (proposed)
+*   **[ ] User Story 8.2:** I want a persistent background process that monitors for changes and automatically syncs files.
+    *   **Command:** `onedrive-client sync daemon start` (proposed)
+*   **[ ] User Story 8.3:** I want to view the status of all sync relationships and their current state.
+    *   **Command:** `onedrive-client sync status` (proposed)
+*   **[ ] User Story 8.4:** I want to pause and resume sync operations when needed.
+    *   **Commands:** `onedrive-client sync pause`, `onedrive-client sync resume` (proposed)
+*   **[ ] User Story 8.5:** I want to handle sync conflicts intelligently with user-configurable resolution strategies.
+    *   **Features:** Conflict detection, resolution strategies (newest wins, manual resolution, etc.)
+*   **[ ] User Story 8.6:** I want to exclude certain files or patterns from synchronization.
+    *   **Command:** `onedrive-client sync exclude <pattern>` (proposed)
+*   **[ ] User Story 8.7:** I want to monitor sync progress and receive notifications about sync events.
+    *   **Command:** `onedrive-client sync logs` (proposed)
+
+**Technical Requirements:**
+- Bi-directional synchronization using delta API for efficient change detection
+- File system watcher integration for real-time local changes
+- Robust conflict resolution with user preferences
+- Persistent sync state management
+- Cross-platform compatibility (Windows, macOS, Linux)
+
+**Future Enhancements (Post-v1.0):**
+- Performance optimizations for large directories
+- Shared drive management and team synchronization
+- Advanced filtering and selective sync capabilities
+- Integration with cloud-native applications
