@@ -570,7 +570,7 @@ func filesUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	// Use proper remote path joining instead of filepath.Join
 	remotePath := joinRemotePath(remoteDir, filepath.Base(localPath))
 
-	// Handle graceful interruption
+	// Handle graceful interruption (Ctrl+C) so users can resume uploads later
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -579,8 +579,14 @@ func filesUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		os.Exit(0)
 	}()
 
-	// Check for existing session
-	state, err := session.Load(localPath, remotePath)
+	// Session manager v2 (thread-safe, permissions hardened)
+	mgr, err := session.NewManager()
+	if err != nil {
+		return fmt.Errorf("creating session manager: %w", err)
+	}
+
+	// Check for existing session via manager
+	state, err := mgr.Load(localPath, remotePath)
 	if err != nil {
 		return fmt.Errorf("loading session state: %w", err)
 	}
@@ -593,18 +599,18 @@ func filesUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		if err != nil {
 			// If session expired or is invalid, start a new one
 			fmt.Println("Could not get session status, starting a new upload.")
-			return startNewUpload(a, localPath, remotePath)
+			return startNewUpload(a, mgr, localPath, remotePath)
 		}
 		uploadSession = sessionStatus
 	} else {
 		fmt.Println("Starting new upload.")
-		return startNewUpload(a, localPath, remotePath)
+		return startNewUpload(a, mgr, localPath, remotePath)
 	}
 
-	return uploadFileInChunks(a, localPath, remotePath, uploadSession)
+	return uploadFileInChunks(a, mgr, localPath, remotePath, uploadSession)
 }
 
-func startNewUpload(a *app.App, localPath, remotePath string) error {
+func startNewUpload(a *app.App, mgr *session.Manager, localPath, remotePath string) error {
 	uploadSession, err := a.SDK.CreateUploadSession(remotePath)
 	if err != nil {
 		return fmt.Errorf("creating upload session: %w", err)
@@ -621,14 +627,14 @@ func startNewUpload(a *app.App, localPath, remotePath string) error {
 		LocalPath:          localPath,
 		RemotePath:         remotePath,
 	}
-	if err := session.Save(state); err != nil {
+	if err := mgr.Save(state); err != nil {
 		return fmt.Errorf("saving session state: %w", err)
 	}
 
-	return uploadFileInChunks(a, localPath, remotePath, uploadSession)
+	return uploadFileInChunks(a, mgr, localPath, remotePath, uploadSession)
 }
 
-func uploadFileInChunks(a *app.App, localPath, remotePath string, uploadSession onedrive.UploadSession) error {
+func uploadFileInChunks(a *app.App, mgr *session.Manager, localPath, remotePath string, uploadSession onedrive.UploadSession) error {
 	file, err := os.Open(localPath)
 	if err != nil {
 		return fmt.Errorf("opening local file: %w", err)
@@ -675,7 +681,7 @@ func uploadFileInChunks(a *app.App, localPath, remotePath string, uploadSession 
 	}
 
 	// Clean up session file on success
-	if err := session.Delete(localPath, remotePath); err != nil {
+	if err := mgr.Delete(localPath, remotePath); err != nil {
 		// Log this as a warning, as the upload itself was successful
 		log.Printf("Warning: failed to delete session file %s: %v", remotePath, err)
 	}
