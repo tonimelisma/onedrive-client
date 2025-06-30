@@ -408,3 +408,105 @@ To evolve into a full sync client, the application must run as a persistent, bac
         *   `watcher.go`: Uses a library like `fsnotify` to watch the local filesystem for changes.
         *   `resolver.go`: A crucial component for handling sync conflicts.
     *   `cmd/sync.go`: A new command to `start`, `stop`, and check the `status` of the sync daemon.
+
+## CLI Layer (`cmd/`)
+
+The CLI layer has been extensively refactored for maintainability and separation of concerns:
+
+### Core Commands
+- `root.go` - Root command definition and global flag setup
+- `auth.go` - Authentication commands (login, logout, status)  
+- `drives.go` - Drive management commands (list, quota, get, activities)
+- `delta.go` - Delta query commands for change tracking
+- `shared.go` - Shared items commands
+
+### Items Commands (`cmd/items/`)
+The file and folder management commands have been decomposed into focused modules:
+
+- **`items_root.go`** - Main items command registration and flag setup
+  - Centralizes command hierarchy and flag configuration
+  - Imports and registers all subcommands
+  - Handles pagination flag setup for applicable commands
+
+- **`items_helpers.go`** - Shared utility functions
+  - `joinRemotePath()` for URL-safe path joining
+  - Common helper functions used across multiple commands
+
+- **`items_meta.go`** - Metadata and query operations (~200 LOC)
+  - `list` - Directory listing with pagination support
+  - `stat` - File/folder metadata retrieval
+  - `search` - Content search with folder scoping and pagination
+  - `recent` - Recently accessed items
+  - `special` - Special folder access (Documents, Photos, etc.)
+  - `versions` - File version history
+  - `activities` - Item activity tracking with pagination
+  - `thumbnails` - Thumbnail generation and retrieval
+  - `preview` - Document preview URL generation
+
+- **`items_upload.go`** - Upload operations (~200 LOC)
+  - `mkdir` - Folder creation
+  - `upload` - Resumable file upload with session management
+  - `upload-simple` - Non-resumable upload for small files
+  - `cancel-upload` - Upload session cancellation
+  - `get-upload-status` - Upload progress monitoring
+  - Integrated session management for upload resumption
+  - Signal handling for graceful interruption
+
+- **`items_download.go`** - Download operations (~50 LOC)
+  - `download` - File download with format conversion support
+  - `list-root-deprecated` - Deprecated root listing method
+
+- **`items_manage.go`** - File manipulation operations (~200 LOC)
+  - `rm` - File/folder deletion (moves to recycle bin)
+  - `copy` - Asynchronous copy operations with monitoring
+  - `copy-status` - Copy operation status checking
+  - `mv` - File/folder moving
+  - `rename` - Item renaming
+  - Comprehensive error handling and status reporting
+
+- **`items_permissions.go`** - Sharing and permissions management (~200 LOC)
+  - `share` - Sharing link creation with type/scope validation
+  - `invite` - User invitation with role-based permissions
+  - `permissions list` - Permission enumeration
+  - `permissions get` - Individual permission details
+  - `permissions update` - Permission modification
+  - `permissions delete` - Permission removal
+  - Full CRUD operations for sharing and permissions
+
+### Session Management (`internal/session/`)
+
+Completely refactored to use the Manager pattern:
+
+#### Manager Pattern
+- **`Manager`** struct with configurable directory support
+- `NewManager()` - Creates manager with default config directory
+- `NewManagerWithConfigDir(dir)` - Creates manager with custom directory
+- Thread-safe operations with file locking
+- Eliminates global state and improves testability
+
+#### Session Operations
+- `Save(state)` - Persist upload session state
+- `Load(localPath, remotePath)` - Retrieve session state with expiration checking
+- `Delete(localPath, remotePath)` - Clean up completed/failed sessions
+- `GetSessionFilePath()` - Deterministic session file paths
+
+#### Authentication Session Management
+- Consistent Manager pattern for auth state persistence
+- `SaveAuthState(state)` / `LoadAuthState()` / `DeleteAuthState()`
+- Proper file locking to prevent concurrent auth attempts
+
+### UI Layer (`internal/ui/`)
+
+Enhanced with centralized components:
+
+#### Pagination Support (`pagingflags.go`)
+- **`AddPagingFlags(cmd)`** - Standardized pagination flag registration
+- **`ParsePagingFlags(cmd)`** - Consistent flag parsing with error handling
+- **`HandleNextPageInfo(nextLink, fetchAll)`** - Next page information display
+- Eliminates code duplication across paginated commands
+- Supports `--top`, `--all`, and `--next` flags uniformly
+
+#### Display Functions (`display.go`)
+- Consistent formatting for all data types
+- Structured output for API responses
+- Progress indicators for long-running operations

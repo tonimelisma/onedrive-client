@@ -20,28 +20,28 @@ type AuthState struct {
 	Interval        int    `json:"interval"`
 }
 
-func getAuthSessionFilePath() (string, error) {
-	sessionDir, err := getSessionDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(sessionDir, authSessionFile), nil
+func (m *Manager) getAuthSessionFilePath() string {
+	sessionDir := m.getSessionDir()
+	return filepath.Join(sessionDir, authSessionFile)
 }
 
 // SaveAuthState persists the pending authentication state to a file.
 func SaveAuthState(state *AuthState) error {
-	sessionDir, err := getSessionDir()
+	mgr, err := NewManager()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating session manager: %w", err)
 	}
+	return mgr.SaveAuthState(state)
+}
+
+// SaveAuthState persists the pending authentication state to a file using the manager.
+func (m *Manager) SaveAuthState(state *AuthState) error {
+	sessionDir := m.getSessionDir()
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		return fmt.Errorf("could not create session directory: %w", err)
 	}
 
-	filePath, err := getAuthSessionFilePath()
-	if err != nil {
-		return err
-	}
+	filePath := m.getAuthSessionFilePath()
 
 	fileLock := flock.New(filePath + ".lock")
 	locked, err := fileLock.TryLock()
@@ -63,16 +63,19 @@ func SaveAuthState(state *AuthState) error {
 
 // LoadAuthState retrieves the pending authentication state from a file.
 func LoadAuthState() (*AuthState, error) {
-	filePath, err := getAuthSessionFilePath()
+	mgr, err := NewManager()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating session manager: %w", err)
 	}
+	return mgr.LoadAuthState()
+}
+
+// LoadAuthState retrieves the pending authentication state from a file using the manager.
+func (m *Manager) LoadAuthState() (*AuthState, error) {
+	filePath := m.getAuthSessionFilePath()
 
 	// Ensure the session directory exists before trying to create lock files
-	sessionDir, err := getSessionDir()
-	if err != nil {
-		return nil, err
-	}
+	sessionDir := m.getSessionDir()
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		return nil, fmt.Errorf("could not create session directory: %w", err)
 	}
@@ -105,16 +108,19 @@ func LoadAuthState() (*AuthState, error) {
 
 // DeleteAuthState removes the auth session state file.
 func DeleteAuthState() error {
-	filePath, err := getAuthSessionFilePath()
+	mgr, err := NewManager()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating session manager: %w", err)
 	}
+	return mgr.DeleteAuthState()
+}
+
+// DeleteAuthState removes the auth session state file using the manager.
+func (m *Manager) DeleteAuthState() error {
+	filePath := m.getAuthSessionFilePath()
 
 	// Ensure the session directory exists before trying to create lock files
-	sessionDir, err := getSessionDir()
-	if err != nil {
-		return err
-	}
+	sessionDir := m.getSessionDir()
 	if err := os.MkdirAll(sessionDir, 0755); err != nil {
 		return fmt.Errorf("could not create session directory: %w", err)
 	}

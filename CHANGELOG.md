@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Major Refactoring (Breaking Changes)
+- **BREAKING**: Decomposed monolithic `cmd/files.go` (1193 LOC) into focused files ≤200 LOC each:
+  - `cmd/items/items_root.go` - Command registration and flag setup
+  - `cmd/items/items_helpers.go` - Shared utility functions
+  - `cmd/items/items_meta.go` - List, stat, search, versions, thumbnails, preview commands
+  - `cmd/items/items_upload.go` - Upload, mkdir, and upload management commands  
+  - `cmd/items/items_download.go` - Download and deprecated list commands
+  - `cmd/items/items_manage.go` - File operations (rm, mv, rename, copy)
+  - `cmd/items/items_permissions.go` - Sharing and permissions management
+- **BREAKING**: Removed all deprecated session helper functions in favor of Manager pattern:
+  - Removed `GetConfigDir()`, `GetSessionFilePath()`, `Save()`, `Load()`, `Delete()` global functions
+  - All session operations now use `session.Manager` with configurable directory support
+  - Updated auth session handling to use Manager pattern consistently
+- **BREAKING**: Commands moved from `onedrive-client files <subcommand>` to `onedrive-client items <subcommand>`
+- **BREAKING**: No backwards compatibility provided for command structure or session functions
+- Added centralized pagination flags helper in `internal/ui/pagingflags.go`
+  - Eliminates duplication across commands requiring pagination
+  - Standardizes `--top`, `--all`, and `--next` flag handling
+- Updated `cmd/drives.go` to use centralized pagination helper
+
+### Infrastructure Improvements
+- Enhanced session management with proper locking and error handling
+- Improved code organization with logical separation of concerns
+- Better maintainability with focused, single-responsibility files
+
+### Developer Experience
+- Eliminated 1000+ line files for easier development and review
+- Clear separation between command definitions and business logic
+- Standardized error handling patterns across command files
+
 ### Changed
 - **Major Architectural Refactor**: Overhauled the core SDK and application architecture to improve robustness, maintainability, and testability.
   - **Stateful SDK Client**: Replaced the stateless `pkg/onedrive` function collection with a new stateful `onedrive.Client`. This client now manages the HTTP client and token lifecycle internally.

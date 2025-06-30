@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	cmdItems "github.com/tonimelisma/onedrive-client/cmd/items"
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 )
@@ -38,5 +39,5 @@ func deltaLogic(a *app.App, args []string) error {
 }
 
 func init() {
-	filesCmd.AddCommand(deltaCmd)
+	cmdItems.ItemsCmd.AddCommand(deltaCmd)
 }

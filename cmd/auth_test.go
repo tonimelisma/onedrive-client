@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tonimelisma/onedrive-client/internal/config"
-	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
@@ -25,11 +24,7 @@ func setupAuthTest(t *testing.T) (string, func()) {
 
 	t.Setenv("ONEDRIVE_CONFIG_PATH", tempConfigFile)
 
-	// Override session package's GetConfigDir to point to same temp dir
-	oldSessionDir := session.GetConfigDir
-	session.GetConfigDir = func() (string, error) { return tempDir, nil }
-
-	return tempDir, func() { session.GetConfigDir = oldSessionDir }
+	return tempDir, func() {}
 }
 
 func TestAuthLogin(t *testing.T) {

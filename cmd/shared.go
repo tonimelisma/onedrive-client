@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	cmdItems "github.com/tonimelisma/onedrive-client/cmd/items"
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 )
@@ -39,6 +40,6 @@ func sharedListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	filesCmd.AddCommand(sharedCmd)
+	cmdItems.ItemsCmd.AddCommand(sharedCmd)
 	sharedCmd.AddCommand(sharedListCmd)
 }

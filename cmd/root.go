@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	cmdItems "github.com/tonimelisma/onedrive-client/cmd/items"
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
@@ -68,4 +69,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging")
+
+	// Initialize items commands
+	cmdItems.InitItemsCommands(rootCmd)
 }

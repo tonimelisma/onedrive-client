@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
-	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 var drivesCmd = &cobra.Command{
@@ -68,14 +67,9 @@ var drivesActivitiesCmd = &cobra.Command{
 		}
 
 		// Parse paging options
-		topFlag, _ := cmd.Flags().GetInt("top")
-		allFlag, _ := cmd.Flags().GetBool("all")
-		nextFlag, _ := cmd.Flags().GetString("next")
-
-		paging := onedrive.Paging{
-			Top:      topFlag,
-			FetchAll: allFlag,
-			NextLink: nextFlag,
+		paging, err := ui.ParsePagingFlags(cmd)
+		if err != nil {
+			return fmt.Errorf("parsing pagination flags: %w", err)
 		}
 
 		activities, nextLink, err := app.SDK.GetDriveActivities(paging)
@@ -84,10 +78,7 @@ var drivesActivitiesCmd = &cobra.Command{
 		}
 
 		ui.DisplayActivities(activities, "drive")
-
-		if nextLink != "" && !allFlag {
-			fmt.Printf("\nNext page available. Use --next '%s' to continue.\n", nextLink)
-		}
+		ui.HandleNextPageInfo(nextLink, paging.FetchAll)
 
 		return nil
 	},
@@ -127,7 +118,5 @@ func init() {
 	drivesCmd.AddCommand(drivesGetCmd)
 	drivesCmd.AddCommand(drivesActivitiesCmd)
 
-	drivesActivitiesCmd.Flags().Int("top", 0, "Maximum number of activities to return")
-	drivesActivitiesCmd.Flags().Bool("all", false, "Fetch all activities across all pages")
-	drivesActivitiesCmd.Flags().String("next", "", "Continue from this next link URL")
+	ui.AddPagingFlags(drivesActivitiesCmd)
 }
