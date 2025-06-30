@@ -39,6 +39,6 @@ func sharedListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	rootCmd.AddCommand(sharedCmd)
+	filesCmd.AddCommand(sharedCmd)
 	sharedCmd.AddCommand(sharedListCmd)
 }

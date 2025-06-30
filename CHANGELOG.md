@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Clean API Abstraction**: The `internal/app.SDK` interface is now directly implemented by `*onedrive.Client`, removing the previous `OneDriveSDK` wrapper and simplifying the application structure.
   - **Code Reorganization**: Migrated all API-related logic into `pkg/onedrive/client.go` and separated authentication flows into `pkg/onedrive/auth.go`. The obsolete `pkg/onedrive/onedrive.go` file has been removed.
 - **Error Handling**: Added new sentinel `ErrInternal` in SDK and replaced the last anonymous internal error with it. Every error path in public SDK now returns a typed sentinel that can be detected with `errors.Is`.
+- **CLI Command Reorganization**: Replaced the top-level `files`, `delta`, and `shared` commands with a single consolidated `items` command.  Delta tracking is now invoked as `items delta` and shared content as `items shared list`.  All former `files ...` subcommands are unchanged but are now invoked as `items ...`.
 
 ### Added
 

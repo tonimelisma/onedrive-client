@@ -8,6 +8,8 @@ The primary goal of the `onedrive-client` project is to create a powerful, fast,
 
 This tool serves users who prefer to work in a terminal environment, enabling them to manage their OneDrive files and folders without needing a graphical user interface.
 
+**CLI Naming Update (2025-06-30):** The CLI has been streamlined.  All item-level operations (formerly `files`, plus `delta` and `shared`) are now grouped under the new top-level `items` command.
+
 ### 1.2. Target Audience
 
 *   Developers, System Administrators, and Power Users.

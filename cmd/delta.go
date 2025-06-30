@@ -38,5 +38,5 @@ func deltaLogic(a *app.App, args []string) error {
 }
 
 func init() {
-	rootCmd.AddCommand(deltaCmd)
+	filesCmd.AddCommand(deltaCmd)
 }

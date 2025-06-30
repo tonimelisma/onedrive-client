@@ -21,9 +21,9 @@ import (
 )
 
 var filesCmd = &cobra.Command{
-	Use:   "files",
-	Short: "Manage files and folders",
-	Long:  "Provides commands to list, stat, upload, download, and manage files and folders.",
+	Use:   "items",
+	Short: "Manage items (files and folders)",
+	Long:  "Provides commands to list, stat, upload, download, and manage OneDrive items (files and folders).",
 }
 
 var filesListCmd = &cobra.Command{
@@ -166,7 +166,7 @@ var filesUploadSimpleCmd = &cobra.Command{
 var filesListRootDeprecatedCmd = &cobra.Command{
 	Use:   "list-root-deprecated",
 	Short: "List items in the root drive (deprecated)",
-	Long:  "Lists items in the root drive using the deprecated GetRootDriveItems method. Use 'files list /' instead.",
+	Long:  "Lists items in the root drive using the deprecated GetRootDriveItems method. Use 'items list /' instead.",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)

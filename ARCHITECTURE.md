@@ -78,6 +78,8 @@ The project is organized into packages, each with a distinct role.
     3.  Passing the results (or errors) to the UI Layer (`internal/ui`) for display.
 *   **Constraint:** This layer contains **no business logic**. It only orchestrates calls between the user, the app core, and the UI.
 
+**CLI command hierarchy update (2025-06-30):** The former `files`, `delta`, and `shared` root commands have been consolidated into a single `items` root command.  All previous subcommands are unchanged but are now invoked as `items <subcommand>`.
+
 #### `internal/app/` (The App Core & SDK Abstraction)
 *   **Responsibility:** Acts as the central hub for the application.
     *   `app.go`: The `NewApp()` function initializes the configuration and the OneDrive HTTP client. Crucially, it detects and completes any pending authentication flows, ensuring that any command that runs can assume it has a valid, authenticated client.
