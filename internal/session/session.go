@@ -29,12 +29,22 @@ type Manager struct {
 
 // NewManager creates a new session manager with default config directory
 func NewManager() (*Manager, error) {
-	configDir, err := os.UserConfigDir()
+	// If the environment variable is set, align the session directory with the
+	// directory of the custom configuration file to keep test isolation and
+	// predictable paths consistent with internal/config logic.
+	if customPath := os.Getenv("ONEDRIVE_CONFIG_PATH"); customPath != "" {
+		return &Manager{
+			configDir: filepath.Dir(customPath),
+		}, nil
+	}
+
+	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("could not get user config directory: %w", err)
 	}
+
 	return &Manager{
-		configDir: filepath.Join(configDir, "onedrive-client"),
+		configDir: filepath.Join(userConfigDir, "onedrive-client"),
 	}, nil
 }
 

@@ -101,6 +101,9 @@ The project is organized into packages, each with a distinct role.
 *   **Authentication**: It implements the raw mechanics of the OAuth 2.0 Device Code Flow but has no awareness of the higher-level application's stateful, non-blocking flow. It simply provides the functions to initiate the flow and verify a device code.
 *   **Independence:** This package has no dependencies on any other package in the project (`internal/`, `cmd/`), making it a candidate for future extraction into a standalone library.
 
+#### Token Refresh & Persistence (Refined)
+Prior refactors introduced two independent `persistingTokenSource` wrappers (one in `internal/app` and one inside the SDK).  The duplication led to divergent error-handling behaviour and extra maintenance overhead.  As of vNEXT the application relies exclusively on the implementation inside the SDK (`pkg/onedrive`).  The redundant version and its unit tests have been removed from `internal/app`.  All token persistence and refresh callbacks are therefore centralised in a single location and consumed transparently via `onedrive.NewClient()`.
+
 ### 2.3. Key Architectural Patterns
 
 #### Non-Blocking Authentication Flow

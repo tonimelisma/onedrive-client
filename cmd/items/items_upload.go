@@ -89,6 +89,10 @@ var filesUploadSimpleCmd = &cobra.Command{
 }
 
 func filesMkdirLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("folder path is required")
+	}
+
 	remotePath := args[0]
 	parentPath := filepath.Dir(remotePath)
 	folderName := filepath.Base(remotePath)
@@ -107,6 +111,10 @@ func filesMkdirLogic(a *app.App, cmd *cobra.Command, args []string) error {
 }
 
 func filesUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("local path is required")
+	}
+
 	localPath := args[0]
 	var remotePath string
 	if len(args) > 1 {
@@ -233,6 +241,10 @@ func uploadFileInChunks(a *app.App, mgr *session.Manager, localPath, remotePath 
 }
 
 func filesCancelUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("upload URL is required")
+	}
+
 	uploadURL := args[0]
 	if uploadURL == "" {
 		return fmt.Errorf("upload URL cannot be empty")
@@ -247,6 +259,10 @@ func filesCancelUploadLogic(a *app.App, cmd *cobra.Command, args []string) error
 }
 
 func filesGetUploadStatusLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("upload URL is required")
+	}
+
 	uploadURL := args[0]
 	if uploadURL == "" {
 		return fmt.Errorf("upload URL cannot be empty")
@@ -272,6 +288,10 @@ func filesGetUploadStatusLogic(a *app.App, cmd *cobra.Command, args []string) er
 }
 
 func filesUploadSimpleLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("both local path and remote path are required")
+	}
+
 	localPath := args[0]
 	remotePath := args[1]
 

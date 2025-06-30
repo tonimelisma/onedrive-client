@@ -312,6 +312,8 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 - **OAuth Robustness**: Implemented automatic, transparent token refresh. If an API call fails with a 401 Unauthorized error, the client now automatically uses the refresh token to get a new access token and retries the original request.
 - **Atomic Config Writes**: Configuration and token writes are now atomic (write to temp file + rename) to prevent corruption if the application is interrupted.
 - **Thread Safety**: Fixed a potential deadlock in the configuration saving mechanism.
+- Removed duplicate `persistingTokenSource` implementation from `internal/app`; the single authoritative implementation now lives in the SDK (`pkg/onedrive`).
+- Session manager now respects the `ONEDRIVE_CONFIG_PATH` environment variable ensuring test isolation and consistent session file locations.
 
 ### Removed
 - Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.
