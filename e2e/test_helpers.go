@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -185,7 +186,7 @@ func (h *E2ETestHelper) WaitForFile(t *testing.T, remotePath string, timeout tim
 			return // File found
 		}
 
-		if !strings.Contains(err.Error(), "itemNotFound") && !strings.Contains(err.Error(), "resource not found") {
+		if !errors.Is(err, onedrive.ErrResourceNotFound) {
 			t.Fatalf("Unexpected error while waiting for file %s: %v", remotePath, err)
 		}
 
@@ -201,7 +202,7 @@ func (h *E2ETestHelper) AssertFileExists(t *testing.T, remotePath string) {
 
 	_, err := h.App.SDK.GetDriveItemByPath(remotePath)
 	if err != nil {
-		if strings.Contains(err.Error(), "itemNotFound") {
+		if errors.Is(err, onedrive.ErrResourceNotFound) {
 			t.Errorf("Expected file %s to exist, but it was not found", remotePath)
 		} else {
 			t.Errorf("Error checking if file %s exists: %v", remotePath, err)
@@ -216,7 +217,7 @@ func (h *E2ETestHelper) AssertFileNotExists(t *testing.T, remotePath string) {
 	_, err := h.App.SDK.GetDriveItemByPath(remotePath)
 	if err == nil {
 		t.Errorf("Expected file %s to not exist, but it was found", remotePath)
-	} else if !strings.Contains(err.Error(), "itemNotFound") && !strings.Contains(err.Error(), "resource not found") {
+	} else if !errors.Is(err, onedrive.ErrResourceNotFound) {
 		t.Errorf("Unexpected error checking if file %s exists: %v", remotePath, err)
 	}
 }

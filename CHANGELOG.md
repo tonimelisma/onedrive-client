@@ -246,7 +246,7 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 - Improved error handling in E2E tests to be more resilient to different error message formats.
 - Updated E2E test directory creation logic to ensure proper hierarchy setup.
 - **Testing**: E2E test suite is now part of the default `go test ./...` run. The `//go:build e2e` build tags were removed and helper functions now gracefully skip tests when `config.json` is not present.
-- **Testing Robustness**: Error handling in E2E helper updated to treat `resource not found` responses as expected for non-existent items. Invalid special-folder test relaxed to accommodate account-specific error messages.
+- **Testing Robustness**: E2E helpers and tests now rely on typed sentinel errors (`onedrive.ErrResourceNotFound`, `onedrive.ErrInvalidRequest`, …) instead of fragile string matching.
 
 ### Fixed
 - **Critical**: Fixed fundamental URL construction bug in `BuildPathURL()` function that was generating malformed URLs with double colons (`::`) instead of single colons (`:`).

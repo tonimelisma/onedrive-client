@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 func TestFileOperations(t *testing.T) {
@@ -601,7 +603,7 @@ func TestSpecialFolderOperations(t *testing.T) {
 	t.Run("invalid special folder", func(t *testing.T) {
 		_, err := helper.App.SDK.GetSpecialFolder("invalid-folder")
 		assert.Error(t, err, "Invalid special folder should return an error")
-		assert.True(t, strings.Contains(err.Error(), "invalid special folder name") || strings.Contains(err.Error(), "Invalid request"), "Unexpected error message: %v", err)
+		assert.True(t, errors.Is(err, onedrive.ErrInvalidRequest), "Unexpected error type: %v", err)
 	})
 
 	// Test special folders that might be business-only
