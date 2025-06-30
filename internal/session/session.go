@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 // State represents the state of a resumable session.
@@ -65,6 +67,17 @@ func (m *Manager) Save(state *State) error {
 	}
 
 	filePath := m.GetSessionFilePath(state.LocalPath, state.RemotePath)
+
+	lock := flock.New(filePath + ".lock")
+	locked, err := lock.TryLock()
+	if err != nil {
+		return fmt.Errorf("could not acquire file lock: %w", err)
+	}
+	if !locked {
+		return fmt.Errorf("could not acquire file lock, another instance may be running")
+	}
+	defer lock.Unlock()
+
 	data, err := json.Marshal(state)
 	if err != nil {
 		return fmt.Errorf("could not marshal session state: %w", err)
@@ -76,6 +89,16 @@ func (m *Manager) Save(state *State) error {
 // Load retrieves the upload session state from a file.
 func (m *Manager) Load(localPath, remotePath string) (*State, error) {
 	filePath := m.GetSessionFilePath(localPath, remotePath)
+
+	lock := flock.New(filePath + ".lock")
+	locked, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("could not acquire file lock: %w", err)
+	}
+	if !locked {
+		return nil, fmt.Errorf("could not acquire file lock, another instance may be running")
+	}
+	defer lock.Unlock()
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -103,7 +126,17 @@ func (m *Manager) Load(localPath, remotePath string) (*State, error) {
 func (m *Manager) Delete(localPath, remotePath string) error {
 	filePath := m.GetSessionFilePath(localPath, remotePath)
 
-	err := os.Remove(filePath)
+	lock := flock.New(filePath + ".lock")
+	locked, err := lock.TryLock()
+	if err != nil {
+		return fmt.Errorf("could not acquire file lock: %w", err)
+	}
+	if !locked {
+		return fmt.Errorf("could not acquire file lock, another instance may be running")
+	}
+	defer lock.Unlock()
+
+	err = os.Remove(filePath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("could not delete session file: %w", err)
 	}
