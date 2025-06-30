@@ -16,8 +16,6 @@ type MockSDK struct {
 	GetDrivesFunc                  func() (onedrive.DriveList, error)
 	GetDefaultDriveFunc            func() (onedrive.Drive, error)
 	GetMeFunc                      func() (onedrive.User, error)
-	InitiateDeviceCodeFlowFunc     func() (*onedrive.DeviceCodeResponse, error)
-	VerifyDeviceCodeFunc           func(deviceCode string) (*onedrive.OAuthToken, error)
 	CreateFolderFunc               func(parentPath string, folderName string) (onedrive.DriveItem, error)
 	DownloadFileFunc               func(remotePath, localPath string) error
 	DownloadFileAsFormatFunc       func(remotePath, localPath, format string) error
@@ -77,20 +75,6 @@ func (m *MockSDK) GetMe() (onedrive.User, error) {
 		return m.GetMeFunc()
 	}
 	return onedrive.User{}, nil
-}
-
-func (m *MockSDK) InitiateDeviceCodeFlow() (*onedrive.DeviceCodeResponse, error) {
-	if m.InitiateDeviceCodeFlowFunc != nil {
-		return m.InitiateDeviceCodeFlowFunc()
-	}
-	return nil, errors.New("not implemented")
-}
-
-func (m *MockSDK) VerifyDeviceCode(deviceCode string) (*onedrive.OAuthToken, error) {
-	if m.VerifyDeviceCodeFunc != nil {
-		return m.VerifyDeviceCodeFunc(deviceCode)
-	}
-	return nil, errors.New("not implemented")
 }
 
 func (m *MockSDK) CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error) {

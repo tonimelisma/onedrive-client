@@ -27,6 +27,10 @@ All interactions with the Microsoft Graph API are handled by an integrated **SDK
 * Expiry parsing and automatic refresh implemented (see CHANGELOG).
 * Atomic config persistence and refresh‐token preservation.
 
+#### 2025-06-29 Testing Enhancement
+* E2E test suite integrated into default `go test ./...` run by removing conditional build tags.
+* Tests gracefully skip when local `config.json` is absent, allowing CI environments without live credentials to succeed while still providing full coverage locally.
+
 ## 3. Epics, User Stories, and CLI Commands
 
 **Status Legend:**

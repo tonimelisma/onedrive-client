@@ -1,5 +1,3 @@
-//go:build e2e
-
 // Quick Start E2E Validation
 // This file contains a simple validation test to check if E2E setup is working
 package e2e

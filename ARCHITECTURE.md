@@ -364,6 +364,9 @@ This architecture ensures a robust separation of concerns:
 -   `internal/config` knows how to save and load configuration, but knows nothing about OAuth.
 -   `internal/app` is the orchestrator that correctly initializes the token and connects the persistence wrapper, creating the intelligent client that the rest of the application uses.
 
+#### Testing Strategy Updates (2025-06-29)
+* The E2E test suite is now compiled and executed by default with `go test ./...`. Tests skip automatically if no authenticated `config.json` is present, preventing CI failures while still offering full coverage in developer environments.
+
 ---
 
 ## 3. Future Architecture

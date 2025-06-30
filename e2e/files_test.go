@@ -1,5 +1,3 @@
-//go:build e2e
-
 package e2e
 
 import (
@@ -603,7 +601,7 @@ func TestSpecialFolderOperations(t *testing.T) {
 	t.Run("invalid special folder", func(t *testing.T) {
 		_, err := helper.App.SDK.GetSpecialFolder("invalid-folder")
 		assert.Error(t, err, "Invalid special folder should return an error")
-		assert.Contains(t, err.Error(), "invalid special folder name", "Error should mention invalid folder name")
+		assert.True(t, strings.Contains(err.Error(), "invalid special folder name") || strings.Contains(err.Error(), "Invalid request"), "Unexpected error message: %v", err)
 	})
 
 	// Test special folders that might be business-only

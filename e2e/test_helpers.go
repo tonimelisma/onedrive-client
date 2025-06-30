@@ -1,13 +1,11 @@
-//go:build e2e
-
 package e2e
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path"
 	"strings"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/internal/config"
+	"github.com/tonimelisma/onedrive-client/internal/ui"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
@@ -33,60 +32,9 @@ type E2ETestHelper struct {
 func NewE2ETestHelper(t *testing.T) *E2ETestHelper {
 	t.Helper()
 
-	testID := generateTestID()
-	testDir := path.Join(testRootDir, testID)
-
-	helper := &E2ETestHelper{
-		TestID:    testID,
-		TestDir:   testDir,
-		TempFiles: make([]string, 0),
-	}
-
-	// Set up authentication using existing CLI config
-	client, err := helper.createAuthenticatedClient(t)
-	if err != nil {
-		t.Fatalf("Failed to create authenticated client: %v", err)
-	}
-
-	helper.App = &app.App{
-		SDK: app.NewOneDriveSDK(client),
-	}
-
-	// Ensure test directory exists
-	if err := helper.ensureTestDirectory(); err != nil {
-		t.Fatalf("Failed to create test directory: %v", err)
-	}
-
-	// Set up cleanup
-	t.Cleanup(func() {
-		helper.Cleanup(t)
-	})
-
-	return helper
-}
-
-// createAuthenticatedClient creates an HTTP client using the existing CLI authentication
-func (h *E2ETestHelper) createAuthenticatedClient(t *testing.T) (*http.Client, error) {
-	t.Helper()
-
 	// Check if we have a local config.json for E2E testing (in project root)
 	if _, err := os.Stat("../config.json"); err != nil {
-		t.Fatal(`
-E2E Testing Setup Required:
-
-1. Copy your authenticated config.json to the project root:
-   cp ~/.config/onedrive-client/config.json ./config.json
-
-2. The config.json will be ignored by git (safe)
-
-3. Make sure you're logged in first:
-   ./onedrive-client auth status
-
-4. Then run E2E tests:
-   go test -tags=e2e -v ./e2e/...
-
-If you don't have config.json, run: ./onedrive-client auth login
-`)
+		t.Skip("Skipping E2E tests: config.json not found in project root. See e2e/README.md for setup instructions.")
 	}
 
 	// For E2E tests, we need to load the config from the local config.json file
@@ -102,13 +50,13 @@ If you don't have config.json, run: ./onedrive-client auth login
 
 	// Set to use the local config.json
 	if err := os.Setenv("ONEDRIVE_CONFIG_PATH", "../config.json"); err != nil {
-		return nil, fmt.Errorf("failed to set config path: %w", err)
+		t.Fatalf("failed to set config path: %v", err)
 	}
 
 	// Load the config from the local file
 	cfg, err := config.LoadOrCreate()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config: %w", err)
+		t.Fatalf("failed to load config: %v", err)
 	}
 
 	// Check if we have a valid token
@@ -116,22 +64,40 @@ If you don't have config.json, run: ./onedrive-client auth login
 		t.Fatal("No access token found. Please run: ./onedrive-client auth login")
 	}
 
-	// Create OAuth2 config
-	ctx, oauthConfig := onedrive.GetOauth2Config(config.ClientID)
-
-	// Convert our token to oauth2.Token
-	token := onedrive.OAuthToken(cfg.Token)
-
-	// Create HTTP client with token refresh capability
-	client := onedrive.NewClient(ctx, (*onedrive.OAuthConfig)(oauthConfig), token, func(newToken onedrive.OAuthToken) {
-		// Update config with refreshed token
-		cfg.Token = newToken
+	onNewToken := func(token *onedrive.Token) error {
+		cfg.Token = *token
 		if err := cfg.Save(); err != nil {
 			t.Logf("Warning: failed to save refreshed token: %v", err)
 		}
+		return nil
+	}
+
+	client := onedrive.NewClient(context.Background(), &cfg.Token, onNewToken, ui.StdLogger{})
+
+	testID := generateTestID()
+	testDir := path.Join(testRootDir, testID)
+
+	helper := &E2ETestHelper{
+		App: &app.App{
+			Config: cfg,
+			SDK:    client,
+		},
+		TestID:    testID,
+		TestDir:   testDir,
+		TempFiles: make([]string, 0),
+	}
+
+	// Ensure test directory exists
+	if err := helper.ensureTestDirectory(); err != nil {
+		t.Fatalf("Failed to create test directory: %v", err)
+	}
+
+	// Set up cleanup
+	t.Cleanup(func() {
+		helper.Cleanup(t)
 	})
 
-	return client, nil
+	return helper
 }
 
 // ensureTestDirectory creates the test directory if it doesn't exist
@@ -219,7 +185,7 @@ func (h *E2ETestHelper) WaitForFile(t *testing.T, remotePath string, timeout tim
 			return // File found
 		}
 
-		if !strings.Contains(err.Error(), "itemNotFound") {
+		if !strings.Contains(err.Error(), "itemNotFound") && !strings.Contains(err.Error(), "resource not found") {
 			t.Fatalf("Unexpected error while waiting for file %s: %v", remotePath, err)
 		}
 
@@ -250,11 +216,7 @@ func (h *E2ETestHelper) AssertFileNotExists(t *testing.T, remotePath string) {
 	_, err := h.App.SDK.GetDriveItemByPath(remotePath)
 	if err == nil {
 		t.Errorf("Expected file %s to not exist, but it was found", remotePath)
-		return
-	}
-
-	// Check for both the raw error code and the formatted error message
-	if !strings.Contains(err.Error(), "itemNotFound") && !strings.Contains(err.Error(), "resource not found") {
+	} else if !strings.Contains(err.Error(), "itemNotFound") && !strings.Contains(err.Error(), "resource not found") {
 		t.Errorf("Unexpected error checking if file %s exists: %v", remotePath, err)
 	}
 }
@@ -263,149 +225,94 @@ func (h *E2ETestHelper) AssertFileNotExists(t *testing.T, remotePath string) {
 func (h *E2ETestHelper) CompareFileContent(t *testing.T, remotePath string, expectedContent []byte) {
 	t.Helper()
 
-	// This is a placeholder for a more robust implementation
-	// For now, we assume it's implemented elsewhere or will be added
-	t.Logf("CompareFileContent not fully implemented - skipping content check for %s", remotePath)
+	localPath := h.CreateTestFile(t, "downloaded-for-compare", []byte{})
+	defer os.Remove(localPath)
 
-	// A proper implementation would look like this:
-	/*
-		item, err := h.App.SDK.GetDriveItemByPath(remotePath)
-		if err != nil {
-			t.Fatalf("Failed to get item for content comparison: %v", err)
-		}
+	err := h.App.SDK.DownloadFile(remotePath, localPath)
+	if err != nil {
+		t.Fatalf("Failed to download file %s for comparison: %v", remotePath, err)
+	}
 
-		// Download the file (this needs a download helper)
-		// For now, we assume a simple download URL exists
-		resp, err := http.Get(item.DownloadURL)
-		if err != nil {
-			t.Fatalf("Failed to download file for comparison: %v", err)
-		}
-		defer resp.Body.Close()
+	actualContent, err := os.ReadFile(localPath)
+	if err != nil {
+		t.Fatalf("Failed to read downloaded file %s: %v", localPath, err)
+	}
 
-		actualContent, err := io.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("Failed to read downloaded content: %v", err)
-		}
-
-		if !bytes.Equal(expectedContent, actualContent) {
-			t.Errorf("File content mismatch for %s", remotePath)
-		}
-	*/
+	if string(actualContent) != string(expectedContent) {
+		t.Errorf("File content mismatch for %s. Expected %d bytes, got %d bytes.",
+			remotePath, len(expectedContent), len(actualContent))
+	}
 }
 
-// CompareFileHash downloads a remote file and compares its SHA256 hash with a local file.
+// CompareFileHash compares the hash of a local file and a remote file
 func (h *E2ETestHelper) CompareFileHash(t *testing.T, localPath, remotePath string) {
 	t.Helper()
 
-	// Get local file hash
+	// Download the remote file to a temporary location
+	downloadedPath := h.CreateTestFile(t, "downloaded-for-hash", []byte{})
+	defer os.Remove(downloadedPath)
+
+	err := h.App.SDK.DownloadFile(remotePath, downloadedPath)
+	if err != nil {
+		t.Fatalf("Failed to download remote file %s for hash comparison: %v", remotePath, err)
+	}
+
+	// Calculate hash of the original local file
 	localHash, err := h.CalculateFileHash(localPath)
 	if err != nil {
 		t.Fatalf("Failed to calculate hash for local file %s: %v", localPath, err)
 	}
 
-	// Download remote file to a temporary location
-	tempLocalPath := h.CreateTestFile(t, "downloaded-for-hash-comp.tmp", nil)
-
-	// Try primary download method
-	err = h.App.SDK.DownloadFile(remotePath, tempLocalPath)
+	// Calculate hash of the downloaded file
+	remoteHash, err := h.CalculateFileHash(downloadedPath)
 	if err != nil {
-		// If primary download fails, try to get the download URL from item metadata
-		t.Logf("Primary download failed (%v), attempting alternative download method", err)
-
-		// Get item metadata first
-		item, itemErr := h.App.SDK.GetDriveItemByPath(remotePath)
-		if itemErr != nil {
-			t.Fatalf("Failed to get item metadata for alternative download of %s: %v", remotePath, itemErr)
-		}
-
-		// Check if we have a download URL
-		if item.DownloadURL == "" {
-			t.Fatalf("No download URL available for item %s, and primary download failed: %v", remotePath, err)
-		}
-
-		// Try downloading directly from the download URL
-		resp, urlErr := http.Get(item.DownloadURL)
-		if urlErr != nil {
-			t.Fatalf("Alternative download also failed for %s: %v (original error: %v)", remotePath, urlErr, err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("Alternative download failed with status %s for %s (original error: %v)", resp.Status, remotePath, err)
-		}
-
-		// Save the response to file
-		outFile, createErr := os.Create(tempLocalPath)
-		if createErr != nil {
-			t.Fatalf("Failed to create temp file for alternative download: %v", createErr)
-		}
-		defer outFile.Close()
-
-		_, copyErr := io.Copy(outFile, resp.Body)
-		if copyErr != nil {
-			t.Fatalf("Failed to save alternative download: %v", copyErr)
-		}
-
-		t.Logf("✓ Alternative download successful for %s", remotePath)
-	}
-
-	// Get remote (downloaded) file hash
-	remoteHash, err := h.CalculateFileHash(tempLocalPath)
-	if err != nil {
-		t.Fatalf("Failed to calculate hash for downloaded file %s: %v", tempLocalPath, err)
+		t.Fatalf("Failed to calculate hash for downloaded file %s: %v", downloadedPath, err)
 	}
 
 	if localHash != remoteHash {
-		t.Errorf("File hash mismatch for %s. Local hash: %s, Remote hash: %s", remotePath, localHash, remoteHash)
-	} else {
-		t.Logf("✓ File hashes match for %s and %s", localPath, remotePath)
+		t.Errorf("File hash mismatch for %s. Local hash: %s, Remote hash: %s",
+			remotePath, localHash, remoteHash)
 	}
 }
 
+// CalculateFileHash calculates the SHA256 hash of a file
 func (h *E2ETestHelper) CalculateFileHash(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("opening file: %w", err)
 	}
 	defer file.Close()
 
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", fmt.Errorf("copying file to hasher: %w", err)
 	}
 
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
 }
 
-// Cleanup removes all test files and directories
+// Cleanup removes the test directory and temporary files
 func (h *E2ETestHelper) Cleanup(t *testing.T) {
 	t.Helper()
 
-	// Clean up local temp files
+	// Remove local temp files
 	for _, file := range h.TempFiles {
-		if err := os.Remove(file); err != nil {
-			t.Logf("Warning: failed to remove temp file %s: %v", file, err)
-		}
+		os.Remove(file)
 	}
 
-	// Clean up remote test directory
-	// Note: Delete functionality is not yet implemented in the SDK
-	// TODO: Implement delete when it becomes available
-	if h.App != nil && h.App.SDK != nil {
-		t.Logf("Note: Remote test directory cleanup not available yet: %s", h.TestDir)
-		t.Logf("Please manually clean up test directory if needed")
+	// Remove remote test directory
+	if err := h.App.SDK.DeleteDriveItem(h.TestDir); err != nil {
+		// Don't fail the test, but log the error
+		t.Logf("Warning: failed to clean up remote directory %s: %v", h.TestDir, err)
 	}
 }
 
-// generateTestID creates a unique test identifier
 func generateTestID() string {
-	return fmt.Sprintf("test-%d", time.Now().UnixNano())
+	return fmt.Sprintf("e2e-%d", time.Now().UnixNano())
 }
 
-// LogTestInfo logs useful information about the test setup
 func (h *E2ETestHelper) LogTestInfo(t *testing.T) {
 	t.Helper()
 	t.Logf("Test ID: %s", h.TestID)
 	t.Logf("Test Directory: %s", h.TestDir)
-	t.Logf("Temp Files Created: %d", len(h.TempFiles))
 }

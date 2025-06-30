@@ -1,24 +1,22 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/config"
 	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
-	"golang.org/x/oauth2"
 )
 
 var ErrLoginPending = errors.New("login pending")
 
 type App struct {
 	Config *config.Configuration
-	Client *http.Client
 	SDK    SDK
 }
 
@@ -38,11 +36,7 @@ func NewApp(cmd *cobra.Command) (*App, error) {
 		Config: cfg,
 	}
 
-	if app.Config.Debug {
-		onedrive.SetLogger(ui.StdLogger{})
-	}
-
-	client, err := app.initializeOnedriveClient()
+	sdk, err := app.initializeOnedriveSDK()
 	if err != nil {
 		// Forward ErrLoginPending without wrapping
 		if errors.Is(err, ErrLoginPending) {
@@ -50,13 +44,12 @@ func NewApp(cmd *cobra.Command) (*App, error) {
 		}
 		return nil, fmt.Errorf("initializing onedrive client: %w", err)
 	}
-	app.Client = client
-	app.SDK = NewOneDriveSDK(client)
+	app.SDK = sdk
 
 	return app, nil
 }
 
-func (a *App) initializeOnedriveClient() (*http.Client, error) {
+func (a *App) initializeOnedriveSDK() (SDK, error) {
 	if a.Config == nil {
 		return nil, errors.New("configuration is nil")
 	}
@@ -95,25 +88,25 @@ func (a *App) initializeOnedriveClient() (*http.Client, error) {
 		fmt.Println("Login successful!")
 	}
 
-	ctx, oauthConfig := onedrive.GetOauth2Config(config.ClientID)
-
 	if a.Config.Token.AccessToken == "" {
 		return nil, onedrive.ErrReauthRequired
 	}
 
-	// Create a TokenSource that will refresh the token automatically
-	baseTokenSource := (*oauth2.Config)(oauthConfig).TokenSource(ctx, (*oauth2.Token)(&a.Config.Token))
-
 	// Define the callback for when a new token is fetched
-	onNewToken := func(token *oauth2.Token) error {
-		return a.Config.UpdateToken(onedrive.OAuthToken(*token))
+	onNewToken := func(token *onedrive.Token) error {
+		a.Config.Token = *token
+		return a.Config.Save()
 	}
 
-	// Wrap the base TokenSource with our persisting layer
-	persistingSource := newPersistingTokenSource(baseTokenSource, (*oauth2.Token)(&a.Config.Token), onNewToken)
+	var logger onedrive.Logger
+	if a.Config.Debug {
+		logger = ui.StdLogger{}
+	}
 
 	// Create the final client using the persisting token source
-	return onedrive.NewClient(ctx, persistingSource), nil
+	client := onedrive.NewClient(context.Background(), &a.Config.Token, onNewToken, logger)
+
+	return client, nil
 }
 
 // GetMe fetches the current user's information.
@@ -123,7 +116,7 @@ func (a *App) GetMe() (onedrive.User, error) {
 
 // Logout clears the stored credentials and any pending auth session.
 func Logout(cfg *config.Configuration) error {
-	cfg.Token = onedrive.OAuthToken{}
+	cfg.Token = onedrive.Token{}
 	if err := cfg.Save(); err != nil {
 		return fmt.Errorf("could not clear token: %w", err)
 	}

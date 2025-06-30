@@ -20,9 +20,9 @@ var ErrConfigNotFound = errors.New("configuration file not found")
 // Configuration struct holds all the application's persisted settings.
 // It includes the OAuth token and a debug flag.
 type Configuration struct {
-	Token onedrive.OAuthToken `json:"token"`
-	Debug bool                `json:"debug"`
-	mu    sync.RWMutex        // Add mutex for thread-safe writes
+	Token onedrive.Token `json:"token"`
+	Debug bool           `json:"debug"`
+	mu    sync.RWMutex   // Add mutex for thread-safe writes
 }
 
 // GetConfigDir returns the root directory for application configuration files.
@@ -129,13 +129,4 @@ func LoadOrCreate() (*Configuration, error) {
 		return nil, err
 	}
 	return cfg, nil
-}
-
-// UpdateToken safely updates the OAuth token using the mutex
-func (c *Configuration) UpdateToken(token onedrive.OAuthToken) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.Token = token
-	return c.saveUnlocked()
 }

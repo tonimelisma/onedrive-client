@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Major Architectural Refactor**: Overhauled the core SDK and application architecture to improve robustness, maintainability, and testability.
+  - **Stateful SDK Client**: Replaced the stateless `pkg/onedrive` function collection with a new stateful `onedrive.Client`. This client now manages the HTTP client and token lifecycle internally.
+  - **Transparent Token Refresh & Persistence**: The `onedrive.Client` now handles `401 Unauthorized` errors by automatically refreshing the access token and retrying the request. It uses a callback mechanism (`onNewToken`) to allow the application layer to persist the new token, decoupling the SDK from the storage implementation.
+  - **Clean API Abstraction**: The `internal/app.SDK` interface is now directly implemented by `*onedrive.Client`, removing the previous `OneDriveSDK` wrapper and simplifying the application structure.
+  - **Code Reorganization**: Migrated all API-related logic into `pkg/onedrive/client.go` and separated authentication flows into `pkg/onedrive/auth.go`. The obsolete `pkg/onedrive/onedrive.go` file has been removed.
+
 ### Added
 
 **Epic 7: Comprehensive Microsoft Graph API Coverage - Advanced Features Implementation (COMPLETED)**
@@ -238,6 +245,8 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 - Enhanced `DownloadFile` function to properly handle Microsoft Graph API's 302 redirect response pattern for download requests.
 - Improved error handling in E2E tests to be more resilient to different error message formats.
 - Updated E2E test directory creation logic to ensure proper hierarchy setup.
+- **Testing**: E2E test suite is now part of the default `go test ./...` run. The `//go:build e2e` build tags were removed and helper functions now gracefully skip tests when `config.json` is not present.
+- **Testing Robustness**: Error handling in E2E helper updated to treat `resource not found` responses as expected for non-existent items. Invalid special-folder test relaxed to accommodate account-specific error messages.
 
 ### Fixed
 - **Critical**: Fixed fundamental URL construction bug in `BuildPathURL()` function that was generating malformed URLs with double colons (`::`) instead of single colons (`:`).

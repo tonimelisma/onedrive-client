@@ -132,7 +132,7 @@ func TestAuthStatus(t *testing.T) {
 						w.WriteHeader(http.StatusBadRequest)
 						json.NewEncoder(w).Encode(map[string]string{"error": "authorization_pending"})
 					} else {
-						json.NewEncoder(w).Encode(onedrive.OAuthToken{AccessToken: "final-token"})
+						json.NewEncoder(w).Encode(map[string]interface{}{"access_token": "final-token", "token_type": "Bearer"})
 					}
 				} else {
 					w.WriteHeader(http.StatusNotFound)
