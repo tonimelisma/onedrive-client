@@ -58,7 +58,7 @@ func SaveAuthState(state *AuthState) error {
 		return fmt.Errorf("could not marshal auth session state: %w", err)
 	}
 
-	return os.WriteFile(filePath, data, 0644)
+	return os.WriteFile(filePath, data, 0600)
 }
 
 // LoadAuthState retrieves the pending authentication state from a file.

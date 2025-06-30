@@ -12,7 +12,7 @@ import (
 
 // State represents the state of a resumable session.
 type State struct {
-	DownloadURL      string    `json:"downloadUrl,omitempty"`
+	DownloadURL        string    `json:"downloadUrl,omitempty"`
 	UploadURL          string    `json:"uploadUrl,omitempty"`
 	ExpirationDateTime time.Time `json:"expirationDateTime"`
 	LocalPath          string    `json:"localPath"`
@@ -70,7 +70,7 @@ func (m *Manager) Save(state *State) error {
 		return fmt.Errorf("could not marshal session state: %w", err)
 	}
 
-	return os.WriteFile(filePath, data, 0644)
+	return os.WriteFile(filePath, data, 0600)
 }
 
 // Load retrieves the upload session state from a file.
@@ -167,7 +167,7 @@ func Save(state *State) error {
 		return fmt.Errorf("could not marshal session state: %w", err)
 	}
 
-	return os.WriteFile(filePath, data, 0644)
+	return os.WriteFile(filePath, data, 0600)
 }
 
 // Deprecated: Use Manager.Load instead

@@ -29,8 +29,8 @@ var rootCmd = &cobra.Command{
 			if errors.Is(err, app.ErrLoginPending) {
 				// The specific error from app.go contains the user-friendly message.
 				fmt.Println(err.Error())
-				// We return a special error to stop execution but not show a generic error message.
-				return errors.New("login pending")
+				// Return the sentinel so Execute can handle it
+				return app.ErrLoginPending
 			}
 			if errors.Is(err, onedrive.ErrReauthRequired) {
 				// This is not an error condition for the root command,
@@ -50,8 +50,8 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		// Don't print the generic "login pending" error message.
-		if err.Error() != "login pending" {
+		// Suppress duplicate output for login pending sentinel which was already printed.
+		if !errors.Is(err, app.ErrLoginPending) {
 			fmt.Println(err)
 		}
 		os.Exit(1)

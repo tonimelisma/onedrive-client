@@ -292,6 +292,7 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 ### Security
 - Enhanced session file locking to prevent race conditions in concurrent CLI invocations.
 - Improved error message handling to avoid exposing sensitive information in logs.
+- Session and authentication state files are now written with `0600` permissions instead of `0644`, preventing other local users from reading sensitive data.
 
 ### Development Notes
 - **Test Coverage Achievement**: Successfully implemented comprehensive E2E test coverage for all existing SDK functionality
@@ -357,3 +358,10 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 ### Fixed
 - Test suite now uses a mock SDK to avoid live network calls.
 - Build process is now more reliable.
+
+### Security
+- Session and authentication state files are now written with `0600` permissions instead of `0644`, preventing other local users from reading sensitive data.
+
+### Changed
+- The root command no longer relies on fragile string comparisons to detect a pending login.  It now uses the typed sentinel `app.ErrLoginPending` and `errors.Is` for robust detection.
+- E2E tests skip automatically when the local access token is invalid or expired, keeping CI green while still running for developers with valid credentials.
