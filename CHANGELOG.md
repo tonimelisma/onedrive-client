@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Transparent Token Refresh & Persistence**: The `onedrive.Client` now handles `401 Unauthorized` errors by automatically refreshing the access token and retrying the request. It uses a callback mechanism (`onNewToken`) to allow the application layer to persist the new token, decoupling the SDK from the storage implementation.
   - **Clean API Abstraction**: The `internal/app.SDK` interface is now directly implemented by `*onedrive.Client`, removing the previous `OneDriveSDK` wrapper and simplifying the application structure.
   - **Code Reorganization**: Migrated all API-related logic into `pkg/onedrive/client.go` and separated authentication flows into `pkg/onedrive/auth.go`. The obsolete `pkg/onedrive/onedrive.go` file has been removed.
+- **Error Handling**: Added new sentinel `ErrInternal` in SDK and replaced the last anonymous internal error with it. Every error path in public SDK now returns a typed sentinel that can be detected with `errors.Is`.
 
 ### Added
 

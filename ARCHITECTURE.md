@@ -366,6 +366,7 @@ This architecture ensures a robust separation of concerns:
 
 #### Testing Strategy Updates (2025-06-29)
 * The E2E test suite is now compiled and executed by default with `go test ./...`. Tests skip automatically if no authenticated `config.json` is present, preventing CI failures while still offering full coverage in developer environments.
+* All SDK error returns are standardized. A final `ErrInternal` sentinel was introduced (2025-06-29) so callers can rely exclusively on `errors.Is` for branching logic.
 
 ---
 

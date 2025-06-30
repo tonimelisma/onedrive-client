@@ -31,6 +31,9 @@ All interactions with the Microsoft Graph API are handled by an integrated **SDK
 * E2E test suite integrated into default `go test ./...` run by removing conditional build tags.
 * Tests gracefully skip when local `config.json` is absent, allowing CI environments without live credentials to succeed while still providing full coverage locally.
 
+#### 2025-06-29 Error Handling Standardization
+* Introduced `ErrInternal` sentinel error in SDK; all SDK methods now return typed sentinel errors only, simplifying downstream error handling.
+
 ## 3. Epics, User Stories, and CLI Commands
 
 **Status Legend:**

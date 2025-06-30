@@ -1247,7 +1247,7 @@ func (c *Client) apiCall(method, url, contentType string, body io.ReadSeeker) (*
 		c.logger.Debug("apiCall invoked with method: ", method, ", URL: ", url)
 
 		if c.httpClient == nil {
-			return nil, errors.New("HTTP client is nil, please provide a valid HTTP client")
+			return nil, ErrInternal
 		}
 
 		var req *http.Request
@@ -1390,4 +1390,5 @@ var (
 	ErrAuthorizationPending  = errors.New("authorization pending")
 	ErrAuthorizationDeclined = errors.New("authorization declined")
 	ErrTokenExpired          = errors.New("token expired")
+	ErrInternal              = errors.New("internal error")
 )
