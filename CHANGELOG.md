@@ -400,3 +400,6 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 ### Changed
 - The root command no longer relies on fragile string comparisons to detect a pending login.  It now uses the typed sentinel `app.ErrLoginPending` and `errors.Is` for robust detection.
 - E2E tests skip automatically when the local access token is invalid or expired, keeping CI green while still running for developers with valid credentials.
+
+### Internal Refactoring
+- Split `pkg/onedrive/client.go` drive-level methods into new `pkg/onedrive/drive.go` without functional changes.  This reduces client.go by ~150 LOC and unlocks further decomposition steps.

@@ -157,63 +157,6 @@ func (c *Client) GetMe() (User, error) {
 	return user, nil
 }
 
-// GetDrives retrieves the list of available drives for the user.
-func (c *Client) GetDrives() (DriveList, error) {
-	c.logger.Debug("GetDrives called")
-	var drives DriveList
-
-	url := customRootURL + "me/drives"
-	res, err := c.apiCall("GET", url, "", nil)
-	if err != nil {
-		return drives, err
-	}
-	defer res.Body.Close()
-
-	if err := json.NewDecoder(res.Body).Decode(&drives); err != nil {
-		return drives, fmt.Errorf("decoding drives failed: %v", err)
-	}
-
-	return drives, nil
-}
-
-// GetDefaultDrive retrieves the default drive for the user, including quota information.
-func (c *Client) GetDefaultDrive() (Drive, error) {
-	c.logger.Debug("GetDefaultDrive called")
-	var drive Drive
-
-	url := customRootURL + "me/drive"
-	res, err := c.apiCall("GET", url, "", nil)
-	if err != nil {
-		return drive, err
-	}
-	defer res.Body.Close()
-
-	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
-		return drive, fmt.Errorf("decoding drive failed: %v", err)
-	}
-
-	return drive, nil
-}
-
-// GetDriveByID gets metadata for a specific drive by its ID
-func (c *Client) GetDriveByID(driveID string) (Drive, error) {
-	c.logger.Debug("GetDriveByID called with ID: ", driveID)
-	var drive Drive
-
-	url := customRootURL + "drives/" + url.PathEscape(driveID)
-	res, err := c.apiCall("GET", url, "", nil)
-	if err != nil {
-		return drive, err
-	}
-	defer res.Body.Close()
-
-	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
-		return drive, fmt.Errorf("decoding drive failed: %v", err)
-	}
-
-	return drive, nil
-}
-
 // GetDriveItemByPath retrieves the metadata for a single drive item by its path.
 func (c *Client) GetDriveItemByPath(path string) (DriveItem, error) {
 	var item DriveItem
@@ -965,30 +908,6 @@ func (c *Client) SearchDriveItemsInFolder(folderPath, query string, paging Pagin
 	}
 
 	return items, nextLink, nil
-}
-
-// GetDriveActivities retrieves activities for the entire drive.
-func (c *Client) GetDriveActivities(paging Paging) (ActivityList, string, error) {
-	var activities ActivityList
-	initialURL := customRootURL + "me/drive/activities"
-	if paging.Top > 0 {
-		initialURL += fmt.Sprintf("?$top=%d", paging.Top)
-	}
-
-	rawActivities, nextLink, err := c.collectAllPages(initialURL, paging)
-	if err != nil {
-		return activities, "", err
-	}
-
-	for _, raw := range rawActivities {
-		var activity Activity
-		if err := json.Unmarshal(raw, &activity); err != nil {
-			return activities, "", fmt.Errorf("decoding activity: %w", err)
-		}
-		activities.Value = append(activities.Value, activity)
-	}
-
-	return activities, nextLink, nil
 }
 
 // GetItemActivities retrieves activities for a specific item.
