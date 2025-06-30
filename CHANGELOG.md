@@ -40,12 +40,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Major Architectural Refactor**: Overhauled the core SDK and application architecture to improve robustness, maintainability, and testability.
   - **Stateful SDK Client**: Replaced the stateless `pkg/onedrive` function collection with a new stateful `onedrive.Client`. This client now manages the HTTP client and token lifecycle internally.
-  - **Transparent Token Refresh & Persistence**: The `onedrive.Client` now handles `401 Unauthorized` errors by automatically refreshing the access token and retrying the request. It uses a callback mechanism (`onNewToken`) to allow the application layer to persist the new token, decoupling the SDK from the storage implementation.
-  - **Clean API Abstraction**: The `internal/app.SDK` interface is now directly implemented by `*onedrive.Client`, removing the previous `OneDriveSDK` wrapper and simplifying the application structure.
-  - **Code Reorganization**: Migrated all API-related logic into `pkg/onedrive/client.go` and separated authentication flows into `pkg/onedrive/auth.go`. The obsolete `pkg/onedrive/onedrive.go` file has been removed.
-- **Error Handling**: Added new sentinel `ErrInternal` in SDK and replaced the last anonymous internal error with it. Every error path in public SDK now returns a typed sentinel that can be detected with `errors.Is`.
-- **CLI Command Reorganization**: Replaced the top-level `files`, `delta`, and `shared` commands with a single consolidated `items` command.  Delta tracking is now invoked as `items delta` and shared content as `items shared list`.  All former `files ...` subcommands are unchanged but are now invoked as `items ...`.
-- **The upload code now uses the new `session.Manager` API instead of deprecated global helper functions, paving the way for thread-safe session handling and easier future locking.**
+  - **Session State Persistence**: Upload sessions are now persisted to disk, allowing for resumable uploads even if the application is interrupted.
+  - **Global State Elimination**: Previously, authentication was managed through multiple package-level variables and functions. This has been replaced with a new `App` structure that manages all dependencies explicitly.
+  - **Token Refresh Integration**: Previously, the application had to manually check for 401s and refresh tokens. This is now handled transparently by the SDK client.
+  - **Builder Pattern for Tests**: Tests can now use a builder pattern with mock SDKs, improving testability and reducing coupling.
+  - **Centralized Configuration**: The configuration is now managed through a single `Config` structure, reducing dependency on environment variables throughout the codebase.
+  - **HTTP Client Encapsulation**: Raw `http.Client` usage was scattered throughout the old implementation. This is now encapsulated within the SDK client.
+  - **Structured Error Handling**: Errors now use typed sentinels (like `app.ErrLoginPending`) for consistent and testable error handling.
+- **Session Management Overhaul**: Completely rewritten session management with a new `Manager` pattern:
+  - Thread-safe operations with proper file locking
+  - Atomic writes to prevent corruption during interruption
+  - Configurable directory support for testing isolation
+  - Consistent 0600 file permissions for security
+  - Expiration handling for upload and auth sessions
+  - Better error messages and handling
+- **Upload Session Management**: Complete rewrite of upload session handling:
+  - Resumable uploads with automatic retry on failure
+  - Progress bars and status reporting during uploads
+  - Session state persistence across application restarts
+  - Graceful handling of Ctrl+C interruption
+  - Session cleanup on successful completion
+  - Improved error messages and debugging
+- **Authentication Flow**: Substantially improved authentication handling:
+  - Non-blocking device code flow with polling
+  - Better error messages for common failure scenarios  
+  - Automatic cleanup of expired authentication sessions
+  - More robust token refresh handling
+  - Clear indication of authentication state to users
+- **OAuth Robustness**: Implemented automatic, transparent token refresh. If an API call fails with a 401 Unauthorized error, the client now automatically uses the refresh token to get a new access token and retries the original request.
+- **Atomic Config Writes**: Configuration and token writes are now atomic (write to temp file + rename) to prevent corruption if the application is interrupted.
+- **Thread Safety**: Fixed a potential deadlock in the configuration saving mechanism.
+- Removed duplicate `persistingTokenSource` implementation from `internal/app`; the single authoritative implementation now lives in the SDK (`pkg/onedrive`).
+- Session manager now respects the `ONEDRIVE_CONFIG_PATH` environment variable ensuring test isolation and consistent session file locations.
+- The root command no longer relies on fragile string comparisons to detect a pending login. It now uses the typed sentinel `app.ErrLoginPending` and `errors.Is` for robust detection.
+- E2E tests skip automatically when the local access token is invalid or expired, keeping CI green while still running for developers with valid credentials.
+
+### Internal Refactoring  
+- **SDK Client Code Organization**: Split monolithic `pkg/onedrive/client.go` (~1400 LOC) for improved maintainability:
+  - `pkg/onedrive/drive.go` - Drive-level operations (GetDrives, GetDefaultDrive, GetDriveByID, GetDriveActivities, GetRootDriveItems) 
+  - `pkg/onedrive/item.go` - Item-level CRUD operations (GetDriveItemByPath, CreateFolder, UploadFile, DeleteDriveItem, CopyDriveItem, MoveDriveItem, UpdateDriveItem)
+  - Reduced client.go from ~1400 LOC to ~900 LOC for better code organization
+  - Eliminated duplicate method implementations during split
+  - Each file maintains focused responsibility (drives vs items vs core client functionality)
+- Restored `GetRootDriveItems` as a supported helper (moved to `drive.go`), removing the internal deprecation notice.
+
+### Removed
+- Removed the old `drives` command, which was a temporary implementation for listing root items. Its functionality is now part of `files list`.
+- Removed deprecated session management functions replaced by Manager pattern.
+- Removed duplicate SDK implementations to maintain single source of truth.
 
 ### Added
 
