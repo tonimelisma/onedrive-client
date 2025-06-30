@@ -403,3 +403,4 @@ Epic 7 now implements 20/30 API endpoints (67% complete), up from 17/30 (57% com
 
 ### Internal Refactoring
 - Split `pkg/onedrive/client.go` drive-level methods into new `pkg/onedrive/drive.go` without functional changes.  This reduces client.go by ~150 LOC and unlocks further decomposition steps.
+- Restored `GetRootDriveItems` as a supported helper (moved to `drive.go`), removing the internal deprecation notice.

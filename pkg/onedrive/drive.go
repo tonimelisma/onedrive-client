@@ -89,3 +89,22 @@ func (c *Client) GetDriveActivities(paging Paging) (ActivityList, string, error)
 
 	return activities, nextLink, nil
 }
+
+// GetRootDriveItems lists items in the root of the user's default drive.
+// It is equivalent to GET /me/drive/root/children and remains a first-class helper
+// for callers that want a simple root listing without building a path.
+func (c *Client) GetRootDriveItems() (DriveItemList, error) {
+	var items DriveItemList
+
+	res, err := c.apiCall("GET", customRootURL+"me/drive/root/children", "", nil)
+	if err != nil {
+		return items, err
+	}
+	defer res.Body.Close()
+
+	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
+		return items, fmt.Errorf("decoding item list failed: %v", err)
+	}
+
+	return items, nil
+}

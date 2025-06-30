@@ -200,30 +200,6 @@ func (c *Client) GetDriveItemChildrenByPath(path string) (DriveItemList, error) 
 	return items, nil
 }
 
-// GetRootDriveItems is deprecated and will be removed.
-// Use GetDriveItemChildrenByPath(client, "/") instead.
-func (c *Client) GetRootDriveItems() (DriveItemList, error) {
-	var items DriveItemList
-
-	res, err := c.apiCall("GET", customRootURL+"me/drive/root/children", "", nil)
-	if err != nil {
-		return items, err
-	}
-	defer res.Body.Close()
-
-	resBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		return items, fmt.Errorf("couldn't parse body: %v", err)
-	}
-
-	err = json.Unmarshal(resBody, &items)
-	if err != nil {
-		return items, fmt.Errorf("unmarshalling json: %v", err)
-	}
-
-	return items, nil
-}
-
 // CreateFolder creates a new folder in the specified parent path.
 func (c *Client) CreateFolder(parentPath string, folderName string) (DriveItem, error) {
 	var item DriveItem
