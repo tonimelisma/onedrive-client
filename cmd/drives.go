@@ -84,6 +84,62 @@ var drivesActivitiesCmd = &cobra.Command{
 	},
 }
 
+var drivesRootCmd = &cobra.Command{
+	Use:   "root",
+	Short: "List items in the root of the default drive",
+	Long:  "Lists all files and folders in the root directory of your default OneDrive.",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return drivesRootLogic(a)
+	},
+}
+
+var drivesSearchCmd = &cobra.Command{
+	Use:   "search <query>",
+	Short: "Search across the entire drive",
+	Long:  "Searches for files and folders across your entire OneDrive by query string.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return drivesSearchLogic(a, cmd, args)
+	},
+}
+
+var drivesDeltaCmd = &cobra.Command{
+	Use:   "delta [delta-token]",
+	Short: "Track changes in the drive using delta queries",
+	Long:  "Track changes to items in your OneDrive using delta queries. Provides efficient synchronization by only returning changed items.",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return drivesDeltaLogic(a, args)
+	},
+}
+
+var drivesSpecialCmd = &cobra.Command{
+	Use:   "special <folder-name>",
+	Short: "Access special folders",
+	Long:  "Access OneDrive special folders like Documents, Photos, Music, etc.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return drivesSpecialLogic(a, args)
+	},
+}
+
 func drivesListLogic(a *app.App) error {
 	drives, err := a.SDK.GetDrives()
 	if err != nil {
@@ -111,12 +167,72 @@ func drivesGetLogic(a *app.App, driveID string) error {
 	return nil
 }
 
+func drivesRootLogic(a *app.App) error {
+	items, err := a.SDK.GetRootDriveItems()
+	if err != nil {
+		return err
+	}
+	ui.DisplayDriveItems(items)
+	return nil
+}
+
+func drivesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
+	query := args[0]
+
+	// Parse paging options
+	paging, err := ui.ParsePagingFlags(cmd)
+	if err != nil {
+		return fmt.Errorf("parsing pagination flags: %w", err)
+	}
+
+	// Drive-level search always uses SearchDriveItemsWithPaging (no folder scope)
+	items, nextLink, err := a.SDK.SearchDriveItemsWithPaging(query, paging)
+	if err != nil {
+		return fmt.Errorf("searching drive: %w", err)
+	}
+
+	ui.DisplaySearchResults(items, query)
+	ui.HandleNextPageInfo(nextLink, paging.FetchAll)
+	return nil
+}
+
+func drivesDeltaLogic(a *app.App, args []string) error {
+	var deltaToken string
+	if len(args) > 0 {
+		deltaToken = args[0]
+	}
+
+	delta, err := a.SDK.GetDelta(deltaToken)
+	if err != nil {
+		return err
+	}
+
+	ui.DisplayDelta(delta)
+	return nil
+}
+
+func drivesSpecialLogic(a *app.App, args []string) error {
+	folderName := args[0]
+	item, err := a.SDK.GetSpecialFolder(folderName)
+	if err != nil {
+		return err
+	}
+	ui.DisplaySpecialFolder(item, folderName)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(drivesCmd)
 	drivesCmd.AddCommand(drivesListCmd)
 	drivesCmd.AddCommand(drivesQuotaCmd)
 	drivesCmd.AddCommand(drivesGetCmd)
 	drivesCmd.AddCommand(drivesActivitiesCmd)
+	drivesCmd.AddCommand(drivesRootCmd)
+	drivesCmd.AddCommand(drivesSearchCmd)
+	drivesCmd.AddCommand(drivesDeltaCmd)
+	drivesCmd.AddCommand(drivesSpecialCmd)
 
+	// Add pagination flags for commands that need them
 	ui.AddPagingFlags(drivesActivitiesCmd)
+	ui.AddPagingFlags(drivesSearchCmd)
 }

@@ -32,7 +32,6 @@ func InitItemsCommands(rootCmd *cobra.Command) {
 	ItemsCmd.AddCommand(filesRenameCmd)
 	ItemsCmd.AddCommand(filesSearchCmd)
 	ItemsCmd.AddCommand(filesRecentCmd)
-	ItemsCmd.AddCommand(filesSpecialCmd)
 	ItemsCmd.AddCommand(filesShareCmd)
 	ItemsCmd.AddCommand(filesVersionsCmd)
 	ItemsCmd.AddCommand(activitiesCmd)
@@ -53,8 +52,9 @@ func InitItemsCommands(rootCmd *cobra.Command) {
 	// Add download format flag
 	filesDownloadCmd.Flags().String("format", "", "Download file in specific format (e.g., pdf, docx)")
 
-	// Add search flags
-	filesSearchCmd.Flags().String("in", "", "Search within a specific folder")
+	// Add search flags - now required for items search
+	filesSearchCmd.Flags().String("in", "", "Search within a specific folder (required)")
+	filesSearchCmd.MarkFlagRequired("in")
 
 	// Add flags for new Epic 7 commands
 	filesPreviewCmd.Flags().String("page", "", "Page number or name to preview")

@@ -460,17 +460,12 @@ func TestFilesSearchLogic(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name: "search globally",
+			name: "search without folder scope (should error)",
 			args: []string{"test query"},
 			mockFunc: func() (*MockSDK, error) {
-				return &MockSDK{
-					SearchDriveItemsWithPagingFunc: func(query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
-						assert.Equal(t, "test query", query)
-						return onedrive.DriveItemList{}, "", nil
-					},
-				}, nil
+				return &MockSDK{}, nil
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:        "search in folder",
@@ -525,21 +520,7 @@ func TestFilesRecentLogic(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestFilesSpecialLogic(t *testing.T) {
-	mockSDK := &MockSDK{
-		GetSpecialFolderFunc: func(folderName string) (onedrive.DriveItem, error) {
-			assert.Equal(t, "Documents", folderName)
-			return onedrive.DriveItem{
-				Name: "Documents",
-				ID:   "special-folder-id",
-			}, nil
-		},
-	}
-	a := newTestApp(mockSDK)
-
-	err := filesSpecialLogic(a, &cobra.Command{}, []string{"Documents"})
-	assert.NoError(t, err)
-}
+// TestFilesSpecialLogic moved to drives_test.go since special folders are now drive-level
 
 func TestFilesVersionsLogic(t *testing.T) {
 	mockSDK := &MockSDK{

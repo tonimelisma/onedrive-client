@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes - CLI Command Reorganization
+- **BREAKING**: Reorganized CLI commands to follow Microsoft Graph API boundaries between Drive and Items operations:
+  - **Drive-level commands** (operations on entire drive): moved to `drives` namespace
+    - `drives search <query>` - Search across entire drive (was `items search` without --in flag)
+    - `drives delta [token]` - Track drive changes (was `items delta`, removed `cmd/delta.go`)
+    - `drives special <folder-name>` - Access special folders (was `items special`)
+    - `drives root` - List root directory items (uses GetRootDriveItems)
+    - `drives activities`, `drives list`, `drives quota`, `drives get` - unchanged
+  - **Item-level commands** (operations on specific items): kept in `items` namespace
+    - `items search <query> --in <folder-path>` - Search within specific folder (--in flag now required)
+    - All other items commands unchanged (list, stat, upload, download, rm, mv, etc.)
+  - **Shared items**: `shared` command unchanged (separate concept from drives/items)
+
 ### Major Refactoring (Breaking Changes)
 - **BREAKING**: Decomposed monolithic `cmd/files.go` (1193 LOC) into focused files ≤200 LOC each:
   - `cmd/items/items_root.go` - Command registration and flag setup
@@ -16,16 +29,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `cmd/items/items_download.go` - Download and deprecated list commands
   - `cmd/items/items_manage.go` - File operations (rm, mv, rename, copy)
   - `cmd/items/items_permissions.go` - Sharing and permissions management
-- **BREAKING**: Removed all deprecated session helper functions in favor of Manager pattern:
-  - Removed `GetConfigDir()`, `GetSessionFilePath()`, `Save()`, `Load()`, `Delete()` global functions
-  - All session operations now use `session.Manager` with configurable directory support
-  - Updated auth session handling to use Manager pattern consistently
-- **BREAKING**: Commands moved from `onedrive-client files <subcommand>` to `onedrive-client items <subcommand>`
-- **BREAKING**: No backwards compatibility provided for command structure or session functions
-- Added centralized pagination flags helper in `internal/ui/pagingflags.go`
-  - Eliminates duplication across commands requiring pagination
-  - Standardizes `--top`, `--all`, and `--next` flag handling
-- Updated `cmd/drives.go` to use centralized pagination helper
+- **BREAKING**: Removed all deprecated session helper functions in favor of the Manager pattern
+- **BREAKING**: Command restructuring from `files` to `items` namespace
+- **BREAKING**: Centralized pagination helper for consistent flag handling
+
+### SDK Client Code Organization
+- **Split of monolithic `pkg/onedrive/client.go`** (~1400 LOC) into focused modules:
+  - `pkg/onedrive/drive.go` - Drive-level operations (GetDrives, GetDefaultDrive, GetDriveByID, GetDriveActivities, GetRootDriveItems)
+  - `pkg/onedrive/item.go` - Item-level CRUD operations (GetDriveItemByPath, CreateFolder, UploadFile, DeleteDriveItem, CopyDriveItem, MoveDriveItem, UpdateDriveItem, MonitorCopyOperation)
+  - `pkg/onedrive/client.go` - Core client, authentication, download, search, and utility methods
+- **Restored `GetRootDriveItems`** as a supported helper (moved to `drive.go`), removing the internal deprecation notice
+
+### Internal Refactoring
+- Split `cmd/files.go` (1193 LOC) into focused files ≤200 LOC each across 7 specialized modules
+- Split `pkg/onedrive/client.go` drive-level methods into new `pkg/onedrive/drive.go` without functional changes.  This reduces client.go by ~150 LOC and unlocks further decomposition steps.
+- Removed deprecated session helpers in favor of the Manager pattern  
+- Command restructuring from `files` to `items` namespace
+- Centralized pagination helper for consistent flag handling
 
 ### Infrastructure Improvements
 - Enhanced session management with proper locking and error handling

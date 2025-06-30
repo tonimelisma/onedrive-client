@@ -38,9 +38,9 @@ var filesStatCmd = &cobra.Command{
 }
 
 var filesSearchCmd = &cobra.Command{
-	Use:   "search <query>",
-	Short: "Search for files and folders",
-	Long:  "Searches for files and folders across your OneDrive by query string.",
+	Use:   "search <query> --in <folder-path>",
+	Short: "Search within a specific folder",
+	Long:  "Searches for files and folders within a specific folder path. For drive-wide search, use 'drives search' instead.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
@@ -62,20 +62,6 @@ var filesRecentCmd = &cobra.Command{
 			return fmt.Errorf("error creating app: %w", err)
 		}
 		return filesRecentLogic(a, cmd, args)
-	},
-}
-
-var filesSpecialCmd = &cobra.Command{
-	Use:   "special <folder-name>",
-	Short: "Access special folders",
-	Long:  "Access OneDrive special folders like Documents, Photos, Music, etc.",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		a, err := app.NewApp(cmd)
-		if err != nil {
-			return fmt.Errorf("error creating app: %w", err)
-		}
-		return filesSpecialLogic(a, cmd, args)
 	},
 }
 
@@ -168,20 +154,15 @@ func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parsing pagination flags: %w", err)
 	}
 
-	// Check if folder-scoped search is requested
+	// Items search requires a folder path
 	folderPath, _ := cmd.Flags().GetString("in")
-
-	var items onedrive.DriveItemList
-	var nextLink string
-
-	if folderPath != "" {
-		items, nextLink, err = a.SDK.SearchDriveItemsInFolder(folderPath, query, paging)
-	} else {
-		items, nextLink, err = a.SDK.SearchDriveItemsWithPaging(query, paging)
+	if folderPath == "" {
+		return fmt.Errorf("items search requires --in flag with folder path. For drive-wide search, use 'drives search'")
 	}
 
+	items, nextLink, err := a.SDK.SearchDriveItemsInFolder(folderPath, query, paging)
 	if err != nil {
-		return fmt.Errorf("searching items: %w", err)
+		return fmt.Errorf("searching items in folder: %w", err)
 	}
 
 	ui.DisplaySearchResults(items, query)
@@ -195,16 +176,6 @@ func filesRecentLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return err
 	}
 	ui.DisplayRecentItems(items)
-	return nil
-}
-
-func filesSpecialLogic(a *app.App, cmd *cobra.Command, args []string) error {
-	folderName := args[0]
-	item, err := a.SDK.GetSpecialFolder(folderName)
-	if err != nil {
-		return err
-	}
-	ui.DisplaySpecialFolder(item, folderName)
 	return nil
 }
 

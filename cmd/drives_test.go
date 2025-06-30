@@ -139,3 +139,104 @@ func TestDrivesGetLogic(t *testing.T) {
 		})
 	}
 }
+
+func TestDrivesDeltaLogic(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		deltaFunc   func(deltaToken string) (onedrive.DeltaResponse, error)
+		expectError bool
+	}{
+		{
+			name: "Delta without token",
+			args: []string{},
+			deltaFunc: func(deltaToken string) (onedrive.DeltaResponse, error) {
+				if deltaToken != "" {
+					t.Errorf("Expected empty token, got %s", deltaToken)
+				}
+				return onedrive.DeltaResponse{
+					Value: []onedrive.DriveItem{
+						{
+							Name: "test-file.txt",
+							Size: 1024,
+						},
+					},
+					DeltaLink: "https://graph.microsoft.com/v1.0/me/drive/root/delta?token=abc123",
+				}, nil
+			},
+			expectError: false,
+		},
+		{
+			name: "Delta with token",
+			args: []string{"abc123"},
+			deltaFunc: func(deltaToken string) (onedrive.DeltaResponse, error) {
+				if deltaToken != "abc123" {
+					t.Errorf("Expected token 'abc123', got %s", deltaToken)
+				}
+				return onedrive.DeltaResponse{
+					Value: []onedrive.DriveItem{
+						{
+							Name: "modified-file.txt",
+							Size: 2048,
+						},
+					},
+					DeltaLink: "https://graph.microsoft.com/v1.0/me/drive/root/delta?token=def456",
+				}, nil
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := captureOutput(t, func() {
+				mockSDK := &MockSDK{
+					GetDeltaFunc: tt.deltaFunc,
+				}
+				testApp := newTestApp(mockSDK)
+
+				err := drivesDeltaLogic(testApp, tt.args)
+				if (err != nil) != tt.expectError {
+					t.Errorf("drivesDeltaLogic() error = %v, expectError %v", err, tt.expectError)
+				}
+			})
+
+			if !tt.expectError && output == "" {
+				t.Error("Expected output but got none")
+			}
+		})
+	}
+}
+
+func TestDrivesSpecialLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		GetSpecialFolderFunc: func(folderName string) (onedrive.DriveItem, error) {
+			assert.Equal(t, "Documents", folderName)
+			return onedrive.DriveItem{
+				Name: "Documents",
+				ID:   "special-folder-id",
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	err := drivesSpecialLogic(a, []string{"Documents"})
+	assert.NoError(t, err)
+}
+
+func TestDrivesRootLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		GetRootDriveItemsFunc: func() (onedrive.DriveItemList, error) {
+			return onedrive.DriveItemList{
+				Value: []onedrive.DriveItem{
+					{Name: "Documents", Size: 0},
+					{Name: "Pictures", Size: 0},
+				},
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	err := drivesRootLogic(a)
+	assert.NoError(t, err)
+}
