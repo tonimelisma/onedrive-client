@@ -140,6 +140,34 @@ var drivesSpecialCmd = &cobra.Command{
 	},
 }
 
+var drivesRecentCmd = &cobra.Command{
+	Use:   "recent",
+	Short: "List recently accessed files",
+	Long:  "Lists files and folders that have been recently accessed in your OneDrive.",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return drivesRecentLogic(a)
+	},
+}
+
+var drivesSharedCmd = &cobra.Command{
+	Use:   "shared",
+	Short: "List items shared with you",
+	Long:  "Lists all files and folders that have been shared with you from other OneDrive users.",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		a, err := app.NewApp(cmd)
+		if err != nil {
+			return fmt.Errorf("error creating app: %w", err)
+		}
+		return drivesSharedLogic(a)
+	},
+}
+
 func drivesListLogic(a *app.App) error {
 	drives, err := a.SDK.GetDrives()
 	if err != nil {
@@ -221,6 +249,24 @@ func drivesSpecialLogic(a *app.App, args []string) error {
 	return nil
 }
 
+func drivesRecentLogic(a *app.App) error {
+	items, err := a.SDK.GetRecentItems()
+	if err != nil {
+		return err
+	}
+	ui.DisplayRecentItems(items)
+	return nil
+}
+
+func drivesSharedLogic(a *app.App) error {
+	items, err := a.SDK.GetSharedWithMe()
+	if err != nil {
+		return fmt.Errorf("getting shared items: %w", err)
+	}
+	ui.DisplaySharedItems(items)
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(drivesCmd)
 	drivesCmd.AddCommand(drivesListCmd)
@@ -231,6 +277,8 @@ func init() {
 	drivesCmd.AddCommand(drivesSearchCmd)
 	drivesCmd.AddCommand(drivesDeltaCmd)
 	drivesCmd.AddCommand(drivesSpecialCmd)
+	drivesCmd.AddCommand(drivesRecentCmd)
+	drivesCmd.AddCommand(drivesSharedCmd)
 
 	// Add pagination flags for commands that need them
 	ui.AddPagingFlags(drivesActivitiesCmd)

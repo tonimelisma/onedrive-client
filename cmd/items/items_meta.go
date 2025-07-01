@@ -51,20 +51,6 @@ var filesSearchCmd = &cobra.Command{
 	},
 }
 
-var filesRecentCmd = &cobra.Command{
-	Use:   "recent",
-	Short: "List recently accessed files",
-	Long:  "Lists files and folders that have been recently accessed in your OneDrive.",
-	Args:  cobra.NoArgs,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		a, err := app.NewApp(cmd)
-		if err != nil {
-			return fmt.Errorf("error creating app: %w", err)
-		}
-		return filesRecentLogic(a, cmd, args)
-	},
-}
-
 var filesVersionsCmd = &cobra.Command{
 	Use:   "versions <path>",
 	Short: "List file versions",
@@ -167,15 +153,6 @@ func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 
 	ui.DisplaySearchResults(items, query)
 	ui.HandleNextPageInfo(nextLink, paging.FetchAll)
-	return nil
-}
-
-func filesRecentLogic(a *app.App, cmd *cobra.Command, args []string) error {
-	items, err := a.SDK.GetRecentItems()
-	if err != nil {
-		return err
-	}
-	ui.DisplayRecentItems(items)
 	return nil
 }
 

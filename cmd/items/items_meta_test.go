@@ -504,22 +504,7 @@ func TestFilesSearchLogic(t *testing.T) {
 	}
 }
 
-func TestFilesRecentLogic(t *testing.T) {
-	mockSDK := &MockSDK{
-		GetRecentItemsFunc: func() (onedrive.DriveItemList, error) {
-			return onedrive.DriveItemList{
-				Value: []onedrive.DriveItem{
-					{Name: "recent-file.txt", Size: 500},
-				},
-			}, nil
-		},
-	}
-	a := newTestApp(mockSDK)
-
-	err := filesRecentLogic(a, &cobra.Command{}, []string{})
-	assert.NoError(t, err)
-}
-
+// TestFilesRecentLogic moved to drives_test.go since recent items are now drive-level
 // TestFilesSpecialLogic moved to drives_test.go since special folders are now drive-level
 
 func TestFilesVersionsLogic(t *testing.T) {

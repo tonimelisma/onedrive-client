@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### API Mapping Corrections
+- **FIXED**: Corrected CLI command placement to align with Microsoft Graph API boundaries:
+  - **Moved `items recent` to `drives recent`**: Recent items use drive-level endpoint `GET /me/drive/recent` and are now correctly placed under drives
+  - **Moved `shared list` to `drives shared`**: Shared items use drive-level endpoint `GET /me/drive/sharedWithMe` and are now correctly placed under drives
+  - **Removed separate `shared` command**: Consolidated shared functionality into drives namespace for proper API boundary alignment
+- **Enhanced**: All APIs now correctly mapped according to Microsoft Graph API specification:
+  - **Drive commands**: All use drive-level endpoints (`/me/drive/*`, `/drives/*`)
+  - **Items commands**: All use item-level endpoints (`/me/drive/items/{item-id}/*`)
+- **Updated**: Test coverage for new command placements with comprehensive unit tests
+
 ### Breaking Changes - CLI Command Reorganization
 - **BREAKING**: Reorganized CLI commands to follow Microsoft Graph API boundaries between Drive and Items operations:
   - **Drive-level commands** (operations on entire drive): moved to `drives` namespace

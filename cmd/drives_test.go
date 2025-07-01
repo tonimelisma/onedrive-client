@@ -224,6 +224,22 @@ func TestDrivesSpecialLogic(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestDrivesRecentLogic(t *testing.T) {
+	mockSDK := &MockSDK{
+		GetRecentItemsFunc: func() (onedrive.DriveItemList, error) {
+			return onedrive.DriveItemList{
+				Value: []onedrive.DriveItem{
+					{Name: "recent-file.txt", Size: 500},
+				},
+			}, nil
+		},
+	}
+	a := newTestApp(mockSDK)
+
+	err := drivesRecentLogic(a)
+	assert.NoError(t, err)
+}
+
 func TestDrivesRootLogic(t *testing.T) {
 	mockSDK := &MockSDK{
 		GetRootDriveItemsFunc: func() (onedrive.DriveItemList, error) {

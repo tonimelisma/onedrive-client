@@ -31,7 +31,6 @@ func InitItemsCommands(rootCmd *cobra.Command) {
 	ItemsCmd.AddCommand(filesMvCmd)
 	ItemsCmd.AddCommand(filesRenameCmd)
 	ItemsCmd.AddCommand(filesSearchCmd)
-	ItemsCmd.AddCommand(filesRecentCmd)
 	ItemsCmd.AddCommand(filesShareCmd)
 	ItemsCmd.AddCommand(filesVersionsCmd)
 	ItemsCmd.AddCommand(activitiesCmd)

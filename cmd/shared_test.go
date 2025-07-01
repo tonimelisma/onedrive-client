@@ -5,12 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
-func TestSharedListLogic(t *testing.T) {
+func TestDrivesSharedLogic(t *testing.T) {
 	tests := []struct {
 		name        string
 		mockItems   onedrive.DriveItemList
@@ -76,9 +75,7 @@ func TestSharedListLogic(t *testing.T) {
 			}
 
 			app := newTestApp(mockSDK)
-			cmd := &cobra.Command{}
-
-			err := sharedListLogic(app, cmd, []string{})
+			err := drivesSharedLogic(app)
 
 			if tt.expectError {
 				assert.Error(t, err)

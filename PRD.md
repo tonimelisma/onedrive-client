@@ -334,12 +334,12 @@ As a developer, I want comprehensive coverage of Microsoft Graph OneDrive APIs t
 *   **[x] User Story 7.29:** I want to view items that have been shared with me.
     *   **API:** `GET /drive/sharedWithMe` (non-standard endpoint)
     *   **Implementation:** `GetSharedWithMe()`
-    *   **Command:** `onedrive-client shared list`
+    *   **Command:** `onedrive-client drives shared`
 
 *   **[x] User Story 7.30:** I want to view recently accessed items.
     *   **API:** `GET /drive/recent` (non-standard endpoint)
     *   **Implementation:** `GetRecentItems()`
-    *   **Command:** `onedrive-client files recent`
+    *   **Command:** `onedrive-client drives recent`
 
 **Implementation Status Summary:**
 - **Implemented:** 30/30 API endpoints (100% COMPLETE)

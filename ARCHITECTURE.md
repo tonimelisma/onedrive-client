@@ -419,9 +419,21 @@ The CLI layer has been extensively refactored for maintainability and separation
 ### Core Commands
 - `root.go` - Root command definition and global flag setup
 - `auth.go` - Authentication commands (login, logout, status)  
-- `drives.go` - Drive management commands (list, quota, get, activities)
-- `delta.go` - Delta query commands for change tracking
-- `shared.go` - Shared items commands
+- `drives.go` - Drive management commands (list, quota, get, activities, root, search, delta, special, recent, shared)
+- ~~`shared.go`~~ - **REMOVED**: Shared items functionality moved to drives command
+
+### Drive Commands (`cmd/drives.go`)
+All drive-level operations correctly mapped to Microsoft Graph API endpoints:
+- `drives list` → `GetDrives()` → `GET /me/drives`
+- `drives quota` → `GetDefaultDrive()` → `GET /me/drive` 
+- `drives get` → `GetDriveByID()` → `GET /drives/{drive-id}`
+- `drives activities` → `GetDriveActivities()` → `GET /me/drive/activities`
+- `drives root` → `GetRootDriveItems()` → `GET /me/drive/root/children`
+- `drives search` → `SearchDriveItemsWithPaging()` → `GET /me/drive/root/search`
+- `drives delta` → `GetDelta()` → `GET /me/drive/root/delta`
+- `drives special` → `GetSpecialFolder()` → `GET /me/drive/special/{name}`
+- `drives recent` → `GetRecentItems()` → `GET /me/drive/recent` *(corrected placement)*
+- `drives shared` → `GetSharedWithMe()` → `GET /me/drive/sharedWithMe` *(corrected placement)*
 
 ### Items Commands (`cmd/items/`)
 The file and folder management commands have been decomposed into focused modules:
