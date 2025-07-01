@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Critical Bug Fixes
+- **FIXED**: Critical OAuth2 token refresh bug that caused authentication failures with error "AADSTS900144: The request body must contain the following parameter: 'client_id'"
+  - **Root Cause**: The `oauth2.Config` used for token refresh was missing the `ClientID` field
+  - **Solution**: Updated `NewClient` function to accept and use `clientID` parameter, eliminating import cycle
+  - **Impact**: Authentication now works reliably without manual re-login when tokens expire
+
 ### API Mapping Corrections
 - **FIXED**: Corrected CLI command placement to align with Microsoft Graph API boundaries:
   - **Moved `items recent` to `drives recent`**: Recent items use drive-level endpoint `GET /me/drive/recent` and are now correctly placed under drives
