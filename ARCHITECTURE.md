@@ -99,6 +99,18 @@ The project is organized into packages, each with a distinct role.
 #### `pkg/onedrive/` (The SDK Layer)
 *   **Responsibility:** This package is the **only** component that knows how to communicate with the Microsoft Graph API. It handles creating API requests, parsing responses, and defining the data models (`DriveItem`, etc.).
 *   **Authentication**: It implements the raw mechanics of the OAuth 2.0 Device Code Flow but has no awareness of the higher-level application's stateful, non-blocking flow. It simply provides the functions to initiate the flow and verify a device code.
+*   **Code Organization (2025-06-30):** The SDK has been refactored from a monolithic `client.go` (1018 LOC) into focused, maintainable modules:
+    - `client.go` (461 LOC) - Core client initialization, authentication, shared utilities (`apiCall`, `collectAllPages`), and cross-cutting concerns
+    - `drive.go` (111 LOC) - Drive-level operations (GetDrives, GetDefaultDrive, GetDriveByID, etc.)
+    - `item.go` (229 LOC) - Item-level CRUD operations (GetDriveItemByPath, CreateFolder, etc.)
+    - `upload.go` (90 LOC) - Upload session management (CreateUploadSession, UploadChunk, etc.)
+    - `download.go` (162 LOC) - Download operations (DownloadFile, DownloadFileChunk, format conversion)
+    - `search.go` (80 LOC) - Search functionality (SearchDriveItems, folder-scoped search, paging)
+    - `activity.go` (35 LOC) - Activity tracking (GetItemActivities)
+    - `permissions.go` (158 LOC) - Sharing and permissions (CreateSharingLink, permissions CRUD)
+    - `thumbnails.go` (85 LOC) - Thumbnail and preview operations (GetThumbnails, PreviewItem)
+    - `auth.go` (227 LOC) - Authentication flows and token management
+    - `models.go` (359 LOC) - Data structures and API response models
 *   **Independence:** This package has no dependencies on any other package in the project (`internal/`, `cmd/`), making it a candidate for future extraction into a standalone library.
 
 #### Token Refresh & Persistence (Refined)

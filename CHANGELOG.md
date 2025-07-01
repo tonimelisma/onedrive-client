@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal Refactoring
+- **SDK Client Code Organization Enhancement**: Completed comprehensive splitting of monolithic `pkg/onedrive/client.go` (1018 LOC → 461 LOC) into focused, maintainable modules:
+  - `pkg/onedrive/upload.go` - Upload session methods (CreateUploadSession, UploadChunk, GetUploadSessionStatus, CancelUploadSession) (~90 LOC)
+  - `pkg/onedrive/download.go` - Download operations (DownloadFile, DownloadFileByItem, DownloadFileChunk, DownloadFileAsFormat) (~162 LOC)
+  - `pkg/onedrive/search.go` - Search functionality (SearchDriveItems, SearchDriveItemsInFolder, SearchDriveItemsWithPaging) (~80 LOC)
+  - `pkg/onedrive/activity.go` - Activity tracking (GetItemActivities) (~35 LOC)
+  - `pkg/onedrive/permissions.go` - Sharing and permissions (CreateSharingLink, InviteUsers, ListPermissions, GetPermission, UpdatePermission, DeletePermission) (~158 LOC)
+  - `pkg/onedrive/thumbnails.go` - Thumbnail and preview methods (GetThumbnails, GetThumbnailBySize, PreviewItem) (~85 LOC)
+  - Core `client.go` retains essential functionality: client initialization, authentication, shared utilities (apiCall, collectAllPages), and cross-file dependencies
+  - **Result**: Improved maintainability with focused single-responsibility files, easier code navigation, and better separation of concerns
+  - **Zero functional impact**: All existing functionality preserved with identical method signatures and behavior
+  - **Build & Test Success**: All tests pass including comprehensive E2E test suite confirming no regressions
+
 ### Critical Bug Fixes
 - **FIXED**: Critical OAuth2 token refresh bug that caused authentication failures with error "AADSTS900144: The request body must contain the following parameter: 'client_id'"
   - **Root Cause**: The `oauth2.Config` used for token refresh was missing the `ClientID` field
