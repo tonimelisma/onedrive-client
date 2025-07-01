@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -86,7 +87,7 @@ func filesRmLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("remote path cannot be empty")
 	}
 
-	err := a.SDK.DeleteDriveItem(remotePath)
+	err := a.SDK.DeleteDriveItem(cmd.Context(), remotePath)
 	if err != nil {
 		return err
 	}
@@ -108,14 +109,14 @@ func filesCopyLogic(a *app.App, cmd *cobra.Command, args []string) error {
 
 	wait, _ := cmd.Flags().GetBool("wait")
 
-	monitorURL, err := a.SDK.CopyDriveItem(sourcePath, destinationPath, newName)
+	monitorURL, err := a.SDK.CopyDriveItem(cmd.Context(), sourcePath, destinationPath, newName)
 	if err != nil {
 		return fmt.Errorf("initiating copy operation: %w", err)
 	}
 
 	if wait {
 		log.Printf("Copy operation started. Monitoring progress...")
-		return monitorCopyToCompletion(a, monitorURL)
+		return monitorCopyToCompletion(a, cmd.Context(), monitorURL)
 	} else {
 		log.Printf("Copy operation started.")
 		log.Printf("Monitor URL: %s", monitorURL)
@@ -124,9 +125,9 @@ func filesCopyLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	}
 }
 
-func monitorCopyToCompletion(a *app.App, monitorURL string) error {
+func monitorCopyToCompletion(a *app.App, ctx context.Context, monitorURL string) error {
 	for {
-		status, err := a.SDK.MonitorCopyOperation(monitorURL)
+		status, err := a.SDK.MonitorCopyOperation(ctx, monitorURL)
 		if err != nil {
 			return fmt.Errorf("monitoring copy operation: %w", err)
 		}
@@ -157,7 +158,7 @@ func filesCopyStatusLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("monitor URL cannot be empty")
 	}
 
-	status, err := a.SDK.MonitorCopyOperation(monitorURL)
+	status, err := a.SDK.MonitorCopyOperation(cmd.Context(), monitorURL)
 	if err != nil {
 		return fmt.Errorf("checking copy status: %w", err)
 	}
@@ -183,7 +184,7 @@ func filesMvLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("source and destination paths cannot be empty")
 	}
 
-	item, err := a.SDK.MoveDriveItem(sourcePath, destinationPath)
+	item, err := a.SDK.MoveDriveItem(cmd.Context(), sourcePath, destinationPath)
 	if err != nil {
 		return fmt.Errorf("moving item: %w", err)
 	}
@@ -200,7 +201,7 @@ func filesRenameLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("remote path and new name cannot be empty")
 	}
 
-	item, err := a.SDK.UpdateDriveItem(remotePath, newName)
+	item, err := a.SDK.UpdateDriveItem(cmd.Context(), remotePath, newName)
 	if err != nil {
 		return fmt.Errorf("renaming item: %w", err)
 	}

@@ -102,7 +102,7 @@ func filesMkdirLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		parentPath = "/"
 	}
 
-	item, err := a.SDK.CreateFolder(parentPath, folderName)
+	item, err := a.SDK.CreateFolder(cmd.Context(), parentPath, folderName)
 	if err != nil {
 		return err
 	}
@@ -149,23 +149,23 @@ func filesUploadLogic(a *app.App, cmd *cobra.Command, args []string) error {
 			UploadURL:          state.UploadURL,
 			ExpirationDateTime: state.ExpirationDateTime.Format("2006-01-02T15:04:05Z"),
 		}
-		return uploadFileInChunks(a, mgr, localPath, finalRemotePath, uploadSession)
+		return uploadFileInChunks(a, cmd, mgr, localPath, finalRemotePath, uploadSession)
 	} else {
 		// Start new upload
-		return startNewUpload(a, mgr, localPath, finalRemotePath)
+		return startNewUpload(a, cmd, mgr, localPath, finalRemotePath)
 	}
 }
 
-func startNewUpload(a *app.App, mgr *session.Manager, localPath, remotePath string) error {
-	uploadSession, err := a.SDK.CreateUploadSession(remotePath)
+func startNewUpload(a *app.App, cmd *cobra.Command, mgr *session.Manager, localPath, remotePath string) error {
+	uploadSession, err := a.SDK.CreateUploadSession(cmd.Context(), remotePath)
 	if err != nil {
 		return fmt.Errorf("creating upload session: %w", err)
 	}
 
-	return uploadFileInChunks(a, mgr, localPath, remotePath, uploadSession)
+	return uploadFileInChunks(a, cmd, mgr, localPath, remotePath, uploadSession)
 }
 
-func uploadFileInChunks(a *app.App, mgr *session.Manager, localPath, remotePath string, uploadSession onedrive.UploadSession) error {
+func uploadFileInChunks(a *app.App, cmd *cobra.Command, mgr *session.Manager, localPath, remotePath string, uploadSession onedrive.UploadSession) error {
 	file, err := os.Open(localPath)
 	if err != nil {
 		return fmt.Errorf("opening file: %w", err)
@@ -210,7 +210,7 @@ func uploadFileInChunks(a *app.App, mgr *session.Manager, localPath, remotePath 
 		}
 
 		// Upload the chunk
-		result, err := a.SDK.UploadChunk(uploadSession.UploadURL, currentByte, endByte, totalSize, bytes.NewReader(chunkData))
+		result, err := a.SDK.UploadChunk(cmd.Context(), uploadSession.UploadURL, currentByte, endByte, totalSize, bytes.NewReader(chunkData))
 		if err != nil {
 			// Save session state for resumption
 			expirationTime, _ := time.Parse(time.RFC3339, uploadSession.ExpirationDateTime)
@@ -250,7 +250,7 @@ func filesCancelUploadLogic(a *app.App, cmd *cobra.Command, args []string) error
 		return fmt.Errorf("upload URL cannot be empty")
 	}
 
-	err := a.SDK.CancelUploadSession(uploadURL)
+	err := a.SDK.CancelUploadSession(cmd.Context(), uploadURL)
 	if err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func filesGetUploadStatusLogic(a *app.App, cmd *cobra.Command, args []string) er
 		return fmt.Errorf("upload URL cannot be empty")
 	}
 
-	status, err := a.SDK.GetUploadSessionStatus(uploadURL)
+	status, err := a.SDK.GetUploadSessionStatus(cmd.Context(), uploadURL)
 	if err != nil {
 		return err
 	}
@@ -300,7 +300,7 @@ func filesUploadSimpleLogic(a *app.App, cmd *cobra.Command, args []string) error
 		return fmt.Errorf("local file '%s' does not exist", localPath)
 	}
 
-	item, err := a.SDK.UploadFile(localPath, remotePath)
+	item, err := a.SDK.UploadFile(cmd.Context(), localPath, remotePath)
 	if err != nil {
 		return err
 	}

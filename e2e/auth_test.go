@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ func TestAuthOperations(t *testing.T) {
 	helper.LogTestInfo(t)
 
 	t.Run("GetMe", func(t *testing.T) {
-		user, err := helper.App.SDK.GetMe()
+		user, err := helper.App.SDK.GetMe(context.Background())
 		if err != nil {
 			t.Fatalf("Failed to get user info: %v", err)
 		}

@@ -1,18 +1,18 @@
 package onedrive
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 )
 
-// GetDrives retrieves the list of available drives for the user.
-func (c *Client) GetDrives() (DriveList, error) {
-	c.logger.Debug("GetDrives called")
+// GetDrives retrieves a list of all available drives for the user.
+func (c *Client) GetDrives(ctx context.Context) (DriveList, error) {
 	var drives DriveList
 
 	url := customRootURL + "me/drives"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return drives, err
 	}
@@ -25,13 +25,12 @@ func (c *Client) GetDrives() (DriveList, error) {
 	return drives, nil
 }
 
-// GetDefaultDrive retrieves the default drive for the user, including quota information.
-func (c *Client) GetDefaultDrive() (Drive, error) {
-	c.logger.Debug("GetDefaultDrive called")
+// GetDefaultDrive retrieves information about the user's default drive.
+func (c *Client) GetDefaultDrive(ctx context.Context) (Drive, error) {
 	var drive Drive
 
 	url := customRootURL + "me/drive"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return drive, err
 	}
@@ -44,13 +43,12 @@ func (c *Client) GetDefaultDrive() (Drive, error) {
 	return drive, nil
 }
 
-// GetDriveByID gets metadata for a specific drive by its ID
-func (c *Client) GetDriveByID(driveID string) (Drive, error) {
-	c.logger.Debug("GetDriveByID called with ID: ", driveID)
+// GetDriveByID retrieves a specific drive by its ID.
+func (c *Client) GetDriveByID(ctx context.Context, driveID string) (Drive, error) {
 	var drive Drive
 
 	url := customRootURL + "drives/" + url.PathEscape(driveID)
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return drive, err
 	}
@@ -63,40 +61,37 @@ func (c *Client) GetDriveByID(driveID string) (Drive, error) {
 	return drive, nil
 }
 
-// GetDriveActivities returns recent drive activities with pagination.
-func (c *Client) GetDriveActivities(paging Paging) (ActivityList, string, error) {
-	c.logger.Debug("GetDriveActivities called")
+// GetDriveActivities retrieves activities for the entire drive.
+func (c *Client) GetDriveActivities(ctx context.Context, paging Paging) (ActivityList, string, error) {
 	var activities ActivityList
 
-	initialURL := customRootURL + "me/drive/activities"
+	url := customRootURL + "me/drive/activities"
 	if paging.Top > 0 {
-		initialURL += fmt.Sprintf("?$top=%d", paging.Top)
+		url += fmt.Sprintf("?$top=%d", paging.Top)
 	}
 
-	pages, nextLink, err := c.collectAllPages(initialURL, paging)
+	rawItems, nextLink, err := c.collectAllPages(ctx, url, paging)
 	if err != nil {
-		return activities, "", err
+		return activities, "", fmt.Errorf("decoding activities: %w", err)
 	}
 
-	// Combine pages into a single ActivityList
-	for _, page := range pages {
-		var partial ActivityList
-		if err := json.Unmarshal(page, &partial); err != nil {
-			return activities, "", fmt.Errorf("decoding activities: %w", err)
+	for _, rawItem := range rawItems {
+		var activity Activity
+		if err := json.Unmarshal(rawItem, &activity); err != nil {
+			return activities, "", fmt.Errorf("unmarshaling activity: %w", err)
 		}
-		activities.Value = append(activities.Value, partial.Value...)
+		activities.Value = append(activities.Value, activity)
 	}
 
 	return activities, nextLink, nil
 }
 
-// GetRootDriveItems lists items in the root of the user's default drive.
-// It is equivalent to GET /me/drive/root/children and remains a first-class helper
-// for callers that want a simple root listing without building a path.
-func (c *Client) GetRootDriveItems() (DriveItemList, error) {
+// GetRootDriveItems retrieves items in the root of the default drive.
+func (c *Client) GetRootDriveItems(ctx context.Context) (DriveItemList, error) {
 	var items DriveItemList
 
-	res, err := c.apiCall("GET", customRootURL+"me/drive/root/children", "", nil)
+	url := customRootURL + "me/drive/root/children"
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return items, err
 	}

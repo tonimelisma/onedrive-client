@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 )
 
@@ -24,7 +25,7 @@ func TestE2ESetupValidation(t *testing.T) {
 	t.Logf("  Test Directory: %s", helper.TestDir)
 
 	// Test 3: Basic Drive Access
-	drives, err := helper.App.SDK.GetDrives()
+	drives, err := helper.App.SDK.GetDrives(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to list drives: %v", err)
 	}
@@ -46,7 +47,7 @@ func TestE2ESetupValidation(t *testing.T) {
 	localFile := helper.CreateTestFile(t, testFile, testContent)
 	remotePath := helper.GetTestPath(testFile)
 
-	_, err = helper.App.SDK.UploadFile(localFile, remotePath)
+	_, err = helper.App.SDK.UploadFile(context.Background(), localFile, remotePath)
 	if err != nil {
 		t.Fatalf("Failed to upload validation file: %v", err)
 	}

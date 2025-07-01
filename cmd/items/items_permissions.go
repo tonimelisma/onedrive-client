@@ -120,7 +120,7 @@ func filesShareLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid scope '%s'. Valid scopes: anonymous, organization", scope)
 	}
 
-	link, err := a.SDK.CreateSharingLink(remotePath, linkType, scope)
+	link, err := a.SDK.CreateSharingLink(cmd.Context(), remotePath, linkType, scope)
 	if err != nil {
 		return fmt.Errorf("creating sharing link: %w", err)
 	}
@@ -168,7 +168,7 @@ func filesInviteLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		Roles:          roles,
 	}
 
-	response, err := a.SDK.InviteUsers(remotePath, request)
+	response, err := a.SDK.InviteUsers(cmd.Context(), remotePath, request)
 	if err != nil {
 		return fmt.Errorf("inviting users: %w", err)
 	}
@@ -183,7 +183,7 @@ func filesPermissionsListLogic(a *app.App, cmd *cobra.Command, args []string) er
 		return fmt.Errorf("remote path cannot be empty")
 	}
 
-	permissions, err := a.SDK.ListPermissions(remotePath)
+	permissions, err := a.SDK.ListPermissions(cmd.Context(), remotePath)
 	if err != nil {
 		return fmt.Errorf("listing permissions: %w", err)
 	}
@@ -200,7 +200,7 @@ func filesPermissionsGetLogic(a *app.App, cmd *cobra.Command, args []string) err
 		return fmt.Errorf("remote path and permission ID cannot be empty")
 	}
 
-	permission, err := a.SDK.GetPermission(remotePath, permissionID)
+	permission, err := a.SDK.GetPermission(cmd.Context(), remotePath, permissionID)
 	if err != nil {
 		return fmt.Errorf("getting permission: %w", err)
 	}
@@ -228,7 +228,7 @@ func filesPermissionsUpdateLogic(a *app.App, cmd *cobra.Command, args []string) 
 		Password:           password,
 	}
 
-	permission, err := a.SDK.UpdatePermission(remotePath, permissionID, request)
+	permission, err := a.SDK.UpdatePermission(cmd.Context(), remotePath, permissionID, request)
 	if err != nil {
 		return fmt.Errorf("updating permission: %w", err)
 	}
@@ -246,7 +246,7 @@ func filesPermissionsDeleteLogic(a *app.App, cmd *cobra.Command, args []string) 
 		return fmt.Errorf("remote path and permission ID cannot be empty")
 	}
 
-	err := a.SDK.DeletePermission(remotePath, permissionID)
+	err := a.SDK.DeletePermission(cmd.Context(), remotePath, permissionID)
 	if err != nil {
 		return fmt.Errorf("deleting permission: %w", err)
 	}

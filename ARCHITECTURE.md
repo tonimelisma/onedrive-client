@@ -99,6 +99,13 @@ The project is organized into packages, each with a distinct role.
 #### `pkg/onedrive/` (The SDK Layer)
 *   **Responsibility:** This package is the **only** component that knows how to communicate with the Microsoft Graph API. It handles creating API requests, parsing responses, and defining the data models (`DriveItem`, etc.).
 *   **Authentication**: It implements the raw mechanics of the OAuth 2.0 Device Code Flow but has no awareness of the higher-level application's stateful, non-blocking flow. It simply provides the functions to initiate the flow and verify a device code.
+*   **Context Propagation (LATEST):** The SDK now supports comprehensive context propagation throughout all operations:
+    - **HTTP Request Cancellation**: All HTTP requests use `http.NewRequestWithContext()` enabling proper request cancellation and timeout support
+    - **SDK Interface Evolution**: All 45+ SDK methods now accept `context.Context` as their first parameter for consistent cancellation chain
+    - **Command Integration**: Commands use `cmd.Context()` from Cobra to propagate cancellation from CLI interruption signals
+    - **Request Tracing**: Context enables request tracing and debugging throughout the HTTP call stack
+    - **Resource Management**: Proper context usage enables graceful shutdown and prevents resource leaks during operation cancellation
+    - **Timeout Support**: Context timeouts can be applied at any level (per-request, per-operation, or per-command) for robust error handling
 *   **Code Organization (2025-06-30):** The SDK has been refactored from a monolithic `client.go` (1018 LOC) into focused, maintainable modules:
     - `client.go` (461 LOC) - Core client initialization, authentication, shared utilities (`apiCall`, `collectAllPages`), and cross-cutting concerns
     - `drive.go` (111 LOC) - Drive-level operations (GetDrives, GetDefaultDrive, GetDriveByID, etc.)

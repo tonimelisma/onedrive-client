@@ -61,7 +61,7 @@ var filesVersionsCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return filesVersionsLogic(a, args[0])
+		return filesVersionsLogic(a, cmd, args[0])
 	},
 }
 
@@ -114,7 +114,7 @@ func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		path = "/"
 	}
 
-	items, err := a.SDK.GetDriveItemChildrenByPath(path)
+	items, err := a.SDK.GetDriveItemChildrenByPath(cmd.Context(), path)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 }
 
 func filesStatLogic(a *app.App, cmd *cobra.Command, args []string) error {
-	item, err := a.SDK.GetDriveItemByPath(args[0])
+	item, err := a.SDK.GetDriveItemByPath(cmd.Context(), args[0])
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("items search requires --in flag with folder path. For drive-wide search, use 'drives search'")
 	}
 
-	items, nextLink, err := a.SDK.SearchDriveItemsInFolder(folderPath, query, paging)
+	items, nextLink, err := a.SDK.SearchDriveItemsInFolder(cmd.Context(), folderPath, query, paging)
 	if err != nil {
 		return fmt.Errorf("searching items in folder: %w", err)
 	}
@@ -156,8 +156,8 @@ func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func filesVersionsLogic(a *app.App, filePath string) error {
-	versions, err := a.SDK.GetFileVersions(filePath)
+func filesVersionsLogic(a *app.App, cmd *cobra.Command, filePath string) error {
+	versions, err := a.SDK.GetFileVersions(cmd.Context(), filePath)
 	if err != nil {
 		return err
 	}
@@ -174,7 +174,7 @@ func activitiesLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("parsing pagination flags: %w", err)
 	}
 
-	activities, nextLink, err := a.SDK.GetItemActivities(remotePath, paging)
+	activities, nextLink, err := a.SDK.GetItemActivities(cmd.Context(), remotePath, paging)
 	if err != nil {
 		return fmt.Errorf("getting item activities: %w", err)
 	}
@@ -190,7 +190,7 @@ func filesThumbnailsLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("remote path cannot be empty")
 	}
 
-	thumbnails, err := a.SDK.GetThumbnails(remotePath)
+	thumbnails, err := a.SDK.GetThumbnails(cmd.Context(), remotePath)
 	if err != nil {
 		return fmt.Errorf("getting thumbnails: %w", err)
 	}
@@ -214,7 +214,7 @@ func filesPreviewLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		Zoom: zoom,
 	}
 
-	preview, err := a.SDK.PreviewItem(remotePath, request)
+	preview, err := a.SDK.PreviewItem(cmd.Context(), remotePath, request)
 	if err != nil {
 		return fmt.Errorf("generating preview: %w", err)
 	}

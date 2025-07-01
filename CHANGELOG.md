@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Internal Refactoring
+- **Context Propagation Implementation (BREAKING INTERNAL)**: Completed comprehensive context propagation throughout the entire SDK for proper HTTP request cancellation and timeout support:
+  - **SDK Interface Enhancement**: Added `context.Context` as first parameter to all 45+ SDK methods in `internal/app/sdk.go`
+  - **HTTP Request Modernization**: Updated all HTTP operations from `http.NewRequest` to `http.NewRequestWithContext` across all SDK files
+  - **Command Layer Integration**: Updated all command functions to use `cmd.Context()` from Cobra for proper cancellation chain
+  - **Files Updated**: Modified 10 core SDK files (`client.go`, `item.go`, `drive.go`, `upload.go`, `download.go`, `search.go`, `activity.go`, `permissions.go`, `thumbnails.go`, plus all command files)
+  - **Test Infrastructure Overhaul**: Updated MockSDK with context parameters and fixed all test compilation issues
+  - **E2E Test Fixes**: Resolved directory conflict issues in e2e tests with improved cleanup logic and "conflict" error handling
+  - **Result**: All HTTP operations now support cancellation, timeouts, and request tracing; enables graceful shutdown and resource management
+  - **Zero Functional Impact**: All existing functionality preserved with identical behavior, only method signatures changed
+  - **Build & Test Success**: All tests pass including comprehensive E2E test suite (104s runtime) confirming successful implementation
+
 - **SDK Client Code Organization Enhancement**: Completed comprehensive splitting of monolithic `pkg/onedrive/client.go` (1018 LOC → 461 LOC) into focused, maintainable modules:
   - `pkg/onedrive/upload.go` - Upload session methods (CreateUploadSession, UploadChunk, GetUploadSessionStatus, CancelUploadSession) (~90 LOC)
   - `pkg/onedrive/download.go` - Download operations (DownloadFile, DownloadFileByItem, DownloadFileChunk, DownloadFileAsFormat) (~162 LOC)

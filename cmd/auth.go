@@ -112,7 +112,7 @@ var authStatusCmd = &cobra.Command{
 			return fmt.Errorf("error creating app: %v", err)
 		}
 
-		user, err := a.GetMe()
+		user, err := a.GetMe(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("could not get user information: %v", err)
 		}

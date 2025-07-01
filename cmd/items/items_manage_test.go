@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -21,7 +22,7 @@ func TestFilesRmLogic(t *testing.T) {
 			args: []string{"/test-file.txt"},
 			mockSetup: func() *MockSDK {
 				return &MockSDK{
-					DeleteDriveItemFunc: func(path string) error {
+					DeleteDriveItemFunc: func(ctx context.Context, path string) error {
 						assert.Equal(t, "/test-file.txt", path)
 						return nil
 					},
@@ -64,7 +65,7 @@ func TestFilesCopyLogic(t *testing.T) {
 			args: []string{"/source.txt", "/destination/"},
 			mockSetup: func() *MockSDK {
 				return &MockSDK{
-					CopyDriveItemFunc: func(sourcePath, destinationParentPath, newName string) (string, error) {
+					CopyDriveItemFunc: func(ctx context.Context, sourcePath, destinationParentPath, newName string) (string, error) {
 						assert.Equal(t, "/source.txt", sourcePath)
 						assert.Equal(t, "/destination/", destinationParentPath)
 						assert.Equal(t, "", newName)
@@ -80,7 +81,7 @@ func TestFilesCopyLogic(t *testing.T) {
 			newName: "renamed.txt",
 			mockSetup: func() *MockSDK {
 				return &MockSDK{
-					CopyDriveItemFunc: func(sourcePath, destinationParentPath, newName string) (string, error) {
+					CopyDriveItemFunc: func(ctx context.Context, sourcePath, destinationParentPath, newName string) (string, error) {
 						assert.Equal(t, "/source.txt", sourcePath)
 						assert.Equal(t, "/destination/", destinationParentPath)
 						assert.Equal(t, "renamed.txt", newName)
@@ -125,7 +126,7 @@ func TestFilesCopyStatusLogic(t *testing.T) {
 			args: []string{"monitor-url"},
 			mockSetup: func() *MockSDK {
 				return &MockSDK{
-					MonitorCopyOperationFunc: func(monitorURL string) (onedrive.CopyOperationStatus, error) {
+					MonitorCopyOperationFunc: func(ctx context.Context, monitorURL string) (onedrive.CopyOperationStatus, error) {
 						assert.Equal(t, "monitor-url", monitorURL)
 						return onedrive.CopyOperationStatus{
 							Status:            "completed",
@@ -165,7 +166,7 @@ func TestFilesMvLogic(t *testing.T) {
 			args: []string{"/source.txt", "/destination/"},
 			mockSetup: func() *MockSDK {
 				return &MockSDK{
-					MoveDriveItemFunc: func(sourcePath, destinationParentPath string) (onedrive.DriveItem, error) {
+					MoveDriveItemFunc: func(ctx context.Context, sourcePath, destinationParentPath string) (onedrive.DriveItem, error) {
 						assert.Equal(t, "/source.txt", sourcePath)
 						assert.Equal(t, "/destination/", destinationParentPath)
 						return onedrive.DriveItem{Name: "source.txt", ID: "moved-item-id"}, nil
@@ -203,7 +204,7 @@ func TestFilesRenameLogic(t *testing.T) {
 			args: []string{"/oldname.txt", "newname.txt"},
 			mockSetup: func() *MockSDK {
 				return &MockSDK{
-					UpdateDriveItemFunc: func(path, newName string) (onedrive.DriveItem, error) {
+					UpdateDriveItemFunc: func(ctx context.Context, path, newName string) (onedrive.DriveItem, error) {
 						assert.Equal(t, "/oldname.txt", path)
 						assert.Equal(t, "newname.txt", newName)
 						return onedrive.DriveItem{Name: "newname.txt", ID: "renamed-item-id"}, nil

@@ -24,7 +24,7 @@ var drivesListCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesListLogic(a)
+		return drivesListLogic(a, cmd)
 	},
 }
 
@@ -38,7 +38,7 @@ var drivesQuotaCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesQuotaLogic(a)
+		return drivesQuotaLogic(a, cmd)
 	},
 }
 
@@ -52,7 +52,7 @@ var drivesGetCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesGetLogic(a, args[0])
+		return drivesGetLogic(a, cmd, args[0])
 	},
 }
 
@@ -72,7 +72,7 @@ var drivesActivitiesCmd = &cobra.Command{
 			return fmt.Errorf("parsing pagination flags: %w", err)
 		}
 
-		activities, nextLink, err := app.SDK.GetDriveActivities(paging)
+		activities, nextLink, err := app.SDK.GetDriveActivities(cmd.Context(), paging)
 		if err != nil {
 			return fmt.Errorf("getting drive activities: %w", err)
 		}
@@ -94,7 +94,7 @@ var drivesRootCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesRootLogic(a)
+		return drivesRootLogic(a, cmd)
 	},
 }
 
@@ -122,7 +122,7 @@ var drivesDeltaCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesDeltaLogic(a, args)
+		return drivesDeltaLogic(a, cmd, args)
 	},
 }
 
@@ -136,7 +136,7 @@ var drivesSpecialCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesSpecialLogic(a, args)
+		return drivesSpecialLogic(a, cmd, args)
 	},
 }
 
@@ -150,7 +150,7 @@ var drivesRecentCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesRecentLogic(a)
+		return drivesRecentLogic(a, cmd)
 	},
 }
 
@@ -164,12 +164,12 @@ var drivesSharedCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error creating app: %w", err)
 		}
-		return drivesSharedLogic(a)
+		return drivesSharedLogic(a, cmd)
 	},
 }
 
-func drivesListLogic(a *app.App) error {
-	drives, err := a.SDK.GetDrives()
+func drivesListLogic(a *app.App, cmd *cobra.Command) error {
+	drives, err := a.SDK.GetDrives(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -177,8 +177,8 @@ func drivesListLogic(a *app.App) error {
 	return nil
 }
 
-func drivesQuotaLogic(a *app.App) error {
-	drive, err := a.SDK.GetDefaultDrive()
+func drivesQuotaLogic(a *app.App, cmd *cobra.Command) error {
+	drive, err := a.SDK.GetDefaultDrive(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -186,8 +186,8 @@ func drivesQuotaLogic(a *app.App) error {
 	return nil
 }
 
-func drivesGetLogic(a *app.App, driveID string) error {
-	drive, err := a.SDK.GetDriveByID(driveID)
+func drivesGetLogic(a *app.App, cmd *cobra.Command, driveID string) error {
+	drive, err := a.SDK.GetDriveByID(cmd.Context(), driveID)
 	if err != nil {
 		return err
 	}
@@ -195,8 +195,8 @@ func drivesGetLogic(a *app.App, driveID string) error {
 	return nil
 }
 
-func drivesRootLogic(a *app.App) error {
-	items, err := a.SDK.GetRootDriveItems()
+func drivesRootLogic(a *app.App, cmd *cobra.Command) error {
+	items, err := a.SDK.GetRootDriveItems(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func drivesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	}
 
 	// Drive-level search always uses SearchDriveItemsWithPaging (no folder scope)
-	items, nextLink, err := a.SDK.SearchDriveItemsWithPaging(query, paging)
+	items, nextLink, err := a.SDK.SearchDriveItemsWithPaging(cmd.Context(), query, paging)
 	if err != nil {
 		return fmt.Errorf("searching drive: %w", err)
 	}
@@ -224,13 +224,13 @@ func drivesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func drivesDeltaLogic(a *app.App, args []string) error {
+func drivesDeltaLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	var deltaToken string
 	if len(args) > 0 {
 		deltaToken = args[0]
 	}
 
-	delta, err := a.SDK.GetDelta(deltaToken)
+	delta, err := a.SDK.GetDelta(cmd.Context(), deltaToken)
 	if err != nil {
 		return err
 	}
@@ -239,9 +239,9 @@ func drivesDeltaLogic(a *app.App, args []string) error {
 	return nil
 }
 
-func drivesSpecialLogic(a *app.App, args []string) error {
+func drivesSpecialLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	folderName := args[0]
-	item, err := a.SDK.GetSpecialFolder(folderName)
+	item, err := a.SDK.GetSpecialFolder(cmd.Context(), folderName)
 	if err != nil {
 		return err
 	}
@@ -249,8 +249,8 @@ func drivesSpecialLogic(a *app.App, args []string) error {
 	return nil
 }
 
-func drivesRecentLogic(a *app.App) error {
-	items, err := a.SDK.GetRecentItems()
+func drivesRecentLogic(a *app.App, cmd *cobra.Command) error {
+	items, err := a.SDK.GetRecentItems(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -258,8 +258,8 @@ func drivesRecentLogic(a *app.App) error {
 	return nil
 }
 
-func drivesSharedLogic(a *app.App) error {
-	items, err := a.SDK.GetSharedWithMe()
+func drivesSharedLogic(a *app.App, cmd *cobra.Command) error {
+	items, err := a.SDK.GetSharedWithMe(cmd.Context())
 	if err != nil {
 		return fmt.Errorf("getting shared items: %w", err)
 	}

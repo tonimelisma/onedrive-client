@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -13,185 +14,185 @@ import (
 
 // MockSDK is a mock implementation of the SDK interface for testing.
 type MockSDK struct {
-	GetDrivesFunc                  func() (onedrive.DriveList, error)
-	GetDefaultDriveFunc            func() (onedrive.Drive, error)
-	GetMeFunc                      func() (onedrive.User, error)
-	CreateFolderFunc               func(parentPath string, folderName string) (onedrive.DriveItem, error)
-	DownloadFileFunc               func(remotePath, localPath string) error
-	DownloadFileAsFormatFunc       func(remotePath, localPath, format string) error
-	DownloadFileChunkFunc          func(url string, startByte, endByte int64) (io.ReadCloser, error)
-	GetDriveItemByPathFunc         func(path string) (onedrive.DriveItem, error)
-	GetDriveItemChildrenByPathFunc func(path string) (onedrive.DriveItemList, error)
-	CreateUploadSessionFunc        func(remotePath string) (onedrive.UploadSession, error)
-	UploadChunkFunc                func(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
-	GetUploadSessionStatusFunc     func(uploadURL string) (onedrive.UploadSession, error)
-	CancelUploadSessionFunc        func(uploadURL string) error
-	UploadFileFunc                 func(localPath, remotePath string) (onedrive.DriveItem, error)
-	GetRootDriveItemsFunc          func() (onedrive.DriveItemList, error)
-	DeleteDriveItemFunc            func(path string) error
-	CopyDriveItemFunc              func(sourcePath, destinationParentPath, newName string) (string, error)
-	MoveDriveItemFunc              func(sourcePath, destinationParentPath string) (onedrive.DriveItem, error)
-	UpdateDriveItemFunc            func(path, newName string) (onedrive.DriveItem, error)
-	MonitorCopyOperationFunc       func(monitorURL string) (onedrive.CopyOperationStatus, error)
-	SearchDriveItemsFunc           func(query string) (onedrive.DriveItemList, error)
-	SearchDriveItemsWithPagingFunc func(query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
-	SearchDriveItemsInFolderFunc   func(folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
-	GetDriveActivitiesFunc         func(paging onedrive.Paging) (onedrive.ActivityList, string, error)
-	GetItemActivitiesFunc          func(remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error)
-	GetSharedWithMeFunc            func() (onedrive.DriveItemList, error)
-	GetRecentItemsFunc             func() (onedrive.DriveItemList, error)
-	GetSpecialFolderFunc           func(folderName string) (onedrive.DriveItem, error)
-	CreateSharingLinkFunc          func(path, linkType, scope string) (onedrive.SharingLink, error)
-	GetDeltaFunc                   func(deltaToken string) (onedrive.DeltaResponse, error)
-	GetDriveByIDFunc               func(driveID string) (onedrive.Drive, error)
-	GetFileVersionsFunc            func(filePath string) (onedrive.DriveItemVersionList, error)
+	GetDrivesFunc                  func(ctx context.Context) (onedrive.DriveList, error)
+	GetDefaultDriveFunc            func(ctx context.Context) (onedrive.Drive, error)
+	GetMeFunc                      func(ctx context.Context) (onedrive.User, error)
+	CreateFolderFunc               func(ctx context.Context, parentPath string, folderName string) (onedrive.DriveItem, error)
+	DownloadFileFunc               func(ctx context.Context, remotePath, localPath string) error
+	DownloadFileAsFormatFunc       func(ctx context.Context, remotePath, localPath, format string) error
+	DownloadFileChunkFunc          func(ctx context.Context, url string, startByte, endByte int64) (io.ReadCloser, error)
+	GetDriveItemByPathFunc         func(ctx context.Context, path string) (onedrive.DriveItem, error)
+	GetDriveItemChildrenByPathFunc func(ctx context.Context, path string) (onedrive.DriveItemList, error)
+	CreateUploadSessionFunc        func(ctx context.Context, remotePath string) (onedrive.UploadSession, error)
+	UploadChunkFunc                func(ctx context.Context, uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error)
+	GetUploadSessionStatusFunc     func(ctx context.Context, uploadURL string) (onedrive.UploadSession, error)
+	CancelUploadSessionFunc        func(ctx context.Context, uploadURL string) error
+	UploadFileFunc                 func(ctx context.Context, localPath, remotePath string) (onedrive.DriveItem, error)
+	GetRootDriveItemsFunc          func(ctx context.Context) (onedrive.DriveItemList, error)
+	DeleteDriveItemFunc            func(ctx context.Context, path string) error
+	CopyDriveItemFunc              func(ctx context.Context, sourcePath, destinationParentPath, newName string) (string, error)
+	MoveDriveItemFunc              func(ctx context.Context, sourcePath, destinationParentPath string) (onedrive.DriveItem, error)
+	UpdateDriveItemFunc            func(ctx context.Context, path, newName string) (onedrive.DriveItem, error)
+	MonitorCopyOperationFunc       func(ctx context.Context, monitorURL string) (onedrive.CopyOperationStatus, error)
+	SearchDriveItemsFunc           func(ctx context.Context, query string) (onedrive.DriveItemList, error)
+	SearchDriveItemsWithPagingFunc func(ctx context.Context, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
+	SearchDriveItemsInFolderFunc   func(ctx context.Context, folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
+	GetDriveActivitiesFunc         func(ctx context.Context, paging onedrive.Paging) (onedrive.ActivityList, string, error)
+	GetItemActivitiesFunc          func(ctx context.Context, remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error)
+	GetSharedWithMeFunc            func(ctx context.Context) (onedrive.DriveItemList, error)
+	GetRecentItemsFunc             func(ctx context.Context) (onedrive.DriveItemList, error)
+	GetSpecialFolderFunc           func(ctx context.Context, folderName string) (onedrive.DriveItem, error)
+	CreateSharingLinkFunc          func(ctx context.Context, path, linkType, scope string) (onedrive.SharingLink, error)
+	GetDeltaFunc                   func(ctx context.Context, deltaToken string) (onedrive.DeltaResponse, error)
+	GetDriveByIDFunc               func(ctx context.Context, driveID string) (onedrive.Drive, error)
+	GetFileVersionsFunc            func(ctx context.Context, filePath string) (onedrive.DriveItemVersionList, error)
 	// New Epic 7 function fields
-	GetThumbnailsFunc      func(remotePath string) (onedrive.ThumbnailSetList, error)
-	GetThumbnailBySizeFunc func(remotePath, thumbID, size string) (onedrive.Thumbnail, error)
-	PreviewItemFunc        func(remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error)
-	InviteUsersFunc        func(remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error)
-	ListPermissionsFunc    func(remotePath string) (onedrive.PermissionList, error)
-	GetPermissionFunc      func(remotePath, permissionID string) (onedrive.Permission, error)
-	UpdatePermissionFunc   func(remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error)
-	DeletePermissionFunc   func(remotePath, permissionID string) error
+	GetThumbnailsFunc      func(ctx context.Context, remotePath string) (onedrive.ThumbnailSetList, error)
+	GetThumbnailBySizeFunc func(ctx context.Context, remotePath, thumbID, size string) (onedrive.Thumbnail, error)
+	PreviewItemFunc        func(ctx context.Context, remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error)
+	InviteUsersFunc        func(ctx context.Context, remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error)
+	ListPermissionsFunc    func(ctx context.Context, remotePath string) (onedrive.PermissionList, error)
+	GetPermissionFunc      func(ctx context.Context, remotePath, permissionID string) (onedrive.Permission, error)
+	UpdatePermissionFunc   func(ctx context.Context, remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error)
+	DeletePermissionFunc   func(ctx context.Context, remotePath, permissionID string) error
 }
 
-func (m *MockSDK) GetDrives() (onedrive.DriveList, error) {
+func (m *MockSDK) GetDrives(ctx context.Context) (onedrive.DriveList, error) {
 	if m.GetDrivesFunc != nil {
-		return m.GetDrivesFunc()
+		return m.GetDrivesFunc(ctx)
 	}
 	return onedrive.DriveList{}, nil
 }
 
-func (m *MockSDK) GetDefaultDrive() (onedrive.Drive, error) {
+func (m *MockSDK) GetDefaultDrive(ctx context.Context) (onedrive.Drive, error) {
 	if m.GetDefaultDriveFunc != nil {
-		return m.GetDefaultDriveFunc()
+		return m.GetDefaultDriveFunc(ctx)
 	}
 	return onedrive.Drive{}, nil
 }
 
-func (m *MockSDK) GetMe() (onedrive.User, error) {
+func (m *MockSDK) GetMe(ctx context.Context) (onedrive.User, error) {
 	if m.GetMeFunc != nil {
-		return m.GetMeFunc()
+		return m.GetMeFunc(ctx)
 	}
 	return onedrive.User{}, nil
 }
 
-func (m *MockSDK) CreateFolder(parentPath string, folderName string) (onedrive.DriveItem, error) {
+func (m *MockSDK) CreateFolder(ctx context.Context, parentPath string, folderName string) (onedrive.DriveItem, error) {
 	if m.CreateFolderFunc != nil {
-		return m.CreateFolderFunc(parentPath, folderName)
+		return m.CreateFolderFunc(ctx, parentPath, folderName)
 	}
 	return onedrive.DriveItem{}, nil
 }
 
-func (m *MockSDK) DownloadFile(remotePath, localPath string) error {
+func (m *MockSDK) DownloadFile(ctx context.Context, remotePath, localPath string) error {
 	if m.DownloadFileFunc != nil {
-		return m.DownloadFileFunc(remotePath, localPath)
+		return m.DownloadFileFunc(ctx, remotePath, localPath)
 	}
 	return nil
 }
 
-func (m *MockSDK) DownloadFileAsFormat(remotePath, localPath, format string) error {
+func (m *MockSDK) DownloadFileAsFormat(ctx context.Context, remotePath, localPath, format string) error {
 	if m.DownloadFileAsFormatFunc != nil {
-		return m.DownloadFileAsFormatFunc(remotePath, localPath, format)
+		return m.DownloadFileAsFormatFunc(ctx, remotePath, localPath, format)
 	}
 	return nil
 }
 
-func (m *MockSDK) DownloadFileChunk(url string, startByte, endByte int64) (io.ReadCloser, error) {
+func (m *MockSDK) DownloadFileChunk(ctx context.Context, url string, startByte, endByte int64) (io.ReadCloser, error) {
 	if m.DownloadFileChunkFunc != nil {
-		return m.DownloadFileChunkFunc(url, startByte, endByte)
+		return m.DownloadFileChunkFunc(ctx, url, startByte, endByte)
 	}
 	return nil, errors.New("not implemented")
 }
 
-func (m *MockSDK) GetDriveItemByPath(path string) (onedrive.DriveItem, error) {
+func (m *MockSDK) GetDriveItemByPath(ctx context.Context, path string) (onedrive.DriveItem, error) {
 	if m.GetDriveItemByPathFunc != nil {
-		return m.GetDriveItemByPathFunc(path)
+		return m.GetDriveItemByPathFunc(ctx, path)
 	}
 	return onedrive.DriveItem{}, nil
 }
 
-func (m *MockSDK) GetDriveItemChildrenByPath(path string) (onedrive.DriveItemList, error) {
+func (m *MockSDK) GetDriveItemChildrenByPath(ctx context.Context, path string) (onedrive.DriveItemList, error) {
 	if m.GetDriveItemChildrenByPathFunc != nil {
-		return m.GetDriveItemChildrenByPathFunc(path)
+		return m.GetDriveItemChildrenByPathFunc(ctx, path)
 	}
 	return onedrive.DriveItemList{}, nil
 }
 
-func (m *MockSDK) CreateUploadSession(remotePath string) (onedrive.UploadSession, error) {
+func (m *MockSDK) CreateUploadSession(ctx context.Context, remotePath string) (onedrive.UploadSession, error) {
 	if m.CreateUploadSessionFunc != nil {
-		return m.CreateUploadSessionFunc(remotePath)
+		return m.CreateUploadSessionFunc(ctx, remotePath)
 	}
 	return onedrive.UploadSession{}, nil
 }
 
-func (m *MockSDK) UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error) {
+func (m *MockSDK) UploadChunk(ctx context.Context, uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error) {
 	if m.UploadChunkFunc != nil {
-		return m.UploadChunkFunc(uploadURL, startByte, endByte, totalSize, chunkData)
+		return m.UploadChunkFunc(ctx, uploadURL, startByte, endByte, totalSize, chunkData)
 	}
 	return onedrive.UploadSession{}, nil
 }
 
-func (m *MockSDK) GetUploadSessionStatus(uploadURL string) (onedrive.UploadSession, error) {
+func (m *MockSDK) GetUploadSessionStatus(ctx context.Context, uploadURL string) (onedrive.UploadSession, error) {
 	if m.GetUploadSessionStatusFunc != nil {
-		return m.GetUploadSessionStatusFunc(uploadURL)
+		return m.GetUploadSessionStatusFunc(ctx, uploadURL)
 	}
 	return onedrive.UploadSession{}, nil
 }
 
-func (m *MockSDK) CancelUploadSession(uploadURL string) error {
+func (m *MockSDK) CancelUploadSession(ctx context.Context, uploadURL string) error {
 	if m.CancelUploadSessionFunc != nil {
-		return m.CancelUploadSessionFunc(uploadURL)
+		return m.CancelUploadSessionFunc(ctx, uploadURL)
 	}
 	return nil
 }
 
-func (m *MockSDK) UploadFile(localPath, remotePath string) (onedrive.DriveItem, error) {
+func (m *MockSDK) UploadFile(ctx context.Context, localPath, remotePath string) (onedrive.DriveItem, error) {
 	if m.UploadFileFunc != nil {
-		return m.UploadFileFunc(localPath, remotePath)
+		return m.UploadFileFunc(ctx, localPath, remotePath)
 	}
 	return onedrive.DriveItem{}, nil
 }
 
-func (m *MockSDK) GetRootDriveItems() (onedrive.DriveItemList, error) {
+func (m *MockSDK) GetRootDriveItems(ctx context.Context) (onedrive.DriveItemList, error) {
 	if m.GetRootDriveItemsFunc != nil {
-		return m.GetRootDriveItemsFunc()
+		return m.GetRootDriveItemsFunc(ctx)
 	}
 	return onedrive.DriveItemList{}, nil
 }
 
-func (m *MockSDK) DeleteDriveItem(path string) error {
+func (m *MockSDK) DeleteDriveItem(ctx context.Context, path string) error {
 	if m.DeleteDriveItemFunc != nil {
-		return m.DeleteDriveItemFunc(path)
+		return m.DeleteDriveItemFunc(ctx, path)
 	}
 	return nil
 }
 
-func (m *MockSDK) CopyDriveItem(sourcePath, destinationParentPath, newName string) (string, error) {
+func (m *MockSDK) CopyDriveItem(ctx context.Context, sourcePath, destinationParentPath, newName string) (string, error) {
 	if m.CopyDriveItemFunc != nil {
-		return m.CopyDriveItemFunc(sourcePath, destinationParentPath, newName)
+		return m.CopyDriveItemFunc(ctx, sourcePath, destinationParentPath, newName)
 	}
 	return "mock-monitor-url", nil
 }
 
-func (m *MockSDK) MoveDriveItem(sourcePath, destinationParentPath string) (onedrive.DriveItem, error) {
+func (m *MockSDK) MoveDriveItem(ctx context.Context, sourcePath, destinationParentPath string) (onedrive.DriveItem, error) {
 	if m.MoveDriveItemFunc != nil {
-		return m.MoveDriveItemFunc(sourcePath, destinationParentPath)
+		return m.MoveDriveItemFunc(ctx, sourcePath, destinationParentPath)
 	}
 	return onedrive.DriveItem{}, nil
 }
 
-func (m *MockSDK) UpdateDriveItem(path, newName string) (onedrive.DriveItem, error) {
+func (m *MockSDK) UpdateDriveItem(ctx context.Context, path, newName string) (onedrive.DriveItem, error) {
 	if m.UpdateDriveItemFunc != nil {
-		return m.UpdateDriveItemFunc(path, newName)
+		return m.UpdateDriveItemFunc(ctx, path, newName)
 	}
 	return onedrive.DriveItem{Name: newName}, nil
 }
 
-func (m *MockSDK) MonitorCopyOperation(monitorURL string) (onedrive.CopyOperationStatus, error) {
+func (m *MockSDK) MonitorCopyOperation(ctx context.Context, monitorURL string) (onedrive.CopyOperationStatus, error) {
 	if m.MonitorCopyOperationFunc != nil {
-		return m.MonitorCopyOperationFunc(monitorURL)
+		return m.MonitorCopyOperationFunc(ctx, monitorURL)
 	}
 	return onedrive.CopyOperationStatus{
 		Status:             "completed",
@@ -200,144 +201,144 @@ func (m *MockSDK) MonitorCopyOperation(monitorURL string) (onedrive.CopyOperatio
 	}, nil
 }
 
-func (m *MockSDK) SearchDriveItems(query string) (onedrive.DriveItemList, error) {
+func (m *MockSDK) SearchDriveItems(ctx context.Context, query string) (onedrive.DriveItemList, error) {
 	if m.SearchDriveItemsFunc != nil {
-		return m.SearchDriveItemsFunc(query)
+		return m.SearchDriveItemsFunc(ctx, query)
 	}
 	return onedrive.DriveItemList{}, nil
 }
 
-func (m *MockSDK) SearchDriveItemsWithPaging(query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
+func (m *MockSDK) SearchDriveItemsWithPaging(ctx context.Context, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
 	if m.SearchDriveItemsWithPagingFunc != nil {
-		return m.SearchDriveItemsWithPagingFunc(query, paging)
+		return m.SearchDriveItemsWithPagingFunc(ctx, query, paging)
 	}
 	return onedrive.DriveItemList{}, "", nil
 }
 
-func (m *MockSDK) SearchDriveItemsInFolder(folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
+func (m *MockSDK) SearchDriveItemsInFolder(ctx context.Context, folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
 	if m.SearchDriveItemsInFolderFunc != nil {
-		return m.SearchDriveItemsInFolderFunc(folderPath, query, paging)
+		return m.SearchDriveItemsInFolderFunc(ctx, folderPath, query, paging)
 	}
 	return onedrive.DriveItemList{}, "", nil
 }
 
-func (m *MockSDK) GetDriveActivities(paging onedrive.Paging) (onedrive.ActivityList, string, error) {
+func (m *MockSDK) GetDriveActivities(ctx context.Context, paging onedrive.Paging) (onedrive.ActivityList, string, error) {
 	if m.GetDriveActivitiesFunc != nil {
-		return m.GetDriveActivitiesFunc(paging)
+		return m.GetDriveActivitiesFunc(ctx, paging)
 	}
 	return onedrive.ActivityList{}, "", nil
 }
 
-func (m *MockSDK) GetItemActivities(remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error) {
+func (m *MockSDK) GetItemActivities(ctx context.Context, remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error) {
 	if m.GetItemActivitiesFunc != nil {
-		return m.GetItemActivitiesFunc(remotePath, paging)
+		return m.GetItemActivitiesFunc(ctx, remotePath, paging)
 	}
 	return onedrive.ActivityList{}, "", nil
 }
 
-func (m *MockSDK) GetSharedWithMe() (onedrive.DriveItemList, error) {
+func (m *MockSDK) GetSharedWithMe(ctx context.Context) (onedrive.DriveItemList, error) {
 	if m.GetSharedWithMeFunc != nil {
-		return m.GetSharedWithMeFunc()
+		return m.GetSharedWithMeFunc(ctx)
 	}
 	return onedrive.DriveItemList{}, nil
 }
 
-func (m *MockSDK) GetRecentItems() (onedrive.DriveItemList, error) {
+func (m *MockSDK) GetRecentItems(ctx context.Context) (onedrive.DriveItemList, error) {
 	if m.GetRecentItemsFunc != nil {
-		return m.GetRecentItemsFunc()
+		return m.GetRecentItemsFunc(ctx)
 	}
 	return onedrive.DriveItemList{}, nil
 }
 
-func (m *MockSDK) GetSpecialFolder(folderName string) (onedrive.DriveItem, error) {
+func (m *MockSDK) GetSpecialFolder(ctx context.Context, folderName string) (onedrive.DriveItem, error) {
 	if m.GetSpecialFolderFunc != nil {
-		return m.GetSpecialFolderFunc(folderName)
+		return m.GetSpecialFolderFunc(ctx, folderName)
 	}
 	return onedrive.DriveItem{}, nil
 }
 
-func (m *MockSDK) CreateSharingLink(path, linkType, scope string) (onedrive.SharingLink, error) {
+func (m *MockSDK) CreateSharingLink(ctx context.Context, path, linkType, scope string) (onedrive.SharingLink, error) {
 	if m.CreateSharingLinkFunc != nil {
-		return m.CreateSharingLinkFunc(path, linkType, scope)
+		return m.CreateSharingLinkFunc(ctx, path, linkType, scope)
 	}
 	return onedrive.SharingLink{}, nil
 }
 
-func (m *MockSDK) GetDelta(deltaToken string) (onedrive.DeltaResponse, error) {
+func (m *MockSDK) GetDelta(ctx context.Context, deltaToken string) (onedrive.DeltaResponse, error) {
 	if m.GetDeltaFunc != nil {
-		return m.GetDeltaFunc(deltaToken)
+		return m.GetDeltaFunc(ctx, deltaToken)
 	}
 	return onedrive.DeltaResponse{}, nil
 }
 
-func (m *MockSDK) GetDriveByID(driveID string) (onedrive.Drive, error) {
+func (m *MockSDK) GetDriveByID(ctx context.Context, driveID string) (onedrive.Drive, error) {
 	if m.GetDriveByIDFunc != nil {
-		return m.GetDriveByIDFunc(driveID)
+		return m.GetDriveByIDFunc(ctx, driveID)
 	}
 	return onedrive.Drive{}, nil
 }
 
-func (m *MockSDK) GetFileVersions(filePath string) (onedrive.DriveItemVersionList, error) {
+func (m *MockSDK) GetFileVersions(ctx context.Context, filePath string) (onedrive.DriveItemVersionList, error) {
 	if m.GetFileVersionsFunc != nil {
-		return m.GetFileVersionsFunc(filePath)
+		return m.GetFileVersionsFunc(ctx, filePath)
 	}
 	return onedrive.DriveItemVersionList{}, nil
 }
 
 // New Epic 7 mock method implementations
 
-func (m *MockSDK) GetThumbnails(remotePath string) (onedrive.ThumbnailSetList, error) {
+func (m *MockSDK) GetThumbnails(ctx context.Context, remotePath string) (onedrive.ThumbnailSetList, error) {
 	if m.GetThumbnailsFunc != nil {
-		return m.GetThumbnailsFunc(remotePath)
+		return m.GetThumbnailsFunc(ctx, remotePath)
 	}
 	return onedrive.ThumbnailSetList{}, nil
 }
 
-func (m *MockSDK) GetThumbnailBySize(remotePath, thumbID, size string) (onedrive.Thumbnail, error) {
+func (m *MockSDK) GetThumbnailBySize(ctx context.Context, remotePath, thumbID, size string) (onedrive.Thumbnail, error) {
 	if m.GetThumbnailBySizeFunc != nil {
-		return m.GetThumbnailBySizeFunc(remotePath, thumbID, size)
+		return m.GetThumbnailBySizeFunc(ctx, remotePath, thumbID, size)
 	}
 	return onedrive.Thumbnail{}, nil
 }
 
-func (m *MockSDK) PreviewItem(remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error) {
+func (m *MockSDK) PreviewItem(ctx context.Context, remotePath string, request onedrive.PreviewRequest) (onedrive.PreviewResponse, error) {
 	if m.PreviewItemFunc != nil {
-		return m.PreviewItemFunc(remotePath, request)
+		return m.PreviewItemFunc(ctx, remotePath, request)
 	}
 	return onedrive.PreviewResponse{}, nil
 }
 
-func (m *MockSDK) InviteUsers(remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error) {
+func (m *MockSDK) InviteUsers(ctx context.Context, remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error) {
 	if m.InviteUsersFunc != nil {
-		return m.InviteUsersFunc(remotePath, request)
+		return m.InviteUsersFunc(ctx, remotePath, request)
 	}
 	return onedrive.InviteResponse{}, nil
 }
 
-func (m *MockSDK) ListPermissions(remotePath string) (onedrive.PermissionList, error) {
+func (m *MockSDK) ListPermissions(ctx context.Context, remotePath string) (onedrive.PermissionList, error) {
 	if m.ListPermissionsFunc != nil {
-		return m.ListPermissionsFunc(remotePath)
+		return m.ListPermissionsFunc(ctx, remotePath)
 	}
 	return onedrive.PermissionList{}, nil
 }
 
-func (m *MockSDK) GetPermission(remotePath, permissionID string) (onedrive.Permission, error) {
+func (m *MockSDK) GetPermission(ctx context.Context, remotePath, permissionID string) (onedrive.Permission, error) {
 	if m.GetPermissionFunc != nil {
-		return m.GetPermissionFunc(remotePath, permissionID)
+		return m.GetPermissionFunc(ctx, remotePath, permissionID)
 	}
 	return onedrive.Permission{}, nil
 }
 
-func (m *MockSDK) UpdatePermission(remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error) {
+func (m *MockSDK) UpdatePermission(ctx context.Context, remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error) {
 	if m.UpdatePermissionFunc != nil {
-		return m.UpdatePermissionFunc(remotePath, permissionID, request)
+		return m.UpdatePermissionFunc(ctx, remotePath, permissionID, request)
 	}
 	return onedrive.Permission{}, nil
 }
 
-func (m *MockSDK) DeletePermission(remotePath, permissionID string) error {
+func (m *MockSDK) DeletePermission(ctx context.Context, remotePath, permissionID string) error {
 	if m.DeletePermissionFunc != nil {
-		return m.DeletePermissionFunc(remotePath, permissionID)
+		return m.DeletePermissionFunc(ctx, remotePath, permissionID)
 	}
 	return nil
 }

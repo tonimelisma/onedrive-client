@@ -1,6 +1,7 @@
 package onedrive
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,7 +11,7 @@ import (
 
 // DownloadFile downloads a file from OneDrive.
 // It handles the 302 redirect that Microsoft Graph API returns for download requests.
-func (c *Client) DownloadFile(remotePath, localPath string) error {
+func (c *Client) DownloadFile(ctx context.Context, remotePath, localPath string) error {
 	url := BuildPathURL(remotePath) + ":/content"
 
 	// Create request but don't follow redirects automatically
@@ -23,7 +24,7 @@ func (c *Client) DownloadFile(remotePath, localPath string) error {
 		Transport: c.httpClient.Transport,
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("creating download request: %w", err)
 	}
@@ -42,17 +43,17 @@ func (c *Client) DownloadFile(remotePath, localPath string) error {
 		}
 
 		// Download from the pre-authenticated URL (no auth headers needed)
-		return c.downloadFromURL(downloadURL, localPath)
+		return c.downloadFromURL(ctx, downloadURL, localPath)
 	}
 
 	// If we get 401 Unauthorized, try the alternative method using item metadata
 	if res.StatusCode == http.StatusUnauthorized {
-		return c.DownloadFileByItem(remotePath, localPath)
+		return c.DownloadFileByItem(ctx, remotePath, localPath)
 	}
 
 	// If we get 404 Not Found, try the alternative method using item metadata
 	if res.StatusCode == http.StatusNotFound {
-		return c.DownloadFileByItem(remotePath, localPath)
+		return c.DownloadFileByItem(ctx, remotePath, localPath)
 	}
 
 	// If not a redirect, assume it's the file content and save it
@@ -61,9 +62,9 @@ func (c *Client) DownloadFile(remotePath, localPath string) error {
 
 // DownloadFileByItem downloads a file by first getting its metadata.
 // This is an alternative method that gets the download URL from item metadata first.
-func (c *Client) DownloadFileByItem(remotePath, localPath string) error {
+func (c *Client) DownloadFileByItem(ctx context.Context, remotePath, localPath string) error {
 	// First get the item metadata to get the download URL
-	item, err := c.GetDriveItemByPath(remotePath)
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return fmt.Errorf("getting item metadata for download: %w", err)
 	}
@@ -72,12 +73,17 @@ func (c *Client) DownloadFileByItem(remotePath, localPath string) error {
 		return fmt.Errorf("item has no download URL")
 	}
 
-	return c.downloadFromURL(item.DownloadURL, localPath)
+	return c.downloadFromURL(ctx, item.DownloadURL, localPath)
 }
 
 // downloadFromURL downloads a file from a URL (typically pre-authenticated).
-func (c *Client) downloadFromURL(url, localPath string) error {
-	res, err := http.Get(url)
+func (c *Client) downloadFromURL(ctx context.Context, url, localPath string) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("creating download request: %w", err)
+	}
+
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("downloading from URL: %w", err)
 	}
@@ -107,8 +113,8 @@ func saveResponseToFile(res *http.Response, localPath string) error {
 }
 
 // DownloadFileChunk downloads a specific chunk of a file.
-func (c *Client) DownloadFileChunk(downloadURL string, startByte, endByte int64) (io.ReadCloser, error) {
-	req, err := http.NewRequest("GET", downloadURL, nil)
+func (c *Client) DownloadFileChunk(ctx context.Context, downloadURL string, startByte, endByte int64) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating chunk download request: %w", err)
 	}
@@ -128,7 +134,7 @@ func (c *Client) DownloadFileChunk(downloadURL string, startByte, endByte int64)
 }
 
 // DownloadFileAsFormat downloads a file from OneDrive in a specific format.
-func (c *Client) DownloadFileAsFormat(remotePath, localPath, format string) error {
+func (c *Client) DownloadFileAsFormat(ctx context.Context, remotePath, localPath, format string) error {
 	url := BuildPathURL(remotePath) + ":/content?format=" + url.QueryEscape(format)
 
 	noRedirectClient := &http.Client{
@@ -138,7 +144,7 @@ func (c *Client) DownloadFileAsFormat(remotePath, localPath, format string) erro
 		Transport: c.httpClient.Transport,
 	}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("creating download request: %w", err)
 	}
@@ -154,7 +160,7 @@ func (c *Client) DownloadFileAsFormat(remotePath, localPath, format string) erro
 		if downloadURL == "" {
 			return fmt.Errorf("no download location in redirect header")
 		}
-		return c.downloadFromURL(downloadURL, localPath)
+		return c.downloadFromURL(ctx, downloadURL, localPath)
 	}
 
 	return saveResponseToFile(res, localPath)

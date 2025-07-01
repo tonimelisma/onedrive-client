@@ -2,6 +2,7 @@ package onedrive
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,15 +10,15 @@ import (
 )
 
 // GetThumbnails retrieves thumbnail images for a drive item.
-func (c *Client) GetThumbnails(remotePath string) (ThumbnailSetList, error) {
+func (c *Client) GetThumbnails(ctx context.Context, remotePath string) (ThumbnailSetList, error) {
 	var thumbnails ThumbnailSetList
-	item, err := c.GetDriveItemByPath(remotePath)
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return thumbnails, fmt.Errorf("getting drive item: %w", err)
 	}
 
 	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/thumbnails"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return thumbnails, err
 	}
@@ -31,15 +32,15 @@ func (c *Client) GetThumbnails(remotePath string) (ThumbnailSetList, error) {
 }
 
 // GetThumbnailBySize retrieves a specific size thumbnail for a drive item.
-func (c *Client) GetThumbnailBySize(remotePath, thumbID, size string) (Thumbnail, error) {
+func (c *Client) GetThumbnailBySize(ctx context.Context, remotePath, thumbID, size string) (Thumbnail, error) {
 	var thumbnail Thumbnail
-	item, err := c.GetDriveItemByPath(remotePath)
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return thumbnail, fmt.Errorf("getting drive item: %w", err)
 	}
 
 	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/thumbnails/" + url.PathEscape(thumbID) + "/" + url.PathEscape(size)
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return thumbnail, err
 	}
@@ -53,9 +54,9 @@ func (c *Client) GetThumbnailBySize(remotePath, thumbID, size string) (Thumbnail
 }
 
 // PreviewItem creates a preview for a drive item.
-func (c *Client) PreviewItem(remotePath string, request PreviewRequest) (PreviewResponse, error) {
+func (c *Client) PreviewItem(ctx context.Context, remotePath string, request PreviewRequest) (PreviewResponse, error) {
 	var preview PreviewResponse
-	item, err := c.GetDriveItemByPath(remotePath)
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return preview, fmt.Errorf("getting drive item: %w", err)
 	}
@@ -70,7 +71,7 @@ func (c *Client) PreviewItem(remotePath string, request PreviewRequest) (Preview
 		bodyReader = bytes.NewReader(requestBody)
 	}
 
-	res, err := c.apiCall("POST", url, "application/json", bodyReader)
+	res, err := c.apiCall(ctx, "POST", url, "application/json", bodyReader)
 	if err != nil {
 		return preview, err
 	}

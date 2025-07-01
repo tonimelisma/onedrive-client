@@ -80,7 +80,7 @@ func NewE2ETestHelper(t *testing.T) *E2ETestHelper {
 	// tests instead of hard-failing on every test case. This keeps CI green in
 	// environments without valid credentials while still allowing developers
 	// with valid tokens to run the full suite.
-	if _, err := client.GetMe(); err != nil {
+	if _, err := client.GetMe(context.Background()); err != nil {
 		if errors.Is(err, onedrive.ErrReauthRequired) || strings.Contains(err.Error(), "AADSTS") {
 			t.Skip("Skipping E2E tests: authentication is invalid or expired. Run 'onedrive-client auth login' to refresh.")
 		}
@@ -116,20 +116,22 @@ func NewE2ETestHelper(t *testing.T) *E2ETestHelper {
 // ensureTestDirectory creates the test directory if it doesn't exist
 func (h *E2ETestHelper) ensureTestDirectory() error {
 	// First ensure the root test directory exists
-	_, err := h.App.SDK.CreateFolder("/", testRootDir)
+	_, err := h.App.SDK.CreateFolder(context.Background(), "/", testRootDir)
 	if err != nil {
 		// Check if error is because directory already exists
-		if !strings.Contains(err.Error(), "nameAlreadyExists") &&
+		if !strings.Contains(err.Error(), "conflict") &&
+			!strings.Contains(err.Error(), "nameAlreadyExists") &&
 			!strings.Contains(err.Error(), "resource not found") {
 			return fmt.Errorf("failed to create root test directory: %w", err)
 		}
 	}
 
 	// Then create the specific test directory inside the root
-	_, err = h.App.SDK.CreateFolder(testRootDir, h.TestID)
+	_, err = h.App.SDK.CreateFolder(context.Background(), testRootDir, h.TestID)
 	if err != nil {
 		// Check if error is because directory already exists
-		if !strings.Contains(err.Error(), "nameAlreadyExists") &&
+		if !strings.Contains(err.Error(), "conflict") &&
+			!strings.Contains(err.Error(), "nameAlreadyExists") &&
 			!strings.Contains(err.Error(), "resource not found") {
 			return fmt.Errorf("failed to create test directory: %w", err)
 		}
@@ -193,7 +195,7 @@ func (h *E2ETestHelper) WaitForFile(t *testing.T, remotePath string, timeout tim
 
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		_, err := h.App.SDK.GetDriveItemByPath(remotePath)
+		_, err := h.App.SDK.GetDriveItemByPath(context.Background(), remotePath)
 		if err == nil {
 			return // File found
 		}
@@ -212,7 +214,7 @@ func (h *E2ETestHelper) WaitForFile(t *testing.T, remotePath string, timeout tim
 func (h *E2ETestHelper) AssertFileExists(t *testing.T, remotePath string) {
 	t.Helper()
 
-	_, err := h.App.SDK.GetDriveItemByPath(remotePath)
+	_, err := h.App.SDK.GetDriveItemByPath(context.Background(), remotePath)
 	if err != nil {
 		if errors.Is(err, onedrive.ErrResourceNotFound) {
 			t.Errorf("Expected file %s to exist, but it was not found", remotePath)
@@ -226,7 +228,7 @@ func (h *E2ETestHelper) AssertFileExists(t *testing.T, remotePath string) {
 func (h *E2ETestHelper) AssertFileNotExists(t *testing.T, remotePath string) {
 	t.Helper()
 
-	_, err := h.App.SDK.GetDriveItemByPath(remotePath)
+	_, err := h.App.SDK.GetDriveItemByPath(context.Background(), remotePath)
 	if err == nil {
 		t.Errorf("Expected file %s to not exist, but it was found", remotePath)
 	} else if !errors.Is(err, onedrive.ErrResourceNotFound) {
@@ -241,7 +243,7 @@ func (h *E2ETestHelper) CompareFileContent(t *testing.T, remotePath string, expe
 	localPath := h.CreateTestFile(t, "downloaded-for-compare", []byte{})
 	defer os.Remove(localPath)
 
-	err := h.App.SDK.DownloadFile(remotePath, localPath)
+	err := h.App.SDK.DownloadFile(context.Background(), remotePath, localPath)
 	if err != nil {
 		t.Fatalf("Failed to download file %s for comparison: %v", remotePath, err)
 	}
@@ -265,7 +267,7 @@ func (h *E2ETestHelper) CompareFileHash(t *testing.T, localPath, remotePath stri
 	downloadedPath := h.CreateTestFile(t, "downloaded-for-hash", []byte{})
 	defer os.Remove(downloadedPath)
 
-	err := h.App.SDK.DownloadFile(remotePath, downloadedPath)
+	err := h.App.SDK.DownloadFile(context.Background(), remotePath, downloadedPath)
 	if err != nil {
 		t.Fatalf("Failed to download remote file %s for hash comparison: %v", remotePath, err)
 	}
@@ -313,10 +315,21 @@ func (h *E2ETestHelper) Cleanup(t *testing.T) {
 		os.Remove(file)
 	}
 
-	// Remove remote test directory
-	if err := h.App.SDK.DeleteDriveItem(h.TestDir); err != nil {
+	// Remove remote test directory (specific test folder)
+	if err := h.App.SDK.DeleteDriveItem(context.Background(), h.TestDir); err != nil {
 		// Don't fail the test, but log the error
 		t.Logf("Warning: failed to clean up remote directory %s: %v", h.TestDir, err)
+	}
+
+	// Optionally clean up the root test directory if it's empty
+	// This is best effort - if it fails due to non-empty directory, that's fine
+	if err := h.App.SDK.DeleteDriveItem(context.Background(), "/"+testRootDir); err != nil {
+		// Only log if it's not a "directory not empty" or "not found" error
+		if !strings.Contains(err.Error(), "not empty") &&
+			!strings.Contains(err.Error(), "not found") &&
+			!strings.Contains(err.Error(), "resource not found") {
+			t.Logf("Info: could not clean up root test directory %s: %v", testRootDir, err)
+		}
 	}
 }
 

@@ -35,9 +35,9 @@ var filesDownloadCmd = &cobra.Command{
 		// Check if format flag is specified
 		format, _ := cmd.Flags().GetString("format")
 		if format != "" {
-			err = app.SDK.DownloadFileAsFormat(remotePath, localPath, format)
+			err = app.SDK.DownloadFileAsFormat(cmd.Context(), remotePath, localPath, format)
 		} else {
-			err = app.SDK.DownloadFile(remotePath, localPath)
+			err = app.SDK.DownloadFile(cmd.Context(), remotePath, localPath)
 		}
 
 		if err != nil {
@@ -64,7 +64,7 @@ var filesListRootDeprecatedCmd = &cobra.Command{
 }
 
 func filesListRootDeprecatedLogic(a *app.App, cmd *cobra.Command, args []string) error {
-	items, err := a.SDK.GetRootDriveItems()
+	items, err := a.SDK.GetRootDriveItems(cmd.Context())
 	if err != nil {
 		return err
 	}

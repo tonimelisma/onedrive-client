@@ -110,8 +110,8 @@ func (a *App) initializeOnedriveSDK() (SDK, error) {
 }
 
 // GetMe fetches the current user's information.
-func (a *App) GetMe() (onedrive.User, error) {
-	return a.SDK.GetMe()
+func (a *App) GetMe(ctx context.Context) (onedrive.User, error) {
+	return a.SDK.GetMe(ctx)
 }
 
 // Logout clears the stored credentials and any pending auth session.

@@ -1,6 +1,7 @@
 package onedrive
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,11 +9,11 @@ import (
 )
 
 // CreateUploadSession creates a new upload session for a large file.
-func (c *Client) CreateUploadSession(remotePath string) (UploadSession, error) {
+func (c *Client) CreateUploadSession(ctx context.Context, remotePath string) (UploadSession, error) {
 	var session UploadSession
 
 	url := BuildPathURL(remotePath) + ":/createUploadSession"
-	res, err := c.apiCall("POST", url, "application/json", nil)
+	res, err := c.apiCall(ctx, "POST", url, "application/json", nil)
 	if err != nil {
 		return session, err
 	}
@@ -28,11 +29,11 @@ func (c *Client) CreateUploadSession(remotePath string) (UploadSession, error) {
 // UploadChunk uploads a chunk of a large file using an upload session.
 // Note: this uses a standard http client because it's a pre-authenticated URL
 // and the Graph API expects no Authorization header on this request.
-func (c *Client) UploadChunk(uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (UploadSession, error) {
+func (c *Client) UploadChunk(ctx context.Context, uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (UploadSession, error) {
 	var session UploadSession
 	client := &http.Client{} // Use a standard client
 
-	req, err := http.NewRequest("PUT", uploadURL, chunkData)
+	req, err := http.NewRequestWithContext(ctx, "PUT", uploadURL, chunkData)
 	if err != nil {
 		return session, fmt.Errorf("creating chunk upload request: %w", err)
 	}
@@ -53,11 +54,16 @@ func (c *Client) UploadChunk(uploadURL string, startByte, endByte, totalSize int
 }
 
 // GetUploadSessionStatus retrieves the status of an upload session.
-func (c *Client) GetUploadSessionStatus(uploadURL string) (UploadSession, error) {
+func (c *Client) GetUploadSessionStatus(ctx context.Context, uploadURL string) (UploadSession, error) {
 	var session UploadSession
 	client := &http.Client{}
 
-	res, err := client.Get(uploadURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", uploadURL, nil)
+	if err != nil {
+		return session, fmt.Errorf("creating get status request: %w", err)
+	}
+
+	res, err := client.Do(req)
 	if err != nil {
 		return session, fmt.Errorf("getting upload session status: %w", err)
 	}
@@ -71,10 +77,10 @@ func (c *Client) GetUploadSessionStatus(uploadURL string) (UploadSession, error)
 }
 
 // CancelUploadSession cancels an upload session.
-func (c *Client) CancelUploadSession(uploadURL string) error {
+func (c *Client) CancelUploadSession(ctx context.Context, uploadURL string) error {
 	client := &http.Client{}
 
-	req, err := http.NewRequest("DELETE", uploadURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "DELETE", uploadURL, nil)
 	if err != nil {
 		return fmt.Errorf("creating cancel request: %w", err)
 	}

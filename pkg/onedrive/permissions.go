@@ -2,29 +2,30 @@ package onedrive
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
-	"strings"
 )
 
-// CreateSharingLink creates a sharing link for a file or folder.
-func (c *Client) CreateSharingLink(path, linkType, scope string) (SharingLink, error) {
+// CreateSharingLink creates a sharing link for a drive item.
+func (c *Client) CreateSharingLink(ctx context.Context, path, linkType, scope string) (SharingLink, error) {
 	var link SharingLink
 
-	url := BuildPathURL(path) + ":/createLink"
-
-	createLinkRequest := map[string]string{
+	// Build the request body
+	requestBody := map[string]string{
 		"type":  linkType,
 		"scope": scope,
 	}
 
-	jsonBody, err := json.Marshal(createLinkRequest)
+	data, err := json.Marshal(requestBody)
 	if err != nil {
 		return link, fmt.Errorf("marshalling sharing link request: %w", err)
 	}
 
-	res, err := c.apiCall("POST", url, "application/json", strings.NewReader(string(jsonBody)))
+	url := BuildPathURL(path) + ":/createLink"
+	res, err := c.apiCall(ctx, "POST", url, "application/json", bytes.NewReader(data))
 	if err != nil {
 		return link, err
 	}
@@ -37,21 +38,22 @@ func (c *Client) CreateSharingLink(path, linkType, scope string) (SharingLink, e
 	return link, nil
 }
 
-// InviteUsers invites users to access a drive item.
-func (c *Client) InviteUsers(remotePath string, request InviteRequest) (InviteResponse, error) {
+// InviteUsers invites users to access a drive item with specified permissions.
+func (c *Client) InviteUsers(ctx context.Context, remotePath string, request InviteRequest) (InviteResponse, error) {
 	var invite InviteResponse
-	item, err := c.GetDriveItemByPath(remotePath)
+
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return invite, fmt.Errorf("getting drive item: %w", err)
 	}
 
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/invite"
-	requestBody, err := json.Marshal(request)
+	data, err := json.Marshal(request)
 	if err != nil {
 		return invite, fmt.Errorf("marshaling invite request: %v", err)
 	}
 
-	res, err := c.apiCall("POST", url, "application/json", bytes.NewReader(requestBody))
+	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/invite"
+	res, err := c.apiCall(ctx, "POST", url, "application/json", bytes.NewReader(data))
 	if err != nil {
 		return invite, err
 	}
@@ -65,15 +67,15 @@ func (c *Client) InviteUsers(remotePath string, request InviteRequest) (InviteRe
 }
 
 // ListPermissions lists all permissions on a drive item.
-func (c *Client) ListPermissions(remotePath string) (PermissionList, error) {
+func (c *Client) ListPermissions(ctx context.Context, remotePath string) (PermissionList, error) {
 	var permissions PermissionList
-	item, err := c.GetDriveItemByPath(remotePath)
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return permissions, fmt.Errorf("getting drive item: %w", err)
 	}
 
 	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return permissions, err
 	}
@@ -87,15 +89,15 @@ func (c *Client) ListPermissions(remotePath string) (PermissionList, error) {
 }
 
 // GetPermission gets a specific permission by ID.
-func (c *Client) GetPermission(remotePath, permissionID string) (Permission, error) {
+func (c *Client) GetPermission(ctx context.Context, remotePath, permissionID string) (Permission, error) {
 	var permission Permission
-	item, err := c.GetDriveItemByPath(remotePath)
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return permission, fmt.Errorf("getting drive item: %w", err)
 	}
 
 	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return permission, err
 	}
@@ -109,9 +111,9 @@ func (c *Client) GetPermission(remotePath, permissionID string) (Permission, err
 }
 
 // UpdatePermission updates a specific permission.
-func (c *Client) UpdatePermission(remotePath, permissionID string, request UpdatePermissionRequest) (Permission, error) {
+func (c *Client) UpdatePermission(ctx context.Context, remotePath, permissionID string, request UpdatePermissionRequest) (Permission, error) {
 	var permission Permission
-	item, err := c.GetDriveItemByPath(remotePath)
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return permission, fmt.Errorf("getting drive item: %w", err)
 	}
@@ -122,7 +124,7 @@ func (c *Client) UpdatePermission(remotePath, permissionID string, request Updat
 		return permission, fmt.Errorf("marshaling update permission request: %v", err)
 	}
 
-	res, err := c.apiCall("PATCH", url, "application/json", bytes.NewReader(requestBody))
+	res, err := c.apiCall(ctx, "PATCH", url, "application/json", bytes.NewReader(requestBody))
 	if err != nil {
 		return permission, err
 	}
@@ -136,20 +138,20 @@ func (c *Client) UpdatePermission(remotePath, permissionID string, request Updat
 }
 
 // DeletePermission removes a specific permission.
-func (c *Client) DeletePermission(remotePath, permissionID string) error {
-	item, err := c.GetDriveItemByPath(remotePath)
+func (c *Client) DeletePermission(ctx context.Context, remotePath, permissionID string) error {
+	item, err := c.GetDriveItemByPath(ctx, remotePath)
 	if err != nil {
 		return fmt.Errorf("getting drive item: %w", err)
 	}
 
 	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
-	res, err := c.apiCall("DELETE", url, "", nil)
+	res, err := c.apiCall(ctx, "DELETE", url, "", nil)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != 204 {
+	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK {
 		return fmt.Errorf("delete permission failed with status: %s", res.Status)
 	}
 

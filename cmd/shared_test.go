@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
@@ -69,13 +71,14 @@ func TestDrivesSharedLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockSDK := &MockSDK{
-				GetSharedWithMeFunc: func() (onedrive.DriveItemList, error) {
+				GetSharedWithMeFunc: func(ctx context.Context) (onedrive.DriveItemList, error) {
 					return tt.mockItems, tt.mockError
 				},
 			}
 
 			app := newTestApp(mockSDK)
-			err := drivesSharedLogic(app)
+			cmd := &cobra.Command{}
+			err := drivesSharedLogic(app, cmd)
 
 			if tt.expectError {
 				assert.Error(t, err)

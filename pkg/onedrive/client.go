@@ -138,12 +138,12 @@ func BuildPathURL(path string) string {
 }
 
 // GetMe retrieves the profile of the currently signed-in user.
-func (c *Client) GetMe() (User, error) {
+func (c *Client) GetMe(ctx context.Context) (User, error) {
 	c.logger.Debug("GetMe called")
 	var user User
 
 	url := customRootURL + "me"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return user, err
 	}
@@ -163,11 +163,11 @@ func (c *Client) GetMe() (User, error) {
 // Item management methods moved to pkg/onedrive/item.go
 
 // GetSharedWithMe retrieves items that have been shared with the current user.
-func (c *Client) GetSharedWithMe() (DriveItemList, error) {
+func (c *Client) GetSharedWithMe(ctx context.Context) (DriveItemList, error) {
 	var items DriveItemList
 
 	url := customRootURL + "me/drive/sharedWithMe"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return items, err
 	}
@@ -181,11 +181,11 @@ func (c *Client) GetSharedWithMe() (DriveItemList, error) {
 }
 
 // GetRecentItems retrieves items that have been recently accessed by the current user.
-func (c *Client) GetRecentItems() (DriveItemList, error) {
+func (c *Client) GetRecentItems(ctx context.Context) (DriveItemList, error) {
 	var items DriveItemList
 
 	url := customRootURL + "me/drive/recent"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return items, err
 	}
@@ -200,11 +200,11 @@ func (c *Client) GetRecentItems() (DriveItemList, error) {
 
 // GetSpecialFolder retrieves a special folder by its well-known name.
 // Valid folder names: documents, photos, cameraroll, approot, music, recordings
-func (c *Client) GetSpecialFolder(folderName string) (DriveItem, error) {
+func (c *Client) GetSpecialFolder(ctx context.Context, folderName string) (DriveItem, error) {
 	var item DriveItem
 
 	url := customRootURL + "me/drive/special/" + url.PathEscape(folderName)
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return item, err
 	}
@@ -218,7 +218,7 @@ func (c *Client) GetSpecialFolder(folderName string) (DriveItem, error) {
 }
 
 // GetDelta gets changes to items in a drive using delta queries
-func (c *Client) GetDelta(deltaToken string) (DeltaResponse, error) {
+func (c *Client) GetDelta(ctx context.Context, deltaToken string) (DeltaResponse, error) {
 	var deltaResponse DeltaResponse
 
 	url := customRootURL + "me/drive/root/delta"
@@ -226,7 +226,7 @@ func (c *Client) GetDelta(deltaToken string) (DeltaResponse, error) {
 		url += "?token=" + deltaToken
 	}
 
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return deltaResponse, err
 	}
@@ -240,16 +240,16 @@ func (c *Client) GetDelta(deltaToken string) (DeltaResponse, error) {
 }
 
 // GetFileVersions gets all versions of a file by its path
-func (c *Client) GetFileVersions(filePath string) (DriveItemVersionList, error) {
+func (c *Client) GetFileVersions(ctx context.Context, filePath string) (DriveItemVersionList, error) {
 	var versions DriveItemVersionList
 
-	item, err := c.GetDriveItemByPath(filePath)
+	item, err := c.GetDriveItemByPath(ctx, filePath)
 	if err != nil {
 		return versions, fmt.Errorf("getting file item: %w", err)
 	}
 
 	url := customRootURL + "me/drive/items/" + item.ID + "/versions"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return versions, err
 	}
@@ -263,7 +263,7 @@ func (c *Client) GetFileVersions(filePath string) (DriveItemVersionList, error) 
 }
 
 // collectAllPages is a helper to handle pagination for Graph API calls.
-func (c *Client) collectAllPages(initialURL string, paging Paging) ([]json.RawMessage, string, error) {
+func (c *Client) collectAllPages(ctx context.Context, initialURL string, paging Paging) ([]json.RawMessage, string, error) {
 	var allItems []json.RawMessage
 	nextLink := initialURL
 
@@ -272,7 +272,7 @@ func (c *Client) collectAllPages(initialURL string, paging Paging) ([]json.RawMe
 	}
 
 	for nextLink != "" {
-		res, err := c.apiCall("GET", nextLink, "", nil)
+		res, err := c.apiCall(ctx, "GET", nextLink, "", nil)
 		if err != nil {
 			return nil, "", err
 		}
@@ -305,7 +305,7 @@ func (c *Client) collectAllPages(initialURL string, paging Paging) ([]json.RawMe
 
 // apiCall handles the HTTP request and categorizes common errors.
 // It will automatically retry once on a 401 Unauthorized error.
-func (c *Client) apiCall(method, url, contentType string, body io.ReadSeeker) (*http.Response, error) {
+func (c *Client) apiCall(ctx context.Context, method, url, contentType string, body io.ReadSeeker) (*http.Response, error) {
 	var res *http.Response
 	var err error
 
@@ -317,7 +317,7 @@ func (c *Client) apiCall(method, url, contentType string, body io.ReadSeeker) (*
 		}
 
 		var req *http.Request
-		req, err = http.NewRequest(method, url, body)
+		req, err = http.NewRequestWithContext(ctx, method, url, body)
 		if err != nil {
 			return nil, fmt.Errorf("creating request failed: %v", err)
 		}

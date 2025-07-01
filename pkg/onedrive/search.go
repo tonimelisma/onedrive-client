@@ -1,17 +1,18 @@
 package onedrive
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 )
 
-// SearchDriveItems searches for items in the drive by query string.
-func (c *Client) SearchDriveItems(query string) (DriveItemList, error) {
+// SearchDriveItems searches for items across the entire drive.
+func (c *Client) SearchDriveItems(ctx context.Context, query string) (DriveItemList, error) {
 	var items DriveItemList
 
 	url := customRootURL + "me/drive/root/search(q='" + url.QueryEscape(query) + "')"
-	res, err := c.apiCall("GET", url, "", nil)
+	res, err := c.apiCall(ctx, "GET", url, "", nil)
 	if err != nil {
 		return items, err
 	}
@@ -25,28 +26,30 @@ func (c *Client) SearchDriveItems(query string) (DriveItemList, error) {
 }
 
 // SearchDriveItemsInFolder searches for items within a specific folder.
-func (c *Client) SearchDriveItemsInFolder(folderPath, query string, paging Paging) (DriveItemList, string, error) {
+func (c *Client) SearchDriveItemsInFolder(ctx context.Context, folderPath, query string, paging Paging) (DriveItemList, string, error) {
 	var items DriveItemList
 
-	folder, err := c.GetDriveItemByPath(folderPath)
+	// First get the folder item to get its ID
+	folderItem, err := c.GetDriveItemByPath(ctx, folderPath)
 	if err != nil {
 		return items, "", fmt.Errorf("getting folder item: %w", err)
 	}
 
-	initialURL := fmt.Sprintf("%sme/drives/%s/items/%s/search(q='%s')", customRootURL, folder.ParentReference.DriveID, folder.ID, url.QueryEscape(query))
+	// Build the search URL using the folder's item ID
+	initialURL := customRootURL + "me/drive/items/" + folderItem.ID + "/search(q='" + url.QueryEscape(query) + "')"
 	if paging.Top > 0 {
-		initialURL += fmt.Sprintf("&$top=%d", paging.Top)
+		initialURL += fmt.Sprintf("?$top=%d", paging.Top)
 	}
 
-	rawItems, nextLink, err := c.collectAllPages(initialURL, paging)
+	rawItems, nextLink, err := c.collectAllPages(ctx, initialURL, paging)
 	if err != nil {
-		return items, "", err
+		return items, "", fmt.Errorf("decoding item: %w", err)
 	}
 
-	for _, raw := range rawItems {
+	for _, rawItem := range rawItems {
 		var item DriveItem
-		if err := json.Unmarshal(raw, &item); err != nil {
-			return items, "", fmt.Errorf("decoding item: %w", err)
+		if err := json.Unmarshal(rawItem, &item); err != nil {
+			return items, "", fmt.Errorf("unmarshaling item: %w", err)
 		}
 		items.Value = append(items.Value, item)
 	}
@@ -54,23 +57,24 @@ func (c *Client) SearchDriveItemsInFolder(folderPath, query string, paging Pagin
 	return items, nextLink, nil
 }
 
-// SearchDriveItemsWithPaging searches for items in the drive with paging support.
-func (c *Client) SearchDriveItemsWithPaging(query string, paging Paging) (DriveItemList, string, error) {
+// SearchDriveItemsWithPaging searches for items across the entire drive with pagination support.
+func (c *Client) SearchDriveItemsWithPaging(ctx context.Context, query string, paging Paging) (DriveItemList, string, error) {
 	var items DriveItemList
-	initialURL := fmt.Sprintf("%sme/drive/root/search(q='%s')", customRootURL, url.QueryEscape(query))
+
+	initialURL := customRootURL + "me/drive/root/search(q='" + url.QueryEscape(query) + "')"
 	if paging.Top > 0 {
-		initialURL += fmt.Sprintf("&$top=%d", paging.Top)
+		initialURL += fmt.Sprintf("?$top=%d", paging.Top)
 	}
 
-	rawItems, nextLink, err := c.collectAllPages(initialURL, paging)
+	rawItems, nextLink, err := c.collectAllPages(ctx, initialURL, paging)
 	if err != nil {
-		return items, "", err
+		return items, "", fmt.Errorf("decoding item: %w", err)
 	}
 
-	for _, raw := range rawItems {
+	for _, rawItem := range rawItems {
 		var item DriveItem
-		if err := json.Unmarshal(raw, &item); err != nil {
-			return items, "", fmt.Errorf("decoding item: %w", err)
+		if err := json.Unmarshal(rawItem, &item); err != nil {
+			return items, "", fmt.Errorf("unmarshaling item: %w", err)
 		}
 		items.Value = append(items.Value, item)
 	}
