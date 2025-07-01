@@ -73,7 +73,7 @@ func NewE2ETestHelper(t *testing.T) *E2ETestHelper {
 		return nil
 	}
 
-	client := onedrive.NewClient(context.Background(), &cfg.Token, onNewToken, ui.StdLogger{})
+	client := onedrive.NewClient(context.Background(), &cfg.Token, config.ClientID, onNewToken, ui.StdLogger{})
 
 	// Quick sanity check: make a lightweight call to verify the token. If the
 	// access token is expired or otherwise invalid we prefer to skip the E2E

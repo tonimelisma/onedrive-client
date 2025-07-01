@@ -104,7 +104,7 @@ func (a *App) initializeOnedriveSDK() (SDK, error) {
 	}
 
 	// Create the final client using the persisting token source
-	client := onedrive.NewClient(context.Background(), &a.Config.Token, onNewToken, logger)
+	client := onedrive.NewClient(context.Background(), &a.Config.Token, config.ClientID, onNewToken, logger)
 
 	return client, nil
 }

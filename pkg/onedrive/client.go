@@ -62,10 +62,11 @@ func (c *Client) SetLogger(l Logger) {
 // NewClient creates a new OneDrive client.
 // It takes an initial token and a callback function that is invoked
 // whenever a new token is generated after a refresh.
-func NewClient(ctx context.Context, initialToken *Token, onNewToken func(*Token) error, logger Logger) *Client {
+func NewClient(ctx context.Context, initialToken *Token, clientID string, onNewToken func(*Token) error, logger Logger) *Client {
 	// The config can be minimal here because we are not using it to get a token,
 	// only to configure the TokenSource for refresh operations.
 	config := &oauth2.Config{
+		ClientID: clientID,
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  customAuthURL,
 			TokenURL: customTokenURL,
