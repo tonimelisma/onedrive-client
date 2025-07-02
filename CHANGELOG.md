@@ -49,6 +49,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **HTTP Configuration Tests**: Verify timeout and retry behavior
   - **Configuration Loading Tests**: Ensure backward compatibility
   - **UI Display Tests**: Test custom title functionality
+- **Error Handling Consistency**: Added comprehensive sentinel error system with 14 standardized error types
+  - `ErrReauthRequired`: Authentication has failed, user needs to log in again
+  - `ErrAccessDenied`: User does not have permission for the operation
+  - `ErrRetryLater`: Service is busy or unavailable, operation might succeed on retry
+  - `ErrInvalidRequest`: The request was malformed or invalid
+  - `ErrResourceNotFound`: The requested resource could not be found
+  - `ErrConflict`: Operation conflicts with current state (e.g., name already exists)
+  - `ErrQuotaExceeded`: Storage quota has been exceeded
+  - `ErrAuthorizationPending`: Device code flow is pending user authorization
+  - `ErrAuthorizationDeclined`: User declined device code authorization
+  - `ErrTokenExpired`: Access token has expired and needs refresh
+  - `ErrInternal`: Internal server error occurred
+  - `ErrDecodingFailed`: JSON response could not be decoded
+  - `ErrNetworkFailed`: Network request failed (timeouts, connection errors)
+  - `ErrOperationFailed`: General operation failure (copies, moves, uploads, etc.)
+- **Error Testing Framework**: Comprehensive test suite validating error sentinel behavior with `errors.Is()`
+
+### Improved
+- **Error Consistency**: All SDK functions now use consistent error wrapping with `%w` verb for proper error chains
+- **Error Categorization**: Replaced all raw `fmt.Errorf` patterns with categorized sentinel errors across all SDK files:
+  - `pkg/onedrive/client.go`: User info, shared items, recent items, special folders, delta sync, pagination, versions
+  - `pkg/onedrive/drive.go`: Drive operations, default drive, root items listing
+  - `pkg/onedrive/auth.go`: OAuth2 authorization flow, device code flow, token exchange
+  - `pkg/onedrive/item.go`: File/folder operations, metadata, children listing, CRUD operations
+  - `pkg/onedrive/upload.go`: Upload session management, chunk upload progress
+  - `pkg/onedrive/thumbnails.go`: Thumbnail and preview generation
+  - `pkg/onedrive/permissions.go`: Sharing links, invitations, permission management
+  - `pkg/onedrive/search.go`: Search result processing
+- **Error Testability**: External consumers can now reliably test error conditions using `errors.Is()` checks
+- **Debugging Experience**: Error messages now provide clear categorization and wrapped context
+- **API Reliability**: Consistent error handling patterns across all OneDrive operations
+- **Developer Experience**: Predictable error types enable better error handling strategies
 
 ### Changed
 - **BREAKING**: Removed legacy session helper functions

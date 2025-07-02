@@ -36,7 +36,7 @@ func (c *Client) GetDriveItemByPath(ctx context.Context, path string) (DriveItem
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
-		return item, fmt.Errorf("decoding item metadata for path '%s' failed: %v", path, err)
+		return item, fmt.Errorf("%w: decoding item metadata for path '%s': %w", ErrDecodingFailed, path, err)
 	}
 
 	return item, nil
@@ -74,7 +74,7 @@ func (c *Client) GetDriveItemChildrenByPath(ctx context.Context, path string) (D
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
-		return items, fmt.Errorf("decoding children for path '%s' failed: %v", path, err)
+		return items, fmt.Errorf("%w: decoding children for path '%s': %w", ErrDecodingFailed, path, err)
 	}
 
 	return items, nil
@@ -127,7 +127,7 @@ func (c *Client) CreateFolder(ctx context.Context, parentPath string, folderName
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
-		return item, fmt.Errorf("decoding created folder response for '%s': %v", folderName, err)
+		return item, fmt.Errorf("%w: decoding created folder response for '%s': %w", ErrDecodingFailed, folderName, err)
 	}
 
 	return item, nil
@@ -164,7 +164,7 @@ func (c *Client) UploadFile(ctx context.Context, localPath, remotePath string) (
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
-		return item, fmt.Errorf("decoding uploaded file response for '%s': %v", remotePath, err)
+		return item, fmt.Errorf("%w: decoding uploaded file response for '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return item, nil
@@ -190,7 +190,7 @@ func (c *Client) DeleteDriveItem(ctx context.Context, path string) error {
 	// Successful deletion typically returns HTTP 204 No Content.
 	// Some APIs might also return 200 OK or 202 Accepted.
 	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK && res.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("delete failed for path '%s' with status: %s", path, res.Status)
+		return fmt.Errorf("%w: delete failed for path '%s' with status: %s", ErrOperationFailed, path, res.Status)
 	}
 	return nil
 }
@@ -303,7 +303,7 @@ func (c *Client) MonitorCopyOperation(ctx context.Context, monitorURL string) (C
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(&status); err != nil {
-		return status, fmt.Errorf("decoding copy status from '%s': %v", monitorURL, err)
+		return status, fmt.Errorf("%w: decoding copy status from '%s': %w", ErrDecodingFailed, monitorURL, err)
 	}
 
 	return status, nil
@@ -357,7 +357,7 @@ func (c *Client) MoveDriveItem(ctx context.Context, sourcePath, destinationParen
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
-		return item, fmt.Errorf("decoding moved item response for '%s': %v", sourcePath, err)
+		return item, fmt.Errorf("%w: decoding moved item response for '%s': %w", ErrDecodingFailed, sourcePath, err)
 	}
 	return item, nil
 }
@@ -401,7 +401,7 @@ func (c *Client) UpdateDriveItem(ctx context.Context, path, newName string) (Dri
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
-		return item, fmt.Errorf("decoding renamed item response for '%s': %v", path, err)
+		return item, fmt.Errorf("%w: decoding renamed item response for '%s': %w", ErrDecodingFailed, path, err)
 	}
 	return item, nil
 }

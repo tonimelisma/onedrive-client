@@ -37,7 +37,7 @@ func (c *Client) SearchDriveItems(ctx context.Context, query string) (DriveItemL
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
-		return items, fmt.Errorf("decoding search results for query '%s' failed: %v", query, err)
+		return items, fmt.Errorf("%w: decoding search results for query '%s': %w", ErrDecodingFailed, query, err)
 	}
 	// Note: This does not handle NextLink from the response, so results might be truncated.
 	return items, nil

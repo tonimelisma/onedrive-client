@@ -196,7 +196,7 @@ func CompleteAuthentication(
 	pkceCodeVerifier := oauth2.SetAuthURLParam("code_verifier", verifier)
 	token, err := (*oauth2.Config)(oauthConfig).Exchange(ctx, code, pkceCodeVerifier)
 	if err != nil {
-		return nil, fmt.Errorf("failed to exchange authorization code for token: %w", err)
+		return nil, fmt.Errorf("%w: failed to exchange authorization code for token: %w", ErrOperationFailed, err)
 	}
 
 	// Manually set the Expiry field from "expires_in".
@@ -267,7 +267,7 @@ func InitiateDeviceCodeFlow(clientID string, debug bool) (*DeviceCodeResponse, e
 
 	var deviceCodeResponse DeviceCodeResponse
 	if err := json.NewDecoder(res.Body).Decode(&deviceCodeResponse); err != nil {
-		return nil, fmt.Errorf("decoding device code response: %v", err)
+		return nil, fmt.Errorf("%w: decoding device code response: %w", ErrDecodingFailed, err)
 	}
 
 	return &deviceCodeResponse, nil
@@ -325,13 +325,13 @@ func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*Token, e
 	// Check for HTTP errors not caught by apiCallWithDebug's specific OAuth error parsing.
 	// This is a safeguard, as apiCallWithDebug should handle most >= 400 errors.
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("retrieving token via device code failed with status %s: %s", res.Status, string(bodyBytes))
+		return nil, fmt.Errorf("%w: retrieving token via device code failed with status %s: %s", ErrOperationFailed, res.Status, string(bodyBytes))
 	}
 
 	// Parse the token from the response body.
 	var token oauth2.Token
 	if err := json.Unmarshal(bodyBytes, &token); err != nil {
-		return nil, fmt.Errorf("parsing token from device code response: %v", err)
+		return nil, fmt.Errorf("%w: parsing token from device code response: %w", ErrDecodingFailed, err)
 	}
 
 	// Manually set the Expiry field from "expires_in", crucial for token refresh logic.

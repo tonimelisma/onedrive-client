@@ -220,7 +220,7 @@ func (s *persistingTokenSource) Token() (*oauth2.Token, error) {
 				// If persisting fails, log it or handle as critical.
 				// Returning an error here might prevent the original API call from proceeding.
 				// For now, we make the failure visible.
-				return nil, fmt.Errorf("failed to persist new token: %w", err)
+				return nil, fmt.Errorf("%w: failed to persist new token: %w", ErrOperationFailed, err)
 			}
 		}
 	}
@@ -272,7 +272,7 @@ func (c *Client) GetMe(ctx context.Context) (User, error) {
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&user); err != nil {
-		return user, fmt.Errorf("decoding user failed: %v", err)
+		return user, fmt.Errorf("%w: decoding user: %w", ErrDecodingFailed, err)
 	}
 
 	return user, nil
@@ -303,7 +303,7 @@ func (c *Client) GetSharedWithMe(ctx context.Context) (DriveItemList, error) {
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
-		return items, fmt.Errorf("decoding shared items failed: %v", err)
+		return items, fmt.Errorf("%w: decoding shared items: %w", ErrDecodingFailed, err)
 	}
 
 	return items, nil
@@ -334,7 +334,7 @@ func (c *Client) GetRecentItems(ctx context.Context) (DriveItemList, error) {
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
-		return items, fmt.Errorf("decoding recent items failed: %v", err)
+		return items, fmt.Errorf("%w: decoding recent items: %w", ErrDecodingFailed, err)
 	}
 
 	return items, nil
@@ -364,7 +364,7 @@ func (c *Client) GetSpecialFolder(ctx context.Context, folderName string) (Drive
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
-		return item, fmt.Errorf("decoding special folder ('%s') failed: %v", folderName, err)
+		return item, fmt.Errorf("%w: decoding special folder '%s': %w", ErrDecodingFailed, folderName, err)
 	}
 
 	return item, nil
@@ -408,7 +408,7 @@ func (c *Client) GetDelta(ctx context.Context, deltaToken string) (DeltaResponse
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&deltaResponse); err != nil {
-		return deltaResponse, fmt.Errorf("decoding delta response: %v", err)
+		return deltaResponse, fmt.Errorf("%w: decoding delta response: %w", ErrDecodingFailed, err)
 	}
 
 	return deltaResponse, nil
@@ -447,7 +447,7 @@ func (c *Client) GetFileVersions(ctx context.Context, filePath string) (DriveIte
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&versions); err != nil {
-		return versions, fmt.Errorf("decoding versions response for '%s': %v", filePath, err)
+		return versions, fmt.Errorf("%w: decoding versions response for '%s': %w", ErrDecodingFailed, filePath, err)
 	}
 
 	return versions, nil
@@ -494,7 +494,7 @@ func (c *Client) collectAllPages(ctx context.Context, initialURL string, paging 
 		}
 
 		if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
-			return allItems, "", fmt.Errorf("decoding paginated response: %v", err)
+			return allItems, "", fmt.Errorf("%w: decoding paginated response: %w", ErrDecodingFailed, err)
 		}
 
 		// Accumulate items from this page
@@ -553,7 +553,7 @@ func (c *Client) apiCall(ctx context.Context, method, url, contentType string, b
 				}
 				continue
 			}
-			return nil, fmt.Errorf("HTTP request failed after %d attempts: %w", maxRetries, err)
+			return nil, fmt.Errorf("%w: HTTP request failed after %d attempts: %w", ErrNetworkFailed, maxRetries, err)
 		}
 
 		// Handle HTTP errors
@@ -652,4 +652,7 @@ var (
 	ErrAuthorizationDeclined = errors.New("authorization declined by user")           // User explicitly denied the authorization request.
 	ErrTokenExpired          = errors.New("token expired")                            // Access or refresh token has expired (during auth flow).
 	ErrInternal              = errors.New("internal SDK error")                       // Indicates an unexpected issue within the SDK itself.
+	ErrDecodingFailed        = errors.New("response decoding failed")                 // JSON/response decoding failed.
+	ErrNetworkFailed         = errors.New("network operation failed")                 // Network-level failure.
+	ErrOperationFailed       = errors.New("operation failed")                         // General operation failure.
 )

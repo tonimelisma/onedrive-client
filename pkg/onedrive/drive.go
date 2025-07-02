@@ -35,7 +35,7 @@ func (c *Client) GetDrives(ctx context.Context) (DriveList, error) {
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&drives); err != nil {
-		return drives, fmt.Errorf("decoding drives list failed: %v", err)
+		return drives, fmt.Errorf("%w: decoding drives list: %w", ErrDecodingFailed, err)
 	}
 
 	return drives, nil
@@ -63,7 +63,7 @@ func (c *Client) GetDefaultDrive(ctx context.Context) (Drive, error) {
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
-		return drive, fmt.Errorf("decoding default drive info failed: %v", err)
+		return drive, fmt.Errorf("%w: decoding default drive info: %w", ErrDecodingFailed, err)
 	}
 
 	return drive, nil
@@ -92,7 +92,7 @@ func (c *Client) GetDriveByID(ctx context.Context, driveID string) (Drive, error
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
-		return drive, fmt.Errorf("decoding drive info for ID '%s' failed: %v", driveID, err)
+		return drive, fmt.Errorf("%w: decoding drive info for ID '%s': %w", ErrDecodingFailed, driveID, err)
 	}
 
 	return drive, nil
@@ -179,7 +179,7 @@ func (c *Client) GetRootDriveItems(ctx context.Context) (DriveItemList, error) {
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
-		return items, fmt.Errorf("decoding root drive items list failed: %v", err)
+		return items, fmt.Errorf("%w: decoding root drive items list: %w", ErrDecodingFailed, err)
 	}
 
 	return items, nil

@@ -40,7 +40,7 @@ func (c *Client) CreateUploadSession(ctx context.Context, remotePath string) (Up
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&session); err != nil {
-		return session, fmt.Errorf("decoding upload session response for '%s': %v", remotePath, err)
+		return session, fmt.Errorf("%w: decoding upload session response for '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return session, nil
@@ -163,7 +163,7 @@ func (c *Client) GetUploadSessionStatus(ctx context.Context, uploadURL string) (
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(&session); err != nil {
-		return session, fmt.Errorf("decoding upload session status from '%s': %v", uploadURL, err)
+		return session, fmt.Errorf("%w: decoding upload session status from '%s': %w", ErrDecodingFailed, uploadURL, err)
 	}
 
 	return session, nil

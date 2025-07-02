@@ -48,7 +48,7 @@ func (c *Client) CreateSharingLink(ctx context.Context, path, linkType, scope st
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&link); err != nil {
-		return link, fmt.Errorf("decoding sharing link response for path '%s': %v", path, err)
+		return link, fmt.Errorf("%w: decoding sharing link response for path '%s': %w", ErrDecodingFailed, path, err)
 	}
 
 	return link, nil
@@ -99,7 +99,7 @@ func (c *Client) InviteUsers(ctx context.Context, remotePath string, request Inv
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&invite); err != nil {
-		return invite, fmt.Errorf("decoding invite response for path '%s': %v", remotePath, err)
+		return invite, fmt.Errorf("%w: decoding invite response for path '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return invite, nil
@@ -136,7 +136,7 @@ func (c *Client) ListPermissions(ctx context.Context, remotePath string) (Permis
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&permissions); err != nil {
-		return permissions, fmt.Errorf("decoding permissions list for path '%s': %v", remotePath, err)
+		return permissions, fmt.Errorf("%w: decoding permissions list for path '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return permissions, nil
@@ -171,7 +171,7 @@ func (c *Client) GetPermission(ctx context.Context, remotePath, permissionID str
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&permission); err != nil {
-		return permission, fmt.Errorf("decoding permission details for ID '%s' on path '%s': %v", permissionID, remotePath, err)
+		return permission, fmt.Errorf("%w: decoding permission details for ID '%s' on path '%s': %w", ErrDecodingFailed, permissionID, remotePath, err)
 	}
 
 	return permission, nil
@@ -222,7 +222,7 @@ func (c *Client) UpdatePermission(ctx context.Context, remotePath, permissionID 
 				return c.GetPermission(ctx, remotePath, permissionID) // Re-fetch to get the updated state.
 			}
 		}
-		return permission, fmt.Errorf("decoding updated permission response for ID '%s' on path '%s': %v", permissionID, remotePath, err)
+		return permission, fmt.Errorf("%w: decoding updated permission response for ID '%s' on path '%s': %w", ErrDecodingFailed, permissionID, remotePath, err)
 	}
 
 	return permission, nil

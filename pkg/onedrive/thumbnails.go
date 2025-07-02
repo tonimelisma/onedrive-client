@@ -45,7 +45,7 @@ func (c *Client) GetThumbnails(ctx context.Context, remotePath string) (Thumbnai
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&thumbnails); err != nil {
-		return thumbnails, fmt.Errorf("decoding thumbnails response for path '%s': %v", remotePath, err)
+		return thumbnails, fmt.Errorf("%w: decoding thumbnails response for path '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return thumbnails, nil
@@ -84,7 +84,7 @@ func (c *Client) GetThumbnailBySize(ctx context.Context, remotePath, thumbID, si
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&thumbnail); err != nil {
-		return thumbnail, fmt.Errorf("decoding thumbnail by size (ID: '%s', Size: '%s') for path '%s': %v", thumbID, size, remotePath, err)
+		return thumbnail, fmt.Errorf("%w: decoding thumbnail by size (ID: '%s', Size: '%s') for path '%s': %w", ErrDecodingFailed, thumbID, size, remotePath, err)
 	}
 
 	return thumbnail, nil
@@ -144,7 +144,7 @@ func (c *Client) PreviewItem(ctx context.Context, remotePath string, request Pre
 	defer res.Body.Close()
 
 	if err := json.NewDecoder(res.Body).Decode(&preview); err != nil {
-		return preview, fmt.Errorf("decoding preview response for path '%s': %v", remotePath, err)
+		return preview, fmt.Errorf("%w: decoding preview response for path '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return preview, nil

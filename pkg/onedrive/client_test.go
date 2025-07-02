@@ -294,3 +294,76 @@ func TestClientAPICallWithConfigurableRetries(t *testing.T) {
 	assert.Equal(t, 3, retryCount) // Should have retried twice
 	response.Body.Close()
 }
+
+func TestErrorSentinelWrapping(t *testing.T) {
+	// Test that error sentinels can be properly identified with errors.Is()
+	tests := []struct {
+		name             string
+		statusCode       int
+		responseBody     string
+		expectedSentinel error
+	}{
+		{
+			name:             "Decoding error wrapped correctly",
+			statusCode:       200,
+			responseBody:     "invalid json{",
+			expectedSentinel: ErrDecodingFailed,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				w.Write([]byte(tt.responseBody))
+			}))
+			defer server.Close()
+
+			ctx := context.Background()
+			token := &Token{AccessToken: "test-token"}
+			client := NewClient(ctx, token, "test-client-id", nil, &logger.NoopLogger{})
+
+			// Override the httpClient to use our test server
+			client.httpClient = &http.Client{}
+
+			// Replace the root URL to point to our test server
+			originalRootURL := customRootURL
+			customRootURL = server.URL + "/"
+			defer func() { customRootURL = originalRootURL }()
+
+			_, err := client.GetMe(ctx)
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, tt.expectedSentinel),
+				"Expected error to wrap %v, got %v", tt.expectedSentinel, err)
+		})
+	}
+}
+
+func TestAllErrorSentinels(t *testing.T) {
+	// Test that all error sentinels are properly defined and can be compared
+	sentinels := []error{
+		ErrReauthRequired,
+		ErrAccessDenied,
+		ErrRetryLater,
+		ErrInvalidRequest,
+		ErrResourceNotFound,
+		ErrConflict,
+		ErrQuotaExceeded,
+		ErrAuthorizationPending,
+		ErrAuthorizationDeclined,
+		ErrTokenExpired,
+		ErrInternal,
+		ErrDecodingFailed,
+		ErrNetworkFailed,
+		ErrOperationFailed,
+	}
+
+	for _, sentinel := range sentinels {
+		assert.NotNil(t, sentinel)
+		assert.NotEmpty(t, sentinel.Error())
+
+		// Test that each sentinel can be identified with errors.Is
+		wrappedErr := fmt.Errorf("wrapped: %w", sentinel)
+		assert.True(t, errors.Is(wrappedErr, sentinel))
+	}
+}
