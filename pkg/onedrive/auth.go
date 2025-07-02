@@ -72,7 +72,9 @@ func apiCallWithDebug(method, url, contentType string, body io.Reader, debug boo
 		}
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	// Use a configured HTTP client for consistent timeout behavior during auth operations
+	authClient := NewConfiguredHTTPClient(DefaultHTTPConfig())
+	res, err := authClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("network error during API call to %s %s: %w", method, url, err)
 	}

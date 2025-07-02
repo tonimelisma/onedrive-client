@@ -33,6 +33,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extensive golangci-lint configuration with 30+ enabled linters
   - Security, performance, style, and maintainability checks
   - Consistent code formatting and best practices enforcement
+- **HTTP Configuration**: New centralized HTTP client configuration system for timeouts and retry behavior
+  - **Default Values**: 30-second timeout, 3 retry attempts with exponential backoff
+  - **Configurable**: All HTTP clients use consistent timeout and retry settings
+  - **Backward Compatible**: Existing configurations automatically get sensible defaults
+  - **OAuth Preservation**: HTTP configuration preserves OAuth2 transport layer
+- **Polling Configuration**: New configurable polling system for long-running operations
+  - **Copy Operations**: Configurable intervals for monitoring copy status with exponential backoff
+  - **Default Values**: 2-second initial interval, 30-second maximum, 1.5x multiplier
+  - **Smart Backoff**: Prevents overwhelming the server while providing responsive feedback
+- **UI Enhancement**: DisplayDriveItemsWithTitle function for context-specific directory listings
+  - **Flexible Titles**: Custom titles for different contexts (root, subfolders, search results)
+  - **Backward Compatible**: Existing DisplayDriveItems function maintains default behavior
+- **Comprehensive Test Coverage**: New test suites for all architectural improvements
+  - **HTTP Configuration Tests**: Verify timeout and retry behavior
+  - **Configuration Loading Tests**: Ensure backward compatibility
+  - **UI Display Tests**: Test custom title functionality
 
 ### Changed
 - **BREAKING**: Removed legacy session helper functions
@@ -50,6 +66,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `StdLogger` now implements full structured logging interface
   - Added Debug/Info/Warn/Error methods with formatted variants
   - Better integration with new logging infrastructure
+- **HTTP Client Management**: Centralized and consistent HTTP client configuration
+  - **All Clients**: SDK, upload, download, and auth operations use configured timeouts
+  - **Pre-authenticated URLs**: Downloads and uploads maintain consistent timeout behavior
+  - **Retry Logic**: Configurable exponential backoff with maximum delay caps
+  - **Rate Limiting**: Improved handling of 429 responses with configurable delays
+- **Copy Operation Monitoring**: Replaced hard-coded 5-second polling with configurable intervals
+  - **Exponential Backoff**: Starts at 2 seconds, increases to maximum 30 seconds
+  - **User Feedback**: Progress logging shows wait times and polling intervals
+  - **Resource Efficiency**: Reduces server load while maintaining responsiveness
 
 ### Fixed
 - **Package Organization**: Fixed Go package naming convention violation in `cmd/items/` directory

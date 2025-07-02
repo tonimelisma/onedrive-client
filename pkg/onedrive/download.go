@@ -17,12 +17,12 @@ import (
 // returns an HTTP 302 redirect to a pre-authenticated download URL.
 //
 // This function attempts two methods:
-// 1. Direct content request: Issues a GET to `/{driveItemPath}:/content`. If this results
-//    in a 302, it follows the redirect.
-// 2. Fallback via metadata: If the direct content request fails with 401/404, it attempts
-//    to fetch the item's metadata (using `GetDriveItemByPath`) to obtain the
-//    `@microsoft.graph.downloadUrl` and then downloads from that URL. This can sometimes
-//    succeed due to different permission checks or URL structures for the pre-authenticated URL.
+//  1. Direct content request: Issues a GET to `/{driveItemPath}:/content`. If this results
+//     in a 302, it follows the redirect.
+//  2. Fallback via metadata: If the direct content request fails with 401/404, it attempts
+//     to fetch the item's metadata (using `GetDriveItemByPath`) to obtain the
+//     `@microsoft.graph.downloadUrl` and then downloads from that URL. This can sometimes
+//     succeed due to different permission checks or URL structures for the pre-authenticated URL.
 //
 // Example:
 //
@@ -117,7 +117,7 @@ func (c *Client) DownloadFileByItem(ctx context.Context, remotePath, localPath s
 
 // downloadFromURL is an unexported helper that downloads content from a given URL
 // (typically a pre-authenticated download URL from OneDrive) and saves it to `localPath`.
-// It uses a default HTTP client as pre-authenticated URLs usually don't require auth headers.
+// It uses a configured HTTP client for consistent timeout and retry behavior.
 // `sourceDescription` is used for logging/error messages.
 func (c *Client) downloadFromURL(ctx context.Context, downloadURL, localPath, sourceDescription string) error {
 	c.logger.Debugf("downloadFromURL called for URL: '%s', localPath: '%s' (source: %s)", downloadURL, localPath, sourceDescription)
@@ -126,8 +126,10 @@ func (c *Client) downloadFromURL(ctx context.Context, downloadURL, localPath, so
 		return fmt.Errorf("creating download request for '%s' from %s: %w", localPath, sourceDescription, err)
 	}
 
-	// Use http.DefaultClient because pre-authenticated URLs do not require Authorization headers.
-	res, err := http.DefaultClient.Do(req)
+	// Use configured HTTP client for consistent timeout behavior.
+	// Pre-authenticated URLs don't require OAuth headers, so we create a basic configured client.
+	downloadClient := NewConfiguredHTTPClient(c.httpConfig)
+	res, err := downloadClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("downloading '%s' from %s (%s): %w", localPath, sourceDescription, downloadURL, err)
 	}

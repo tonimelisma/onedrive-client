@@ -58,6 +58,44 @@ var (
 // with the golang.org/x/oauth2 package.
 type Token oauth2.Token
 
+// HTTPConfig represents HTTP client configuration for the SDK
+type HTTPConfig struct {
+	Timeout       time.Duration // HTTP request timeout
+	RetryAttempts int           // Maximum number of retry attempts
+	RetryDelay    time.Duration // Initial retry delay
+	MaxRetryDelay time.Duration // Maximum retry delay for exponential backoff
+}
+
+// DefaultHTTPConfig returns sensible default HTTP configuration values
+func DefaultHTTPConfig() HTTPConfig {
+	return HTTPConfig{
+		Timeout:       30 * time.Second,
+		RetryAttempts: 3,
+		RetryDelay:    1 * time.Second,
+		MaxRetryDelay: 10 * time.Second,
+	}
+}
+
+// NewConfiguredHTTPClient creates a new HTTP client with the specified configuration.
+// This function creates a basic HTTP client with timeout settings.
+// For OAuth2-authenticated requests, use oauth2.NewClient with the appropriate TokenSource.
+func NewConfiguredHTTPClient(config HTTPConfig) *http.Client {
+	return &http.Client{
+		Timeout: config.Timeout,
+		// Additional transport configuration can be added here if needed
+	}
+}
+
+// NewConfiguredHTTPClientWithTransport creates an HTTP client with custom transport and configuration.
+// This is useful when you need to preserve an existing transport (like OAuth2 transport)
+// while applying timeout configuration.
+func NewConfiguredHTTPClientWithTransport(config HTTPConfig, transport http.RoundTripper) *http.Client {
+	return &http.Client{
+		Timeout:   config.Timeout,
+		Transport: transport,
+	}
+}
+
 // Client is a stateful client for interacting with the Microsoft Graph API for OneDrive.
 // It encapsulates an HTTP client that automatically handles OAuth2 token refreshes.
 // The Client also provides a mechanism for persisting new tokens via a callback.
@@ -66,6 +104,7 @@ type Client struct {
 	httpClient *http.Client       // The underlying HTTP client, configured with OAuth2 handling.
 	onNewToken func(*Token) error // Callback invoked when a token is refreshed.
 	logger     Logger             // Logger for debugging SDK operations.
+	httpConfig HTTPConfig         // HTTP configuration for non-authenticated clients
 }
 
 // SetLogger allows users of the SDK to set their own logger implementation.
@@ -105,6 +144,12 @@ func (c *Client) SetLogger(l Logger) {
 //	client := onedrive.NewClient(context.Background(), initialToken, clientID, onTokenRefresh, myLogger)
 //	// Now use the client to make API calls, e.g., client.GetMe(context.Background())
 func NewClient(ctx context.Context, initialToken *Token, clientID string, onNewToken func(*Token) error, logger Logger) *Client {
+	return NewClientWithConfig(ctx, initialToken, clientID, onNewToken, logger, DefaultHTTPConfig())
+}
+
+// NewClientWithConfig creates a new OneDrive client with custom HTTP configuration.
+// This allows fine-tuning of HTTP timeouts, retry behavior, and other client settings.
+func NewClientWithConfig(ctx context.Context, initialToken *Token, clientID string, onNewToken func(*Token) error, logger Logger, httpConfig HTTPConfig) *Client {
 	// The oauth2.Config is used here primarily to configure the TokenSource for refresh operations.
 	// It does not initiate a new token acquisition flow itself.
 	config := &oauth2.Config{
@@ -128,12 +173,17 @@ func NewClient(ctx context.Context, initialToken *Token, clientID string, onNewT
 		logger = DefaultLogger{} // Use no-op logger if none provided.
 	}
 
-	// oauth2.NewClient creates an http.Client that automatically uses the
-	// persistingTokenSource to manage and refresh tokens for outgoing requests.
+	// Create the base oauth2 client with authentication
+	baseOAuth2Client := oauth2.NewClient(ctx, persistingSource)
+
+	// Apply our HTTP configuration while preserving the OAuth2 transport
+	configuredClient := NewConfiguredHTTPClientWithTransport(httpConfig, baseOAuth2Client.Transport)
+
 	return &Client{
-		httpClient: oauth2.NewClient(ctx, persistingSource),
+		httpClient: configuredClient,
 		onNewToken: onNewToken,
 		logger:     logger,
+		httpConfig: httpConfig,
 	}
 }
 
@@ -470,8 +520,9 @@ func (c *Client) collectAllPages(ctx context.Context, initialURL string, paging 
 //
 // This function is fundamental to the SDK's operation.
 func (c *Client) apiCall(ctx context.Context, method, url, contentType string, body io.ReadSeeker) (*http.Response, error) {
-	const maxRetries = 3
-	const retryDelay = time.Second
+	maxRetries := c.httpConfig.RetryAttempts
+	retryDelay := c.httpConfig.RetryDelay
+	maxRetryDelay := c.httpConfig.MaxRetryDelay
 
 	var res *http.Response
 
@@ -551,7 +602,11 @@ func (c *Client) apiCall(ctx context.Context, method, url, contentType string, b
 			// Rate limited - should retry with backoff
 			res.Body.Close()
 			if i < maxRetries-1 {
-				retryAfter := time.Duration(i+1) * retryDelay * 2 // Exponential backoff
+				// Exponential backoff with maximum delay cap
+				retryAfter := time.Duration(i+1) * retryDelay * 2
+				if retryAfter > maxRetryDelay {
+					retryAfter = maxRetryDelay
+				}
 				time.Sleep(retryAfter)
 				c.logger.Debugf("Retrying request to URL: %s", url)
 				if body != nil {

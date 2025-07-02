@@ -156,6 +156,11 @@ func filesCopyLogic(a *app.App, cmd *cobra.Command, args []string) error {
 // monitorCopyToCompletion polls the copy operation status until it completes or fails.
 // `sourcePath` is used for more informative logging.
 func monitorCopyToCompletion(a *app.App, ctx context.Context, monitorURL, sourcePath string) error {
+	// Get polling configuration from app config
+	pollingInterval := a.Config.Polling.InitialInterval
+	maxInterval := a.Config.Polling.MaxInterval
+	multiplier := a.Config.Polling.Multiplier
+
 	// Polling loop for copy status.
 	for {
 		status, err := a.SDK.MonitorCopyOperation(ctx, monitorURL)
@@ -185,9 +190,17 @@ func monitorCopyToCompletion(a *app.App, ctx context.Context, monitorURL, source
 			log.Printf("Copy of '%s' has an unknown status: %s - %s (%d%%)", sourcePath, status.Status, status.StatusDescription, status.PercentageComplete)
 		}
 
-		// Wait for a short duration before polling again to avoid overwhelming the server.
-		// The Graph API documentation may specify a recommended polling interval.
-		time.Sleep(5 * time.Second) // Increased polling interval
+		// Wait for the current polling interval before checking again
+		log.Printf("Waiting %v before next status check...", pollingInterval)
+		time.Sleep(pollingInterval)
+
+		// Increase polling interval for exponential backoff, but cap at maximum
+		nextInterval := time.Duration(float64(pollingInterval) * multiplier)
+		if nextInterval > maxInterval {
+			pollingInterval = maxInterval
+		} else {
+			pollingInterval = nextInterval
+		}
 	}
 }
 

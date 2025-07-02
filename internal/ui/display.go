@@ -96,16 +96,22 @@ func PrintError(err error) {
 	log.Printf("ERROR: %v", err)
 }
 
-// DisplayDriveItems prints a list of DriveItems (files and folders) in a basic table format.
+// DisplayDriveItems prints a table of DriveItem resources, showing name, size, and type.
 // It indicates whether each item is a file or a folder.
+// The title parameter allows customizing the header message.
 func DisplayDriveItems(items onedrive.DriveItemList) {
+	DisplayDriveItemsWithTitle(items, "Items found:")
+}
+
+// DisplayDriveItemsWithTitle prints a table of DriveItem resources with a custom title.
+// This resolves the issue where the title might be misleading when listing subfolders.
+func DisplayDriveItemsWithTitle(items onedrive.DriveItemList, title string) {
 	if len(items.Value) == 0 {
 		fmt.Println("No items found in this location.")
 		return
 	}
-	// TODO: The title "Items in your root folder:" might be misleading if listing a subfolder.
-	// Consider making the title more generic or passed as a parameter.
-	fmt.Println("Items found:")
+
+	fmt.Println(title)
 	fmt.Printf("%-50s %12s %s\n", "Name", "Size", "Type")
 	fmt.Println(strings.Repeat("-", 70)) // Adjust line length based on columns
 	for _, item := range items.Value {

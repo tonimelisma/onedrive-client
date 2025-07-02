@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
@@ -30,13 +31,51 @@ const ClientID = "57caa7f2-c679-440c-8de2-f8ec86510722"
 // ErrConfigNotFound is returned by Load when the configuration file does not exist.
 var ErrConfigNotFound = errors.New("configuration file not found")
 
+// HTTPConfig holds HTTP client configuration settings
+type HTTPConfig struct {
+	Timeout       time.Duration `json:"timeout"`         // HTTP request timeout
+	RetryAttempts int           `json:"retry_attempts"`  // Maximum number of retry attempts
+	RetryDelay    time.Duration `json:"retry_delay"`     // Initial retry delay
+	MaxRetryDelay time.Duration `json:"max_retry_delay"` // Maximum retry delay for exponential backoff
+}
+
+// PollingConfig holds configuration for polling operations (copy status, upload status, etc.)
+type PollingConfig struct {
+	InitialInterval time.Duration `json:"initial_interval"` // Initial polling interval
+	MaxInterval     time.Duration `json:"max_interval"`     // Maximum polling interval
+	Multiplier      float64       `json:"multiplier"`       // Exponential backoff multiplier
+	MaxAttempts     int           `json:"max_attempts"`     // Maximum polling attempts (0 = unlimited)
+}
+
+// DefaultHTTPConfig returns sensible default HTTP configuration values
+func DefaultHTTPConfig() HTTPConfig {
+	return HTTPConfig{
+		Timeout:       30 * time.Second,
+		RetryAttempts: 3,
+		RetryDelay:    1 * time.Second,
+		MaxRetryDelay: 10 * time.Second,
+	}
+}
+
+// DefaultPollingConfig returns sensible default polling configuration values
+func DefaultPollingConfig() PollingConfig {
+	return PollingConfig{
+		InitialInterval: 2 * time.Second,
+		MaxInterval:     30 * time.Second,
+		Multiplier:      1.5,
+		MaxAttempts:     0, // Unlimited by default
+	}
+}
+
 // Configuration holds all the application's persisted settings.
 // It includes the OAuth token for accessing OneDrive and a flag for enabling debug mode.
 // A RWMutex is used to ensure thread-safe access and modification, especially during Save.
 type Configuration struct {
-	Token onedrive.Token `json:"token"` // OAuth2 token (access, refresh, expiry).
-	Debug bool           `json:"debug"` // Flag to enable debug logging throughout the application.
-	mu    sync.RWMutex   // Protects concurrent access to the Configuration struct, particularly for Save.
+	Token   onedrive.Token `json:"token"`   // OAuth2 token (access, refresh, expiry).
+	Debug   bool           `json:"debug"`   // Flag to enable debug logging throughout the application.
+	HTTP    HTTPConfig     `json:"http"`    // HTTP client configuration
+	Polling PollingConfig  `json:"polling"` // Polling configuration for async operations
+	mu      sync.RWMutex   // Protects concurrent access to the Configuration struct, particularly for Save.
 }
 
 // DebugPrintln prints a debug message if Debug mode is enabled in the configuration.
@@ -190,14 +229,27 @@ func LoadOrCreate() (*Configuration, error) {
 	cfg, err := Load()
 	if err != nil {
 		// If the specific error is ErrConfigNotFound, it means no config file exists.
-		// In this case, return a new, empty Configuration struct.
+		// In this case, return a new, empty Configuration struct with defaults.
 		if errors.Is(err, ErrConfigNotFound) {
 			log.Println("Debug: No existing configuration file found. Creating new default configuration.")
-			return &Configuration{}, nil
+			return &Configuration{
+				HTTP:    DefaultHTTPConfig(),
+				Polling: DefaultPollingConfig(),
+			}, nil
 		}
 		// For any other error during Load, propagate it.
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
+
+	// Configuration loaded successfully. Ensure defaults for missing fields.
+	// This provides backward compatibility for existing config files.
+	if cfg.HTTP.Timeout == 0 {
+		cfg.HTTP = DefaultHTTPConfig()
+	}
+	if cfg.Polling.InitialInterval == 0 {
+		cfg.Polling = DefaultPollingConfig()
+	}
+
 	// Configuration loaded successfully.
 	return cfg, nil
 }

@@ -166,9 +166,15 @@ func (a *App) initializeOnedriveSDK() (SDK, error) {
 	}
 
 	// Create the OneDrive SDK client instance using the current token (which might be newly acquired or loaded),
-	// the application's client ID, the token refresh callback, and the logger.
+	// the application's client ID, the token refresh callback, the logger, and HTTP configuration.
 	// The context.Background() is used for the token source operations within the client.
-	client := onedrive.NewClient(context.Background(), &a.Config.Token, config.ClientID, onNewToken, sdkLogger)
+	httpConfig := onedrive.HTTPConfig{
+		Timeout:       a.Config.HTTP.Timeout,
+		RetryAttempts: a.Config.HTTP.RetryAttempts,
+		RetryDelay:    a.Config.HTTP.RetryDelay,
+		MaxRetryDelay: a.Config.HTTP.MaxRetryDelay,
+	}
+	client := onedrive.NewClientWithConfig(context.Background(), &a.Config.Token, config.ClientID, onNewToken, sdkLogger, httpConfig)
 	a.Config.DebugPrintln("OneDrive SDK client initialized.")
 	return client, nil
 }

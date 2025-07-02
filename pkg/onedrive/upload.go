@@ -77,9 +77,9 @@ func (c *Client) UploadChunk(ctx context.Context, uploadURL string, startByte, e
 	c.logger.Debugf("UploadChunk called for uploadURL: '%s', range: %d-%d, totalSize: %d", uploadURL, startByte, endByte, totalSize)
 	var session UploadSession // To hold the response, which could be UploadSession or DriveItem on final chunk.
 
-	// Use a standard http.Client because uploadURLs are pre-authenticated and should not
-	// receive an Authorization header, which c.httpClient would add.
-	httpClient := &http.Client{}
+	// Use a configured HTTP client for consistent timeout behavior.
+	// Upload URLs are pre-authenticated and don't require OAuth headers.
+	httpClient := NewConfiguredHTTPClient(c.httpConfig)
 
 	req, err := http.NewRequestWithContext(ctx, "PUT", uploadURL, chunkData)
 	if err != nil {
@@ -142,8 +142,9 @@ func (c *Client) GetUploadSessionStatus(ctx context.Context, uploadURL string) (
 	c.logger.Debugf("GetUploadSessionStatus called for uploadURL: '%s'", uploadURL)
 	var session UploadSession
 
-	// Use a standard http.Client for pre-authenticated session URLs.
-	httpClient := &http.Client{}
+	// Use a configured HTTP client for consistent timeout behavior.
+	// Session URLs are pre-authenticated and don't require OAuth headers.
+	httpClient := NewConfiguredHTTPClient(c.httpConfig)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", uploadURL, nil)
 	if err != nil {
@@ -182,8 +183,8 @@ func (c *Client) GetUploadSessionStatus(ctx context.Context, uploadURL string) (
 //	fmt.Println("Upload session cancelled.")
 func (c *Client) CancelUploadSession(ctx context.Context, uploadURL string) error {
 	c.logger.Debugf("CancelUploadSession called for uploadURL: '%s'", uploadURL)
-	// Use a standard http.Client.
-	httpClient := &http.Client{}
+	// Use a configured HTTP client for consistent timeout behavior.
+	httpClient := NewConfiguredHTTPClient(c.httpConfig)
 
 	req, err := http.NewRequestWithContext(ctx, "DELETE", uploadURL, nil)
 	if err != nil {

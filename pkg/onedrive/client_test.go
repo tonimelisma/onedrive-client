@@ -10,7 +10,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/tonimelisma/onedrive-client/internal/logger"
 )
 
@@ -201,4 +203,94 @@ func (l *testLogger) Warnf(format string, args ...any) {
 
 func (l *testLogger) Errorf(format string, args ...any) {
 	l.buffer.WriteString("ERROR: " + fmt.Sprintf(format, args...) + "\n")
+}
+
+func TestHTTPConfiguration(t *testing.T) {
+	// Test default HTTP configuration
+	defaultConfig := DefaultHTTPConfig()
+	assert.Equal(t, 30*time.Second, defaultConfig.Timeout)
+	assert.Equal(t, 3, defaultConfig.RetryAttempts)
+	assert.Equal(t, 1*time.Second, defaultConfig.RetryDelay)
+	assert.Equal(t, 10*time.Second, defaultConfig.MaxRetryDelay)
+}
+
+func TestNewConfiguredHTTPClient(t *testing.T) {
+	config := HTTPConfig{
+		Timeout:       15 * time.Second,
+		RetryAttempts: 5,
+		RetryDelay:    500 * time.Millisecond,
+		MaxRetryDelay: 20 * time.Second,
+	}
+
+	client := NewConfiguredHTTPClient(config)
+	assert.NotNil(t, client)
+	assert.Equal(t, 15*time.Second, client.Timeout)
+}
+
+func TestNewConfiguredHTTPClientWithTransport(t *testing.T) {
+	config := HTTPConfig{
+		Timeout: 10 * time.Second,
+	}
+
+	// Create a custom transport
+	transport := &http.Transport{}
+
+	client := NewConfiguredHTTPClientWithTransport(config, transport)
+	assert.NotNil(t, client)
+	assert.Equal(t, 10*time.Second, client.Timeout)
+	assert.Equal(t, transport, client.Transport)
+}
+
+func TestNewClientWithConfig(t *testing.T) {
+	token := &Token{AccessToken: "test-token"}
+	customHTTPConfig := HTTPConfig{
+		Timeout:       25 * time.Second,
+		RetryAttempts: 2,
+		RetryDelay:    2 * time.Second,
+		MaxRetryDelay: 15 * time.Second,
+	}
+
+	client := NewClientWithConfig(context.Background(), token, "test-client", nil, &logger.NoopLogger{}, customHTTPConfig)
+
+	assert.NotNil(t, client)
+	assert.Equal(t, customHTTPConfig, client.httpConfig)
+	assert.Equal(t, 25*time.Second, client.httpClient.Timeout)
+}
+
+func TestClientAPICallWithConfigurableRetries(t *testing.T) {
+	// Test that client uses configured retry parameters
+	retryCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		retryCount++
+		if retryCount < 3 { // Fail first 2 attempts
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"value": "success"}`))
+		}
+	}))
+	defer server.Close()
+
+	// Create client with custom retry configuration
+	httpConfig := HTTPConfig{
+		Timeout:       5 * time.Second,
+		RetryAttempts: 3,
+		RetryDelay:    100 * time.Millisecond, // Short delay for testing
+		MaxRetryDelay: 1 * time.Second,
+	}
+
+	ctx := context.Background()
+	token := &Token{AccessToken: "test-token"}
+	client := NewClientWithConfig(ctx, token, "test-client-id", nil, &logger.NoopLogger{}, httpConfig)
+
+	// Override the httpClient to use our test server
+	client.httpClient = &http.Client{Timeout: httpConfig.Timeout}
+
+	// Make API call that will retry
+	response, err := client.apiCall(ctx, "GET", server.URL+"/test", "application/json", nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	assert.Equal(t, 3, retryCount) // Should have retried twice
+	response.Body.Close()
 }
