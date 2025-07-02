@@ -1,8 +1,8 @@
-// Package cmd (items_permissions.go) defines Cobra commands for managing
+// Package items (items_permissions.go) defines Cobra commands for managing
 // sharing links and permissions on OneDrive items (files and folders).
 // This includes creating sharing links ('items share'), inviting users ('items invite'),
 // and managing specific permissions ('items permissions list/get/update/delete').
-package cmd
+package items
 
 import (
 	"fmt"
@@ -64,11 +64,11 @@ var filesPermissionsCmd = &cobra.Command{
 // filesPermissionsListCmd handles 'items permissions list <remote-path>'.
 // It lists all existing permissions for a file or folder.
 var filesPermissionsListCmd = &cobra.Command{
-	Use:   "list <remote-path>",
-	Short: "List all permissions on a file or folder",
-	Long:  `Lists all existing permissions (both direct and link-based) for a specified OneDrive file or folder.`,
+	Use:     "list <remote-path>",
+	Short:   "List all permissions on a file or folder",
+	Long:    `Lists all existing permissions (both direct and link-based) for a specified OneDrive file or folder.`,
 	Example: `onedrive-client items permissions list /Documents/Confidential.pdf`,
-	Args:  cobra.ExactArgs(1), // Requires the remote path.
+	Args:    cobra.ExactArgs(1), // Requires the remote path.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
@@ -81,11 +81,11 @@ var filesPermissionsListCmd = &cobra.Command{
 // filesPermissionsGetCmd handles 'items permissions get <remote-path> <permission-id>'.
 // It retrieves detailed information about a single, specific permission.
 var filesPermissionsGetCmd = &cobra.Command{
-	Use:   "get <remote-path> <permission-id>",
-	Short: "Get detailed information about a specific permission",
-	Long:  `Retrieves and displays detailed information about a single, specific permission on a OneDrive file or folder, identified by its unique permission ID.`,
+	Use:     "get <remote-path> <permission-id>",
+	Short:   "Get detailed information about a specific permission",
+	Long:    `Retrieves and displays detailed information about a single, specific permission on a OneDrive file or folder, identified by its unique permission ID.`,
 	Example: `onedrive-client items permissions get /Documents/Report.docx "perm_id_string"`,
-	Args:  cobra.ExactArgs(2), // Requires remote path and permission ID.
+	Args:    cobra.ExactArgs(2), // Requires remote path and permission ID.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
@@ -118,11 +118,11 @@ onedrive-client items permissions update /Collaboration/Link "link_id" --expirat
 // filesPermissionsDeleteCmd handles 'items permissions delete <remote-path> <permission-id>'.
 // It removes/revokes a specific permission from a file or folder.
 var filesPermissionsDeleteCmd = &cobra.Command{
-	Use:   "delete <remote-path> <permission-id>",
-	Short: "Remove (revoke) a specific permission from a file or folder",
-	Long:  `Removes (revokes) a specific permission from a OneDrive file or folder, identified by its unique permission ID. This action can remove direct user access or invalidate a sharing link.`,
+	Use:     "delete <remote-path> <permission-id>",
+	Short:   "Remove (revoke) a specific permission from a file or folder",
+	Long:    `Removes (revokes) a specific permission from a OneDrive file or folder, identified by its unique permission ID. This action can remove direct user access or invalidate a sharing link.`,
 	Example: `onedrive-client items permissions delete /Documents/OldShare.docx "perm_id_to_revoke"`,
-	Args:  cobra.ExactArgs(2), // Requires remote path and permission ID.
+	Args:    cobra.ExactArgs(2), // Requires remote path and permission ID.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
@@ -179,13 +179,13 @@ func filesInviteLogic(a *app.App, cmd *cobra.Command, args []string) error {
 
 	// Parse optional flags for invitation properties.
 	message, _ := cmd.Flags().GetString("message")
-	roles, _ := cmd.Flags().GetStringSlice("roles") // Default is ["read"] set in items_root.go
-	requireSignIn, _ := cmd.Flags().GetBool("require-signin") // Default is true
+	roles, _ := cmd.Flags().GetStringSlice("roles")             // Default is ["read"] set in items_root.go
+	requireSignIn, _ := cmd.Flags().GetBool("require-signin")   // Default is true
 	sendInvitation, _ := cmd.Flags().GetBool("send-invitation") // Default is true
 
 	// Construct the list of recipients for the SDK request.
 	recipients := make([]struct {
-		Email  string `json:"email,omitempty"`
+		Email    string `json:"email,omitempty"`
 		ObjectID string `json:"objectId,omitempty"`
 	}, len(emails))
 	for i, email := range emails {
@@ -280,7 +280,6 @@ func filesPermissionsUpdateLogic(a *app.App, cmd *cobra.Command, args []string) 
 		// This condition means no relevant flags were specified for update.
 		return fmt.Errorf("no update parameters (roles, expiration, password) provided for permission '%s' on '%s'", permissionID, remotePath)
 	}
-
 
 	permission, err := a.SDK.UpdatePermission(cmd.Context(), remotePath, permissionID, request)
 	if err != nil {

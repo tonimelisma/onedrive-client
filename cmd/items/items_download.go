@@ -1,7 +1,7 @@
-// Package cmd (items_download.go) defines Cobra commands related to
+// Package items (items_download.go) defines Cobra commands related to
 // downloading files from OneDrive. This includes the primary 'items download'
 // command and any associated helper logic or deprecated download commands.
-package cmd
+package items
 
 import (
 	"fmt"

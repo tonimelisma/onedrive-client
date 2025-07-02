@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	cmdItems "github.com/tonimelisma/onedrive-client/cmd/items"
+	"github.com/tonimelisma/onedrive-client/cmd/items"
 	"github.com/tonimelisma/onedrive-client/internal/app"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
@@ -103,7 +103,7 @@ func init() {
 
 	// Initialize and register the 'items' subcommand and its children.
 	// This modular approach keeps subcommand definitions organized.
-	cmdItems.InitItemsCommands(rootCmd)
+	items.InitItemsCommands(rootCmd)
 
 	// Other top-level commands (like 'auth', 'drives') are added directly in their respective files' init functions.
 }

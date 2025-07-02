@@ -1,8 +1,8 @@
-// Package cmd (items_meta.go) defines Cobra commands for retrieving metadata
+// Package items (items_meta.go) defines Cobra commands for retrieving metadata
 // and information about OneDrive items (files and folders). This includes
 // listing folder contents, getting detailed stats for an item, searching within
 // folders, and viewing item versions, activities, thumbnails, and previews.
-package cmd
+package items
 
 import (
 	"fmt"

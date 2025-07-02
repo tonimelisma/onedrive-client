@@ -1,9 +1,9 @@
-// Package cmd (items_upload.go) defines Cobra commands for creating folders (mkdir)
+// Package items (items_upload.go) defines Cobra commands for creating folders (mkdir)
 // and uploading files to OneDrive. It supports both resumable uploads for large files
 // (via 'items upload') and simple, non-resumable uploads for smaller files
 // ('items upload-simple'). It also includes commands for managing upload sessions
 // ('items cancel-upload', 'items get-upload-status').
-package cmd
+package items
 
 import (
 	"fmt"

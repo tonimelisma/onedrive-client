@@ -1,7 +1,7 @@
-// Package cmd (items_helpers.go) contains utility functions shared by various
+// Package items (items_helpers.go) contains utility functions shared by various
 // subcommands within the 'items' command group. These helpers assist with
 // common tasks like path manipulation for remote OneDrive paths.
-package cmd
+package items
 
 import (
 	"strings"
@@ -20,10 +20,11 @@ import (
 //   - The final result is always ensured to start with a single forward slash.
 //
 // Examples:
-//   joinRemotePath("/Documents", "MyFile.txt") -> "/Documents/MyFile.txt"
-//   joinRemotePath("/", "MyFile.txt")         -> "/MyFile.txt"
-//   joinRemotePath("", "MyFile.txt")          -> "/MyFile.txt"
-//   joinRemotePath("/Folder1/", "/SubFolder/file.doc") -> "/Folder1/SubFolder/file.doc"
+//
+//	joinRemotePath("/Documents", "MyFile.txt") -> "/Documents/MyFile.txt"
+//	joinRemotePath("/", "MyFile.txt")         -> "/MyFile.txt"
+//	joinRemotePath("", "MyFile.txt")          -> "/MyFile.txt"
+//	joinRemotePath("/Folder1/", "/SubFolder/file.doc") -> "/Folder1/SubFolder/file.doc"
 func joinRemotePath(dir, file string) string {
 	// If the directory is the root, the path is just the file prefixed with a slash.
 	if dir == "" || dir == "/" {

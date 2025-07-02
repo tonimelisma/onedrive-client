@@ -1,7 +1,7 @@
-// Package cmd (items_manage.go) defines Cobra commands for managing and
+// Package items (items_manage.go) defines Cobra commands for managing and
 // manipulating OneDrive items (files and folders). This includes operations like
 // deleting (rm), copying (cp, copy-status), moving (mv), and renaming items.
-package cmd
+package items
 
 import (
 	"context"

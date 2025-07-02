@@ -52,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Better integration with new logging infrastructure
 
 ### Fixed
+- **Package Organization**: Fixed Go package naming convention violation in `cmd/items/` directory
+  - **Issue**: All files in `cmd/items/` directory incorrectly used `package cmd` instead of `package items`
+  - **Solution**: Updated all 11 files to use proper `package items` declaration matching directory name
+  - **Impact**: Improved code clarity and adherence to Go conventions without functional changes
+  - **Files Updated**: `items_root.go`, `items_download.go`, `items_helpers.go`, `items_manage.go`, `items_meta.go`, `items_permissions.go`, `items_upload.go`, and all test files
+  - **Import Updates**: Removed package alias in `cmd/root.go` import, now uses standard `items.InitItemsCommands()`
+  - **Testing**: All unit and E2E tests pass, confirming no functional regressions
 - Compilation errors in test files related to struct field mismatches
 - Authentication test string matching issues
 - Items search validation to properly handle missing folder scope

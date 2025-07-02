@@ -1,7 +1,7 @@
-// Package cmd (items_root.go) defines the primary 'items' subcommand and
+// Package items (items_root.go) defines the primary 'items' subcommand and
 // initializes all its child commands related to file and folder operations.
 // This file acts as the entry point for the 'items' command hierarchy.
-package cmd
+package items
 
 import (
 	"fmt"
