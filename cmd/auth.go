@@ -85,6 +85,12 @@ login session or a pending login attempt is found, it will advise accordingly.`,
 			return fmt.Errorf("login initiation failed: %w", err)
 		}
 
+		// Create session manager for auth state management
+		sessionMgr, err := session.NewManager()
+		if err != nil {
+			return fmt.Errorf("creating session manager: %w", err)
+		}
+
 		// Persist the device code flow state (device_code, user_code, etc.) to the session file.
 		// This allows other commands to complete the authentication if the user authorizes later.
 		authState := &session.AuthState{
@@ -93,7 +99,7 @@ login session or a pending login attempt is found, it will advise accordingly.`,
 			UserCode:        deviceCodeResp.UserCode,
 			Interval:        deviceCodeResp.Interval, // Polling interval.
 		}
-		if err := session.SaveAuthState(authState); err != nil {
+		if err := sessionMgr.SaveAuthState(authState); err != nil {
 			return fmt.Errorf("saving auth session state failed: %w", err)
 		}
 

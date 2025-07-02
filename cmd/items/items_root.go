@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 )
@@ -29,27 +31,27 @@ func InitItemsCommands(rootCmd *cobra.Command) {
 
 	// Add all item-related subcommands to the ItemsCmd.
 	// These are defined in other files within this package (e.g., items_meta.go, items_upload.go).
-	ItemsCmd.AddCommand(filesListCmd)    // items list
-	ItemsCmd.AddCommand(filesStatCmd)    // items stat
-	ItemsCmd.AddCommand(filesMkdirCmd)   // items mkdir
-	ItemsCmd.AddCommand(filesUploadCmd)  // items upload
+	ItemsCmd.AddCommand(filesListCmd)     // items list
+	ItemsCmd.AddCommand(filesStatCmd)     // items stat
+	ItemsCmd.AddCommand(filesMkdirCmd)    // items mkdir
+	ItemsCmd.AddCommand(filesUploadCmd)   // items upload
 	ItemsCmd.AddCommand(filesDownloadCmd) // items download
 	ItemsCmd.AddCommand(filesCancelUploadCmd)
 	ItemsCmd.AddCommand(filesGetUploadStatusCmd)
 	ItemsCmd.AddCommand(filesUploadSimpleCmd)
 	ItemsCmd.AddCommand(filesListRootDeprecatedCmd)
-	ItemsCmd.AddCommand(filesRmCmd)      // items rm
-	ItemsCmd.AddCommand(filesCopyCmd)    // items copy
+	ItemsCmd.AddCommand(filesRmCmd)   // items rm
+	ItemsCmd.AddCommand(filesCopyCmd) // items copy
 	ItemsCmd.AddCommand(filesCopyStatusCmd)
-	ItemsCmd.AddCommand(filesMvCmd)      // items mv
-	ItemsCmd.AddCommand(filesRenameCmd)  // items rename
-	ItemsCmd.AddCommand(filesSearchCmd)  // items search
-	ItemsCmd.AddCommand(filesShareCmd)   // items share
+	ItemsCmd.AddCommand(filesMvCmd)       // items mv
+	ItemsCmd.AddCommand(filesRenameCmd)   // items rename
+	ItemsCmd.AddCommand(filesSearchCmd)   // items search
+	ItemsCmd.AddCommand(filesShareCmd)    // items share
 	ItemsCmd.AddCommand(filesVersionsCmd) // items versions
-	ItemsCmd.AddCommand(activitiesCmd)   // items activities (item-specific)
+	ItemsCmd.AddCommand(activitiesCmd)    // items activities (item-specific)
 	ItemsCmd.AddCommand(filesThumbnailsCmd)
 	ItemsCmd.AddCommand(filesPreviewCmd)
-	ItemsCmd.AddCommand(filesInviteCmd)     // items invite
+	ItemsCmd.AddCommand(filesInviteCmd)      // items invite
 	ItemsCmd.AddCommand(filesPermissionsCmd) // items permissions (parent for list, get, update, delete)
 
 	// Add subcommands to the 'items permissions' command.
@@ -100,7 +102,7 @@ func InitItemsCommands(rootCmd *cobra.Command) {
 
 	// Add standard pagination flags (--top, --all, --next) to commands that support them.
 	// This is handled by a utility function for consistency.
-	ui.AddPagingFlags(activitiesCmd) // For item activities
+	ui.AddPagingFlags(activitiesCmd)  // For item activities
 	ui.AddPagingFlags(filesSearchCmd) // For item search results
 	// Other commands like 'items list' might also benefit from pagination if the SDK supports it for GetDriveItemChildrenByPath.
 	// ui.AddPagingFlags(filesListCmd) // Example if 'items list' were to support pagination.

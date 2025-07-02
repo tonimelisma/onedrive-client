@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -25,29 +24,16 @@ func TestDrivesSharedLogic(t *testing.T) {
 					{
 						Name: "shared-file.txt",
 						Size: 1024,
-						RemoteItem: &struct {
-							ID             string `json:"id"`
-							Size           int64  `json:"size"`
-							WebURL         string `json:"webUrl"`
-							FileSystemInfo struct {
-								CreatedDateTime      time.Time `json:"createdDateTime"`
-								LastModifiedDateTime time.Time `json:"lastModifiedDateTime"`
-							} `json:"fileSystemInfo"`
-						}{
+						RemoteItem: &onedrive.RemoteItemFacet{
 							ID:   "remote123",
 							Size: 1024,
 						},
 					},
 					{
 						Name: "shared-folder",
-						Folder: &struct {
-							ChildCount int `json:"childCount"`
-							View       struct {
-								ViewType  string `json:"viewType"`
-								SortBy    string `json:"sortBy"`
-								SortOrder string `json:"sortOrder"`
-							} `json:"view"`
-						}{ChildCount: 5},
+						Folder: &onedrive.FolderFacet{
+							ChildCount: 5,
+						},
 					},
 				},
 			},

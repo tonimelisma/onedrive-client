@@ -6,7 +6,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io" // Required for io.ReadAll if used in error handling
 	"log"
 	"time"
 
@@ -60,9 +59,9 @@ onedrive-client items copy /LargeFolder /Backup/Folders --wait`,
 // filesCopyStatusCmd handles 'items copy-status <monitor-url>'.
 // It checks and displays the status of an asynchronous copy operation using its monitor URL.
 var filesCopyStatusCmd = &cobra.Command{
-	Use:   "copy-status <monitor-url>",
-	Short: "Check the status of an asynchronous copy operation",
-	Long:  `Monitors and displays the progress and status of an asynchronous copy operation using the monitor URL provided by the 'items copy' command (when not using --wait).`,
+	Use:     "copy-status <monitor-url>",
+	Short:   "Check the status of an asynchronous copy operation",
+	Long:    `Monitors and displays the progress and status of an asynchronous copy operation using the monitor URL provided by the 'items copy' command (when not using --wait).`,
 	Example: `onedrive-client items copy-status "https://graph.microsoft.com/v1.0/me/drive/operations/0123456789ABCDEF!1.0"`,
 	Args:    cobra.ExactArgs(1), // Requires exactly one argument: the monitor URL.
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,9 +76,9 @@ var filesCopyStatusCmd = &cobra.Command{
 // filesMvCmd handles 'items mv <source-path> <destination-parent-path>'.
 // It moves a file or folder to a new location.
 var filesMvCmd = &cobra.Command{
-	Use:   "mv <source-path> <destination-parent-path>",
-	Short: "Move a file or folder to a new location",
-	Long:  `Moves a specified file or folder from its current location to a new destination parent path within your OneDrive. If the item is moved to a different folder with the same name, it's effectively a move. If the name also changes as part of the destination path (not directly supported by this command's arguments but by the API), it's a move and rename.`,
+	Use:     "mv <source-path> <destination-parent-path>",
+	Short:   "Move a file or folder to a new location",
+	Long:    `Moves a specified file or folder from its current location to a new destination parent path within your OneDrive. If the item is moved to a different folder with the same name, it's effectively a move. If the name also changes as part of the destination path (not directly supported by this command's arguments but by the API), it's a move and rename.`,
 	Example: `onedrive-client items mv /Temporary/File.txt /Documents/Archive`,
 	Args:    cobra.ExactArgs(2), // Requires source path and destination parent path.
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -94,9 +93,9 @@ var filesMvCmd = &cobra.Command{
 // filesRenameCmd handles 'items rename <current-path> <new-name>'.
 // It renames a file or folder.
 var filesRenameCmd = &cobra.Command{
-	Use:   "rename <current-path> <new-name>",
-	Short: "Rename a file or folder",
-	Long:  `Renames a specified file or folder in your OneDrive. Provide the current path to the item and its desired new name.`,
+	Use:     "rename <current-path> <new-name>",
+	Short:   "Rename a file or folder",
+	Long:    `Renames a specified file or folder in your OneDrive. Provide the current path to the item and its desired new name.`,
 	Example: `onedrive-client items rename /Documents/OldReport.docx "Final Report Q1.docx"`,
 	Args:    cobra.ExactArgs(2), // Requires current path and new name.
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -219,7 +218,6 @@ func filesCopyStatusLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		fmt.Printf("  Error Code:         %s\n", status.Error.Code)
 		fmt.Printf("  Error Message:      %s\n", status.Error.Message)
 	}
-
 
 	return nil
 }

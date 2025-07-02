@@ -14,6 +14,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tonimelisma/onedrive-client/internal/config"
+	"github.com/tonimelisma/onedrive-client/internal/logger"
 	"github.com/tonimelisma/onedrive-client/internal/session"
 	"github.com/tonimelisma/onedrive-client/internal/ui"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
@@ -82,9 +83,15 @@ func (a *App) initializeOnedriveSDK() (SDK, error) {
 		return nil, errors.New("app configuration is nil during SDK initialization")
 	}
 
+	// Create session manager for auth state management
+	sessionMgr, err := session.NewManager()
+	if err != nil {
+		return nil, fmt.Errorf("creating session manager: %w", err)
+	}
+
 	// Step 1: Check for a pending authentication session (from device code flow).
-	// `session.LoadAuthState()` reads the temporary file storing device_code, user_code etc.
-	pendingAuth, err := session.LoadAuthState()
+	// `sessionMgr.LoadAuthState()` reads the temporary file storing device_code, user_code etc.
+	pendingAuth, err := sessionMgr.LoadAuthState()
 	if err != nil {
 		// Failure to load auth state is an issue, but might not be fatal if a token already exists.
 		// However, if a pending flow was expected, this is problematic.
@@ -106,7 +113,7 @@ func (a *App) initializeOnedriveSDK() (SDK, error) {
 			// Another error occurred (e.g., code expired, user declined, network issue).
 			// The pending session is now considered invalid, so clean it up.
 			a.Config.DebugPrintf("Device code verification failed: %v. Deleting pending auth session.", err)
-			if delErr := session.DeleteAuthState(); delErr != nil {
+			if delErr := sessionMgr.DeleteAuthState(); delErr != nil {
 				log.Printf("Warning: failed to delete invalid pending auth session file: %v", delErr)
 			}
 			return nil, fmt.Errorf("authentication failed (e.g., code expired or declined). Please try 'auth login' again: %w", err)
@@ -121,7 +128,7 @@ func (a *App) initializeOnedriveSDK() (SDK, error) {
 		}
 
 		// Clean up the now-used auth session file.
-		if err := session.DeleteAuthState(); err != nil {
+		if err := sessionMgr.DeleteAuthState(); err != nil {
 			// Log this error, but don't fail the whole operation as login was successful.
 			log.Printf("Warning: could not delete completed auth session file: %v", err)
 		}
@@ -149,17 +156,19 @@ func (a *App) initializeOnedriveSDK() (SDK, error) {
 	}
 
 	// Configure a logger for the SDK. If debug mode is enabled in the app config,
-	// use a standard logger; otherwise, the SDK will use its DefaultLogger (no-op).
-	var logger onedrive.Logger
+	// use a structured logger; otherwise, the SDK will use its DefaultLogger (no-op).
+	var sdkLogger onedrive.Logger
 	if a.Config.Debug {
-		logger = ui.StdLogger{} // Simple logger that prints to os.Stderr.
+		sdkLogger = logger.NewDefaultLogger(true) // Debug level logging
 		a.Config.DebugPrintln("Debug mode enabled, SDK logging will be active.")
+	} else {
+		sdkLogger = logger.NewDefaultLogger(false) // Info level logging
 	}
 
 	// Create the OneDrive SDK client instance using the current token (which might be newly acquired or loaded),
 	// the application's client ID, the token refresh callback, and the logger.
 	// The context.Background() is used for the token source operations within the client.
-	client := onedrive.NewClient(context.Background(), &a.Config.Token, config.ClientID, onNewToken, logger)
+	client := onedrive.NewClient(context.Background(), &a.Config.Token, config.ClientID, onNewToken, sdkLogger)
 	a.Config.DebugPrintln("OneDrive SDK client initialized.")
 	return client, nil
 }
@@ -179,6 +188,13 @@ func Logout(cfg *config.Configuration) error {
 	if cfg == nil {
 		return errors.New("configuration cannot be nil for logout")
 	}
+
+	// Create session manager for auth state management
+	sessionMgr, err := session.NewManager()
+	if err != nil {
+		return fmt.Errorf("creating session manager for logout: %w", err)
+	}
+
 	cfg.Token = onedrive.Token{} // Clear the token fields.
 	if err := cfg.Save(); err != nil {
 		// Even if saving fails, proceed to delete auth session to ensure a clean state.
@@ -186,7 +202,7 @@ func Logout(cfg *config.Configuration) error {
 	}
 
 	// Also delete any pending auth session file to prevent issues on next login.
-	if err := session.DeleteAuthState(); err != nil {
+	if err := sessionMgr.DeleteAuthState(); err != nil {
 		// This is less critical than clearing the token but should be logged.
 		log.Printf("Warning: could not delete auth session file during logout: %v", err)
 	}

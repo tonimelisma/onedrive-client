@@ -19,12 +19,8 @@ func TestDrivesListLogic(t *testing.T) {
 						Name:      "Personal Drive",
 						DriveType: "personal",
 						Owner: struct {
-							User struct {
-								DisplayName string "json:\"displayName\""
-							} "json:\"user\""
-						}{User: struct {
-							DisplayName string "json:\"displayName\""
-						}{DisplayName: "Test User"}},
+							User *onedrive.Identity `json:"user,omitempty"`
+						}{User: &onedrive.Identity{DisplayName: "Test User"}},
 					},
 				},
 			}, nil
@@ -69,12 +65,12 @@ func TestDrivesQuotaLogic(t *testing.T) {
 	})
 
 	assert.Contains(t, output, "Drive Quota Information")
-	assert.Contains(t, output, "Total:")
+	assert.Contains(t, output, "Total Space:")
 	assert.Contains(t, output, "1.9 GiB")
-	assert.Contains(t, output, "Used:")
+	assert.Contains(t, output, "Used Space:")
 	assert.Contains(t, output, "953.7 MiB")
-	assert.Contains(t, output, "Remaining:")
-	assert.Contains(t, output, "State:     normal")
+	assert.Contains(t, output, "Free Space:")
+	assert.Contains(t, output, "Quota State: normal")
 }
 
 func TestDrivesGetLogic(t *testing.T) {
@@ -96,13 +92,9 @@ func TestDrivesGetLogic(t *testing.T) {
 					Name:      "Test Drive",
 					DriveType: "personal",
 					Owner: struct {
-						User struct {
-							DisplayName string `json:"displayName"`
-						} `json:"user"`
+						User *onedrive.Identity `json:"user,omitempty"`
 					}{
-						User: struct {
-							DisplayName string `json:"displayName"`
-						}{
+						User: &onedrive.Identity{
 							DisplayName: "Test User",
 						},
 					},

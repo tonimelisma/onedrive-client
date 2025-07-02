@@ -35,17 +35,6 @@ func (m *Manager) getAuthSessionFilePath() string {
 	return filepath.Join(sessionDir, authSessionFile)
 }
 
-// SaveAuthState is a convenience function that creates a default session Manager
-// and calls its SaveAuthState method. This is useful for one-off saves without
-// needing to explicitly manage a Manager instance.
-func SaveAuthState(state *AuthState) error {
-	mgr, err := NewManager() // NewManager is defined in session.go
-	if err != nil {
-		return fmt.Errorf("creating session manager to save auth state: %w", err)
-	}
-	return mgr.SaveAuthState(state)
-}
-
 // SaveAuthState persists the pending authentication state to a file.
 // It ensures the session directory exists and uses a file lock to prevent
 // concurrent writes, which could corrupt the session file or lead to race conditions.
@@ -80,16 +69,6 @@ func (m *Manager) SaveAuthState(state *AuthState) error {
 
 	// Write with 0600 permissions (user read/write only) for security.
 	return os.WriteFile(filePath, data, 0600)
-}
-
-// LoadAuthState is a convenience function that creates a default session Manager
-// and calls its LoadAuthState method.
-func LoadAuthState() (*AuthState, error) {
-	mgr, err := NewManager()
-	if err != nil {
-		return nil, fmt.Errorf("creating session manager to load auth state: %w", err)
-	}
-	return mgr.LoadAuthState()
 }
 
 // LoadAuthState retrieves the pending authentication state from a file.
@@ -136,16 +115,6 @@ func (m *Manager) LoadAuthState() (*AuthState, error) {
 	}
 
 	return &state, nil
-}
-
-// DeleteAuthState is a convenience function that creates a default session Manager
-// and calls its DeleteAuthState method.
-func DeleteAuthState() error {
-	mgr, err := NewManager()
-	if err != nil {
-		return fmt.Errorf("creating session manager to delete auth state: %w", err)
-	}
-	return mgr.DeleteAuthState()
 }
 
 // DeleteAuthState removes the authentication session state file.

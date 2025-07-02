@@ -333,6 +333,20 @@ func TestFilesSearchLogic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.folderScope != "" {
 				cmd.Flags().Set("in", tt.folderScope)
+			} else {
+				// When no folder scope is provided, expect validation error
+				// Since the function expects the --in flag to be set
+				if tt.wantErr {
+					// Test the validation by calling with empty folderScope
+					mockSDK, err := tt.mockFunc()
+					assert.NoError(t, err)
+					a := newTestApp(mockSDK)
+
+					// This should error because folderScope is empty but function expects it
+					err = filesSearchLogic(a, cmd, tt.args)
+					assert.Error(t, err)
+					return
+				}
 			}
 
 			mockSDK, err := tt.mockFunc()

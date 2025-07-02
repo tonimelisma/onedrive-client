@@ -6,7 +6,6 @@
 package cmd
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -67,11 +66,11 @@ onedrive-client items upload video.mp4`, // Uploads to root
 // filesCancelUploadCmd handles 'items cancel-upload <upload-url>'.
 // It cancels an active resumable upload session.
 var filesCancelUploadCmd = &cobra.Command{
-	Use:   "cancel-upload <upload-session-url>",
-	Short: "Cancel an active resumable upload session",
-	Long:  `Cancels an active resumable upload session using its unique upload URL. This is useful if an upload is no longer needed or needs to be restarted.`,
+	Use:     "cancel-upload <upload-session-url>",
+	Short:   "Cancel an active resumable upload session",
+	Long:    `Cancels an active resumable upload session using its unique upload URL. This is useful if an upload is no longer needed or needs to be restarted.`,
 	Example: `onedrive-client items cancel-upload "https://graph.microsoft.com/v1.0/drive/items/.../uploadSession?..."`,
-	Args:  cobra.ExactArgs(1), // Requires the upload session URL.
+	Args:    cobra.ExactArgs(1), // Requires the upload session URL.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
@@ -84,11 +83,11 @@ var filesCancelUploadCmd = &cobra.Command{
 // filesGetUploadStatusCmd handles 'items get-upload-status <upload-url>'.
 // It retrieves the status of an ongoing or paused resumable upload session.
 var filesGetUploadStatusCmd = &cobra.Command{
-	Use:   "get-upload-status <upload-session-url>",
-	Short: "Get the status of a resumable upload session",
-	Long:  `Retrieves the current status of an active or paused resumable upload session using its upload URL. This shows which byte ranges have been successfully uploaded.`,
+	Use:     "get-upload-status <upload-session-url>",
+	Short:   "Get the status of a resumable upload session",
+	Long:    `Retrieves the current status of an active or paused resumable upload session using its upload URL. This shows which byte ranges have been successfully uploaded.`,
 	Example: `onedrive-client items get-upload-status "https://graph.microsoft.com/v1.0/drive/items/.../uploadSession?..."`,
-	Args:  cobra.ExactArgs(1), // Requires the upload session URL.
+	Args:    cobra.ExactArgs(1), // Requires the upload session URL.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
@@ -107,7 +106,7 @@ var filesUploadSimpleCmd = &cobra.Command{
 This method is suitable for small files only (typically under 4MB). For larger files, use 'items upload'.
 The remote path must be the full path including the desired filename on OneDrive.`,
 	Example: `onedrive-client items upload-simple ./config.txt /Settings/config_backup.txt`,
-	Args:  cobra.ExactArgs(2), // Requires local file path and full remote file path.
+	Args:    cobra.ExactArgs(2), // Requires local file path and full remote file path.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		a, err := app.NewApp(cmd)
 		if err != nil {
@@ -226,7 +225,7 @@ func uploadFileInChunks(a *app.App, cmd *cobra.Command, mgr *session.Manager, lo
 	totalSize := fileInfo.Size()
 
 	// Initialize UI progress bar.
-	progressBar := ui.NewProgressBar(int(totalSize))
+	progressBar := ui.NewProgressBar(int(totalSize), "Uploading "+filepath.Base(localPath))
 	progressBar.Set(int(startFromByte)) // Set initial progress if resuming.
 	defer progressBar.Close()
 

@@ -37,7 +37,7 @@ func TestPermissionsListLogic(t *testing.T) {
 									Scope       string `json:"scope"`
 									WebURL      string `json:"webUrl"`
 									WebHTML     string `json:"webHtml,omitempty"`
-									Application struct {
+									Application *struct {
 										ID          string `json:"id"`
 										DisplayName string `json:"displayName"`
 									} `json:"application,omitempty"`
@@ -47,7 +47,7 @@ func TestPermissionsListLogic(t *testing.T) {
 									Scope:   "anonymous",
 									WebURL:  "https://example.com/share1",
 									WebHTML: "",
-									Application: struct {
+									Application: &struct {
 										ID          string `json:"id"`
 										DisplayName string `json:"displayName"`
 									}{
@@ -100,7 +100,7 @@ func TestPermissionsShareLogic(t *testing.T) {
 							Scope       string `json:"scope"`
 							WebUrl      string `json:"webUrl"`
 							WebHtml     string `json:"webHtml,omitempty"`
-							Application struct {
+							Application *struct {
 								Id          string `json:"id"`
 								DisplayName string `json:"displayName"`
 							} `json:"application,omitempty"`

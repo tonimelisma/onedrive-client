@@ -231,7 +231,7 @@ func TestAuthFileLocking(t *testing.T) {
 			rootCmd.Execute()
 		})
 
-		assert.Contains(t, output, "A login is already pending")
+		assert.Contains(t, output, "A login attempt is already pending")
 	})
 }
 
@@ -253,7 +253,7 @@ func TestAuthErrorHandling(t *testing.T) {
 
 		// Error should be returned when there's a server error
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "login failed")
+		assert.Contains(t, err.Error(), "login initiation failed")
 	})
 
 	t.Run("should handle token verification failure", func(t *testing.T) {

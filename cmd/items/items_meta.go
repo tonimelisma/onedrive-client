@@ -171,8 +171,10 @@ func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 
 	// The '--in' flag (folderPath) is marked as required in items_root.go.
 	folderPath, _ := cmd.Flags().GetString("in")
-	// No need to check if folderPath is empty here due to MarkFlagRequired,
-	// but defensive coding might add it. Cobra handles the missing required flag.
+	// Defensive check even though Cobra should handle required flag validation
+	if folderPath == "" {
+		return fmt.Errorf("folder path is required for search. Use --in flag to specify the folder to search within")
+	}
 
 	items, nextLink, err := a.SDK.SearchDriveItemsInFolder(cmd.Context(), folderPath, query, paging)
 	if err != nil {

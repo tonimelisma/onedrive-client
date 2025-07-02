@@ -544,3 +544,183 @@ Enhanced with centralized components:
 - Consistent formatting for all data types
 - Structured output for API responses
 - Progress indicators for long-running operations
+
+## Core Architecture Changes
+
+### Session Management (Refactored)
+The session management has been completely refactored to use the Manager pattern:
+
+```
+internal/session/
+├── auth.go          # Manager-based session operations only
+└── manager.go       # Session Manager implementation
+```
+
+**Key Changes:**
+- **BREAKING**: Removed legacy convenience functions (`SaveAuthState`, `LoadAuthState`, `DeleteAuthState`)
+- All session operations now require explicit `session.Manager` instance
+- Improved error handling and lifecycle management
+- Consistent session state management across the application
+
+### Structured Logging Infrastructure
+A comprehensive logging system with multiple implementations:
+
+```
+internal/logger/
+├── logger.go        # Logger interface and implementations
+├── logger_test.go   # Comprehensive test suite
+└── types.go         # Logger type definitions
+```
+
+**Components:**
+- **Logger Interface**: Debug/Info/Warn/Error levels with formatted variants
+- **SlogLogger**: Go 1.22 log/slog integration for production use
+- **NoopLogger**: Silent logger for testing and quiet operations
+- **NewDefaultLogger()**: Factory function with debug mode control
+- **Backward Compatibility**: Type aliases maintain existing code compatibility
+
+### Security Utilities Package
+Comprehensive security hardening with dedicated utilities:
+
+```
+pkg/onedrive/
+├── security.go      # Security utilities and validation
+├── security_test.go # Comprehensive security tests
+└── errors.go        # Security-related error types
+```
+
+**Security Features:**
+- **Path Sanitization**: `SanitizePath()` and `SanitizeLocalPath()` prevent path traversal
+- **Download Protection**: `ValidateDownloadPath()` with overwrite protection
+- **Secure File Creation**: `SecureCreateFile()` with proper permissions (0644)
+- **Filename Validation**: `ValidateFileName()` for OneDrive compatibility
+- **Security Errors**: Dedicated error types for security violations
+
+### Enhanced Error Handling
+Improved error handling throughout the SDK:
+
+```
+pkg/onedrive/
+├── client.go        # Enhanced apiCall with structured errors
+├── errors.go        # Sentinel error definitions
+└── models.go        # Error response models
+```
+
+**Improvements:**
+- Enhanced `apiCall` method with proper error wrapping
+- Better error context and debugging information
+- Status code 507 support for quota exceeded scenarios
+- Consistent error handling patterns across all API calls
+
+### CI/CD Infrastructure
+Production-ready continuous integration and deployment:
+
+```
+.github/workflows/
+├── ci.yml           # Comprehensive CI pipeline
+└── security.yml     # Security scanning workflow
+
+.golangci.yml        # Extensive linting configuration
+```
+
+**Pipeline Features:**
+- **Multi-Environment Testing**: Ubuntu, macOS, Windows
+- **Go Version Matrix**: 1.22.x and 1.23.x support
+- **Security Scanning**: gosec integration for vulnerability detection
+- **Code Quality**: 30+ linters with comprehensive rule enforcement
+- **Coverage Reporting**: Detailed test coverage analysis
+
+## Data Flow Architecture
+
+### Session Flow (Updated)
+```
+1. User Authentication Request
+   ↓
+2. session.NewManager() creates manager instance
+   ↓
+3. Manager.LoadAuthState() checks existing session
+   ↓
+4. Manager.SaveAuthState(authState) persists new session
+   ↓
+5. Structured logging records all session operations
+```
+
+### Error Handling Flow (Enhanced)
+```
+1. API Request via client.apiCall()
+   ↓
+2. HTTP Status Code Analysis
+   ↓
+3. Sentinel Error Mapping (ErrReauthRequired, ErrAccessDenied, etc.)
+   ↓
+4. Error Wrapping with Context (fmt.Errorf("%w: ...", err))
+   ↓
+5. Structured Logging of Error Details
+   ↓
+6. User-Friendly Error Display
+```
+
+### Security Validation Flow (New)
+```
+1. User Input (paths, filenames, etc.)
+   ↓
+2. Input Sanitization (SanitizePath, ValidateFileName)
+   ↓
+3. Security Validation (path traversal, invalid characters)
+   ↓
+4. Safe Path Resolution (filepath.Clean, absolute paths)
+   ↓
+5. Secure File Operations (proper permissions, overwrite protection)
+```
+
+## Component Responsibilities
+
+### Application Layer (`internal/app/`)
+- **Session Integration**: Uses `session.Manager` for all auth operations
+- **Structured Logging**: Integrates with new logging infrastructure
+- **Error Handling**: Proper error propagation and user feedback
+
+### Command Layer (`cmd/`)
+- **Input Validation**: Uses security utilities for path validation
+- **Error Display**: Structured error handling with user-friendly messages
+- **Logging Integration**: Contextual logging for command operations
+
+### SDK Layer (`pkg/onedrive/`)
+- **Security First**: All inputs validated through security utilities
+- **Structured Errors**: Consistent error handling with sentinel errors
+- **Comprehensive Logging**: Detailed operation logging for debugging
+
+### Infrastructure Layer
+- **CI/CD**: Automated testing, security scanning, and quality enforcement
+- **Code Quality**: Comprehensive linting and formatting rules
+- **Security**: Continuous vulnerability scanning and security best practices
+
+## Security Architecture
+
+### Defense in Depth
+1. **Input Validation**: All user inputs sanitized and validated
+2. **Path Security**: Comprehensive path traversal prevention
+3. **File Permissions**: Secure file creation with proper permissions
+4. **Error Handling**: No sensitive information leaked in errors
+5. **CI/CD Security**: Automated vulnerability scanning and security testing
+
+### Security Boundaries
+- **User Input → Validation**: All inputs pass through security utilities
+- **Local Filesystem**: Protected by path sanitization and permission controls
+- **OneDrive API**: Validated requests with proper error handling
+- **Configuration**: Secure session management with encrypted storage
+
+## Testing Architecture
+
+### Comprehensive Test Strategy
+- **Unit Tests**: All new components have dedicated test suites
+- **Integration Tests**: End-to-end testing of refactored components
+- **Security Tests**: Dedicated security validation test cases
+- **Backward Compatibility**: Ensures existing functionality remains intact
+- **Performance Tests**: Validation of logging and error handling performance
+
+### Test Coverage
+- **Logger Interface**: 100% coverage of all logging methods
+- **Security Utilities**: Comprehensive edge case and attack vector testing
+- **Error Handling**: All error paths and sentinel errors validated
+- **Session Management**: Manager pattern functionality fully tested

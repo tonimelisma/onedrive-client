@@ -21,10 +21,60 @@ import (
 type StdLogger struct{}
 
 // Debug prints debug messages using the standard logger, prefixed with "DEBUG:".
-// This method satisfies the onedrive.Logger interface.
-func (l StdLogger) Debug(v ...interface{}) {
-	// Prepend "DEBUG:" to all messages coming from this logger for clarity.
-	log.Println(append([]interface{}{"DEBUG:"}, v...)...)
+// This method satisfies the new structured logger.Logger interface.
+func (l StdLogger) Debug(msg string, args ...any) {
+	if len(args) > 0 {
+		log.Printf("DEBUG: "+msg, args...)
+	} else {
+		log.Println("DEBUG: " + msg)
+	}
+}
+
+// Debugf prints formatted debug messages using the standard logger.
+func (l StdLogger) Debugf(format string, args ...any) {
+	log.Printf("DEBUG: "+format, args...)
+}
+
+// Info prints info messages using the standard logger.
+func (l StdLogger) Info(msg string, args ...any) {
+	if len(args) > 0 {
+		log.Printf("INFO: "+msg, args...)
+	} else {
+		log.Println("INFO: " + msg)
+	}
+}
+
+// Infof prints formatted info messages using the standard logger.
+func (l StdLogger) Infof(format string, args ...any) {
+	log.Printf("INFO: "+format, args...)
+}
+
+// Warn prints warning messages using the standard logger.
+func (l StdLogger) Warn(msg string, args ...any) {
+	if len(args) > 0 {
+		log.Printf("WARN: "+msg, args...)
+	} else {
+		log.Println("WARN: " + msg)
+	}
+}
+
+// Warnf prints formatted warning messages using the standard logger.
+func (l StdLogger) Warnf(format string, args ...any) {
+	log.Printf("WARN: "+format, args...)
+}
+
+// Error prints error messages using the standard logger.
+func (l StdLogger) Error(msg string, args ...any) {
+	if len(args) > 0 {
+		log.Printf("ERROR: "+msg, args...)
+	} else {
+		log.Println("ERROR: " + msg)
+	}
+}
+
+// Errorf prints formatted error messages using the standard logger.
+func (l StdLogger) Errorf(format string, args ...any) {
+	log.Printf("ERROR: "+format, args...)
 }
 
 // Success prints a simple success message to standard output.
@@ -157,12 +207,12 @@ func NewProgressBar(maxBytes int, description string) *progressbar.ProgressBar {
 	}
 	return progressbar.NewOptions(
 		maxBytes,
-		progressbar.OptionSetDescription(description), // Use provided description
-		progressbar.OptionSetWriter(os.Stderr),      // Write to Stderr to not interfere with Stdout data
-		progressbar.OptionShowBytes(true),           // Display progress in bytes (e.g., 1.2MB/5MB)
-		progressbar.OptionSetWidth(40),              // Width of the progress bar itself
+		progressbar.OptionSetDescription(description),    // Use provided description
+		progressbar.OptionSetWriter(os.Stderr),           // Write to Stderr to not interfere with Stdout data
+		progressbar.OptionShowBytes(true),                // Display progress in bytes (e.g., 1.2MB/5MB)
+		progressbar.OptionSetWidth(40),                   // Width of the progress bar itself
 		progressbar.OptionThrottle(100*time.Millisecond), // Update frequency
-		progressbar.OptionShowCount(),               // Show item count (useful if maxBytes is actually item count)
+		progressbar.OptionShowCount(),                    // Show item count (useful if maxBytes is actually item count)
 		progressbar.OptionOnCompletion(func() {
 			fmt.Fprint(os.Stderr, "\n") // Newline after completion
 		}),
@@ -239,11 +289,8 @@ func DisplaySharedItems(items onedrive.DriveItemList) {
 		if item.CreatedBy.User != nil && item.CreatedBy.User.DisplayName != "" {
 			owner = item.CreatedBy.User.DisplayName
 		}
-		// If item.RemoteItem is present, its CreatedBy might be more relevant for original owner.
-		if item.RemoteItem != nil && item.RemoteItem.CreatedBy.User != nil && item.RemoteItem.CreatedBy.User.DisplayName != "" {
-			owner = item.RemoteItem.CreatedBy.User.DisplayName + " (Remote)"
-		}
-
+		// Note: RemoteItem does not contain CreatedBy information in the current model
+		// Using the primary item's CreatedBy information only
 
 		fmt.Printf("%-50.50s %12s %-10s %-20s %s\n", name, formatBytes(item.Size), itemType, sharedDate, owner)
 	}
@@ -422,16 +469,26 @@ func DisplayActivities(activities onedrive.ActivityList, title string) {
 
 		// Determine action type more robustly.
 		actionType := "Unknown"
-		if activity.Action.Create != nil { actionType = "Create"
-		} else if activity.Action.Edit != nil { actionType = "Edit"
-		} else if activity.Action.Delete != nil { actionType = "Delete"
-		} else if activity.Action.Move != nil { actionType = "Move"
-		} else if activity.Action.Rename != nil { actionType = "Rename"
-		} else if activity.Action.Share != nil { actionType = "Share"
-		} else if activity.Action.Comment != nil { actionType = "Comment"
-		} else if activity.Action.Version != nil { actionType = "Version Create" // Distinguish from simple Edit
-		} else if activity.Action.Restore != nil { actionType = "Restore"
-		} else if activity.Action.Mention != nil { actionType = "Mention"
+		if activity.Action.Create != nil {
+			actionType = "Create"
+		} else if activity.Action.Edit != nil {
+			actionType = "Edit"
+		} else if activity.Action.Delete != nil {
+			actionType = "Delete"
+		} else if activity.Action.Move != nil {
+			actionType = "Move"
+		} else if activity.Action.Rename != nil {
+			actionType = "Rename"
+		} else if activity.Action.Share != nil {
+			actionType = "Share"
+		} else if activity.Action.Comment != nil {
+			actionType = "Comment"
+		} else if activity.Action.Version != nil {
+			actionType = "Version Create" // Distinguish from simple Edit
+		} else if activity.Action.Restore != nil {
+			actionType = "Restore"
+		} else if activity.Action.Mention != nil {
+			actionType = "Mention"
 		}
 		// Could add more details from action facets if needed, e.g., activity.Action.Rename.OldName
 
@@ -542,9 +599,7 @@ func DisplayPermissions(permissions onedrive.PermissionList, remotePath string) 
 		if permission.GrantedToV2 != nil {
 			if permission.GrantedToV2.User != nil && permission.GrantedToV2.User.DisplayName != "" {
 				grantedTo = permission.GrantedToV2.User.DisplayName
-				if permission.GrantedToV2.User.Email != "" {
-					grantedTo += " (" + permission.GrantedToV2.User.Email + ")"
-				} else if permission.GrantedToV2.User.ID != "" {
+				if permission.GrantedToV2.User.ID != "" {
 					grantedTo += " [ID: " + permission.GrantedToV2.User.ID + "]"
 				}
 			} else if permission.GrantedToV2.SiteUser != nil && permission.GrantedToV2.SiteUser.DisplayName != "" { // Example for other identity types
@@ -555,7 +610,6 @@ func DisplayPermissions(permissions onedrive.PermissionList, remotePath string) 
 		} else if permission.Link != nil && permission.Link.Scope == "organization" {
 			grantedTo = "Organization (anyone in the org)"
 		}
-
 
 		fmt.Printf("%-40.40s %-12s %-25.25s %s\n", permID, permType, roles, grantedTo)
 	}
@@ -602,7 +656,7 @@ func displayPermissionDetails(permission onedrive.Permission) {
 			fmt.Printf("    Prevents Download:Yes\n")
 		}
 		if permission.Link.Application != nil && permission.Link.Application.DisplayName != "" {
-			fmt.Printf("    Creating App:     %s (ID: %s)\n", permission.Link.Application.DisplayName, permission.Link.Application.Id)
+			fmt.Printf("    Creating App:     %s (ID: %s)\n", permission.Link.Application.DisplayName, permission.Link.Application.ID)
 		}
 	}
 
@@ -613,11 +667,9 @@ func displayPermissionDetails(permission onedrive.Permission) {
 			fmt.Printf("    %d. ", i+1)
 			if identity.User != nil {
 				fmt.Printf("User: %s", identity.User.DisplayName)
-				if identity.User.Email != "" { fmt.Printf(" (%s)", identity.User.Email) }
 				fmt.Printf(" [ID: %s]\n", identity.User.ID)
 			} else if identity.SiteUser != nil { // Example for SharePoint site users
 				fmt.Printf("Site User: %s", identity.SiteUser.DisplayName)
-				if identity.SiteUser.Email != "" { fmt.Printf(" (%s)", identity.SiteUser.Email) }
 				fmt.Printf(" [ID: %s]\n", identity.SiteUser.ID)
 			} else {
 				fmt.Println("Unknown identity type")
@@ -627,16 +679,13 @@ func displayPermissionDetails(permission onedrive.Permission) {
 		fmt.Printf("  Granted To (V2):\n")
 		if permission.GrantedToV2.User != nil {
 			fmt.Printf("    User: %s", permission.GrantedToV2.User.DisplayName)
-			if permission.GrantedToV2.User.Email != "" { fmt.Printf(" (%s)", permission.GrantedToV2.User.Email) }
 			fmt.Printf(" [ID: %s]\n", permission.GrantedToV2.User.ID)
 		}
 		if permission.GrantedToV2.SiteUser != nil {
 			fmt.Printf("    Site User: %s", permission.GrantedToV2.SiteUser.DisplayName)
-			if permission.GrantedToV2.SiteUser.Email != "" { fmt.Printf(" (%s)", permission.GrantedToV2.SiteUser.Email) }
 			fmt.Printf(" [ID: %s]\n", permission.GrantedToV2.SiteUser.ID)
 		}
 	}
-
 
 	// Display "Inherited From" information if the permission is inherited.
 	if permission.InheritedFrom != nil {
