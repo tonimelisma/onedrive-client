@@ -50,7 +50,11 @@ func apiCallWithDebug(method, url, contentType string, body io.Reader, debug boo
 	var reqBodyBytes []byte
 	if body != nil {
 		// Read the body for potential logging, then restore it for the actual request.
-		reqBodyBytes, _ = io.ReadAll(body)
+		var readErr error
+		reqBodyBytes, readErr = io.ReadAll(body)
+		if readErr != nil {
+			log.Printf("Warning: Failed to read request body for logging: %v", readErr)
+		}
 		body = bytes.NewBuffer(reqBodyBytes)
 	}
 
@@ -91,8 +95,16 @@ func apiCallWithDebug(method, url, contentType string, body io.Reader, debug boo
 
 	// Handle HTTP errors from the OAuth server.
 	if res.StatusCode >= 400 {
-		defer res.Body.Close()
-		resBodyBytes, _ := io.ReadAll(res.Body)
+		defer func() {
+			if closeErr := res.Body.Close(); closeErr != nil {
+				log.Printf("Warning: Failed to close OAuth error response body: %v", closeErr)
+			}
+		}()
+		resBodyBytes, readErr := io.ReadAll(res.Body)
+		if readErr != nil {
+			log.Printf("Warning: Failed to read OAuth error response body: %v", readErr)
+			return nil, fmt.Errorf("HTTP error %s from %s (could not read response body)", res.Status, url)
+		}
 
 		var oauthError struct { // Common OAuth error response structure.
 			Error            string `json:"error"`

@@ -182,8 +182,8 @@ func TestAuthLogout(t *testing.T) {
 		configDir, err := config.GetConfigDir()
 		require.NoError(t, err)
 		sessionFilePath := filepath.Join(configDir, "sessions", "auth_session.json")
-		os.MkdirAll(filepath.Dir(sessionFilePath), 0o755)
-		require.NoError(t, os.WriteFile(sessionFilePath, []byte("{}"), 0o644))
+		os.MkdirAll(filepath.Dir(sessionFilePath), onedrive.PermStandardDir)
+		require.NoError(t, os.WriteFile(sessionFilePath, []byte("{}"), onedrive.PermStandardFile))
 
 		run := func() {
 			rootCmd.SetArgs([]string{"auth", "logout"})

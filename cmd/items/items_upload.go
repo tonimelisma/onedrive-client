@@ -216,7 +216,11 @@ func uploadFileInChunks(a *app.App, cmd *cobra.Command, mgr *session.Manager, lo
 	if err != nil {
 		return fmt.Errorf("opening local file '%s' for chunked upload: %w", localPath, err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Warning: Failed to close file: %v", closeErr)
+		}
+	}()
 
 	fileInfo, err := file.Stat()
 	if err != nil {
@@ -227,7 +231,11 @@ func uploadFileInChunks(a *app.App, cmd *cobra.Command, mgr *session.Manager, lo
 	// Initialize UI progress bar.
 	progressBar := ui.NewProgressBar(int(totalSize), "Uploading "+filepath.Base(localPath))
 	progressBar.Set(int(startFromByte)) // Set initial progress if resuming.
-	defer progressBar.Close()
+	defer func() {
+		if closeErr := progressBar.Close(); closeErr != nil {
+			log.Printf("Warning: Failed to close progress bar: %v", closeErr)
+		}
+	}()
 
 	// Define chunk size (e.g., 5MB). Must be a multiple of 320 KiB (327,680 bytes).
 	// Graph API recommends chunks between 5-10 MiB.

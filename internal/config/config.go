@@ -201,7 +201,7 @@ func (c *Configuration) saveUnlocked() error {
 	configDirPath := filepath.Dir(configFilePath) // Get directory from the full file path.
 	if _, err := os.Stat(configDirPath); os.IsNotExist(err) {
 		c.DebugPrintf("Configuration directory '%s' does not exist, creating...", configDirPath)
-		if err := os.MkdirAll(configDirPath, 0o700); err != nil { // 0700: User rwx, no group/other.
+		if err := os.MkdirAll(configDirPath, onedrive.PermSecureDir); err != nil { // 0700: User rwx, no group/other.
 			return fmt.Errorf("creating config directory '%s': %w", configDirPath, err)
 		}
 	}
@@ -209,7 +209,7 @@ func (c *Configuration) saveUnlocked() error {
 	// Atomic save: Write to a temporary file first, then rename.
 	// This prevents a corrupted config file if the process is interrupted during write.
 	tmpPath := configFilePath + ".tmp"
-	if err := os.WriteFile(tmpPath, jsonData, 0o600); err != nil { // 0600: User rw, no group/other.
+	if err := os.WriteFile(tmpPath, jsonData, onedrive.PermSecureFile); err != nil { // 0600: User rw, no group/other.
 		return fmt.Errorf("writing temporary configuration file '%s': %w", tmpPath, err)
 	}
 	if err := os.Rename(tmpPath, configFilePath); err != nil {

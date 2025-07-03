@@ -20,6 +20,26 @@ const (
 	StatusInsufficientStorage = 507
 )
 
+// File Permission Constants
+const (
+	PermUserOnly          = 0o700 // rwx------ (user read/write/execute only)
+	PermUserRead          = 0o400 // r-------- (user read only)
+	PermUserWrite         = 0o200 // -w------- (user write only)
+	PermUserReadWrite     = 0o600 // rw------- (user read/write only)
+	PermUserReadWriteExec = 0o700 // rwx------ (user read/write/execute only)
+	PermGroupRead         = 0o040 // ---r----- (group read only)
+	PermGroupWrite        = 0o020 // ----w---- (group write only)
+	PermGroupReadWrite    = 0o060 // ---rw---- (group read/write only)
+	PermOtherRead         = 0o004 // ------r-- (other read only)
+	PermOtherWrite        = 0o002 // -------w- (other write only)
+	PermOtherReadWrite    = 0o006 // ------rw- (other read/write only)
+	PermStandardFile      = 0o644 // rw-r--r-- (user read/write, group/other read)
+	PermExecutableFile    = 0o755 // rwxr-xr-x (user read/write/execute, group/other read/execute)
+	PermSecureFile        = 0o600 // rw------- (user read/write only, secure)
+	PermSecureDir         = 0o700 // rwx------ (user read/write/execute only, secure)
+	PermStandardDir       = 0o755 // rwxr-xr-x (user read/write/execute, group/other read/execute)
+)
+
 // Default HTTP Configuration Constants
 const (
 	DefaultTimeout       = 30 * time.Second

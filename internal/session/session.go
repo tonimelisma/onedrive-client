@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gofrs/flock"
+	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 // State represents the persisted state of a resumable operation (e.g., upload or download).
@@ -92,7 +93,7 @@ func (m *Manager) GetSessionFilePath(localPath, remotePath string) string {
 // It ensures the session directory exists and uses file locking for safe concurrent access.
 func (m *Manager) Save(state *State) error {
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: rwx------ (user only for session security)
+	if err := os.MkdirAll(sessionDir, onedrive.PermSecureDir); err != nil { // 0700: rwx------ (user only for session security)
 		return fmt.Errorf("creating session directory '%s' for save: %w", sessionDir, err)
 	}
 
@@ -107,7 +108,11 @@ func (m *Manager) Save(state *State) error {
 	if !locked {
 		return fmt.Errorf("could not acquire file lock for session '%s', another instance may be active", filePath)
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			log.Printf("Warning: Failed to unlock session file lock: %v", unlockErr)
+		}
+	}()
 
 	data, err := json.MarshalIndent(state, "", "  ") // Pretty-print JSON.
 	if err != nil {
@@ -115,7 +120,7 @@ func (m *Manager) Save(state *State) error {
 	}
 
 	// Write with 0600 permissions (user read/write only).
-	return os.WriteFile(filePath, data, 0o600)
+	return os.WriteFile(filePath, data, onedrive.PermSecureFile)
 }
 
 // Load retrieves a session State from its file, identified by local and remote paths.
@@ -126,7 +131,7 @@ func (m *Manager) Load(localPath, remotePath string) (*State, error) {
 
 	// Ensure session directory exists before attempting to lock/read.
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for session data
+	if err := os.MkdirAll(sessionDir, onedrive.PermSecureDir); err != nil { // 0700: secure permissions for session data
 		return nil, fmt.Errorf("creating session directory '%s' for load: %w", sessionDir, err)
 	}
 
@@ -138,7 +143,11 @@ func (m *Manager) Load(localPath, remotePath string) (*State, error) {
 	if !locked {
 		return nil, fmt.Errorf("could not acquire file lock for session '%s', another instance may be active", filePath)
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			log.Printf("Warning: Failed to unlock session file lock: %v", unlockErr)
+		}
+	}()
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -176,7 +185,7 @@ func (m *Manager) Delete(localPath, remotePath string) error {
 
 	// Ensure session directory exists before attempting to lock/delete.
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for session data
+	if err := os.MkdirAll(sessionDir, onedrive.PermSecureDir); err != nil { // 0700: secure permissions for session data
 		return fmt.Errorf("creating session directory '%s' for delete: %w", sessionDir, err)
 	}
 
@@ -188,7 +197,11 @@ func (m *Manager) Delete(localPath, remotePath string) error {
 	if !locked {
 		return fmt.Errorf("could not acquire file lock for deleting session '%s', another instance may be active", filePath)
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			log.Printf("Warning: Failed to unlock session file lock: %v", unlockErr)
+		}
+	}()
 
 	return m.deleteFileInternal(filePath)
 }

@@ -9,10 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/gofrs/flock" // flock is used for file locking.
+	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
 // authSessionFile is the name of the file used to store pending auth state.
@@ -41,7 +43,7 @@ func (m *Manager) getAuthSessionFilePath() string {
 func (m *Manager) SaveAuthState(state *AuthState) error {
 	sessionDir := m.getSessionDir()
 	// Ensure the directory for session files exists with secure permissions.
-	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: rwx------ (user only for auth security)
+	if err := os.MkdirAll(sessionDir, onedrive.PermSecureDir); err != nil { // 0700: rwx------ (user only for auth security)
 		return fmt.Errorf("creating session directory '%s' for auth state: %w", sessionDir, err)
 	}
 
@@ -60,7 +62,11 @@ func (m *Manager) SaveAuthState(state *AuthState) error {
 		// trying to perform an auth operation.
 		return errors.New("could not acquire file lock for auth session, another instance may be running or performing authentication")
 	}
-	defer fileLock.Unlock() // Ensure the lock is released when the function exits.
+	defer func() {
+		if unlockErr := fileLock.Unlock(); unlockErr != nil {
+			log.Printf("Warning: Failed to unlock auth session file lock: %v", unlockErr)
+		}
+	}()
 
 	data, err := json.MarshalIndent(state, "", "  ") // Pretty-print for readability if opened manually.
 	if err != nil {
@@ -68,7 +74,7 @@ func (m *Manager) SaveAuthState(state *AuthState) error {
 	}
 
 	// Write with 0600 permissions (user read/write only) for security.
-	return os.WriteFile(filePath, data, 0o600)
+	return os.WriteFile(filePath, data, onedrive.PermSecureFile)
 }
 
 // LoadAuthState retrieves the pending authentication state from a file.
@@ -81,7 +87,7 @@ func (m *Manager) LoadAuthState() (*AuthState, error) {
 	// Ensure the session directory exists before trying to create lock files,
 	// as flock might attempt to create the lock file in a non-existent directory.
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for auth data
+	if err := os.MkdirAll(sessionDir, onedrive.PermSecureDir); err != nil { // 0700: secure permissions for auth data
 		return nil, fmt.Errorf("creating session directory '%s' for loading auth state: %w", sessionDir, err)
 	}
 
@@ -96,7 +102,11 @@ func (m *Manager) LoadAuthState() (*AuthState, error) {
 	if !locked {
 		return nil, errors.New("could not acquire file lock for reading auth session, another instance may be active")
 	}
-	defer fileLock.Unlock()
+	defer func() {
+		if unlockErr := fileLock.Unlock(); unlockErr != nil {
+			log.Printf("Warning: Failed to unlock auth session file lock: %v", unlockErr)
+		}
+	}()
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -125,7 +135,7 @@ func (m *Manager) DeleteAuthState() error {
 	filePath := m.getAuthSessionFilePath()
 
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for auth data
+	if err := os.MkdirAll(sessionDir, onedrive.PermSecureDir); err != nil { // 0700: secure permissions for auth data
 		// If directory creation fails, we might not be able to acquire lock or delete.
 		return fmt.Errorf("creating session directory '%s' for deleting auth state: %w", sessionDir, err)
 	}
@@ -138,7 +148,11 @@ func (m *Manager) DeleteAuthState() error {
 	if !locked {
 		return errors.New("could not acquire file lock for deleting auth session, another instance may be active")
 	}
-	defer fileLock.Unlock()
+	defer func() {
+		if unlockErr := fileLock.Unlock(); unlockErr != nil {
+			log.Printf("Warning: Failed to unlock auth session file lock: %v", unlockErr)
+		}
+	}()
 
 	// Attempt to remove the session file.
 	err = os.Remove(filePath)
