@@ -33,7 +33,7 @@ func (c *Client) GetDriveItemByPath(ctx context.Context, path string) (DriveItem
 	if err != nil {
 		return item, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "get drive item by path")
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
 		return item, fmt.Errorf("%w: decoding item metadata for path '%s': %w", ErrDecodingFailed, path, err)
@@ -71,7 +71,7 @@ func (c *Client) GetDriveItemChildrenByPath(ctx context.Context, path string) (D
 	if err != nil {
 		return items, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "get drive item children")
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
 		return items, fmt.Errorf("%w: decoding children for path '%s': %w", ErrDecodingFailed, path, err)
@@ -124,7 +124,7 @@ func (c *Client) CreateFolder(ctx context.Context, parentPath string, folderName
 	if err != nil {
 		return item, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "create folder")
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
 		return item, fmt.Errorf("%w: decoding created folder response for '%s': %w", ErrDecodingFailed, folderName, err)
@@ -161,7 +161,7 @@ func (c *Client) UploadFile(ctx context.Context, localPath, remotePath string) (
 	if err != nil {
 		return item, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "upload file")
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
 		return item, fmt.Errorf("%w: decoding uploaded file response for '%s': %w", ErrDecodingFailed, remotePath, err)
@@ -185,7 +185,7 @@ func (c *Client) DeleteDriveItem(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "delete drive item")
 
 	// Successful deletion typically returns HTTP 204 No Content.
 	// Some APIs might also return 200 OK or 202 Accepted.
@@ -250,7 +250,7 @@ func (c *Client) CopyDriveItem(ctx context.Context, sourcePath, destinationParen
 	if err != nil {
 		return "", err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "copy drive item")
 
 	// A successful initiation of an async copy returns HTTP 202 Accepted.
 	if res.StatusCode != http.StatusAccepted {
@@ -295,7 +295,7 @@ func (c *Client) MonitorCopyOperation(ctx context.Context, monitorURL string) (C
 	if err != nil {
 		return status, fmt.Errorf("calling monitor URL '%s': %w", monitorURL, err)
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "monitor copy operation")
 
 	if res.StatusCode != http.StatusOK {
 		errorBody, _ := io.ReadAll(res.Body)
@@ -354,7 +354,7 @@ func (c *Client) MoveDriveItem(ctx context.Context, sourcePath, destinationParen
 	if err != nil {
 		return item, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "move drive item")
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
 		return item, fmt.Errorf("%w: decoding moved item response for '%s': %w", ErrDecodingFailed, sourcePath, err)
@@ -398,7 +398,7 @@ func (c *Client) UpdateDriveItem(ctx context.Context, path, newName string) (Dri
 	if err != nil {
 		return item, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "update drive item")
 
 	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
 		return item, fmt.Errorf("%w: decoding renamed item response for '%s': %w", ErrDecodingFailed, path, err)

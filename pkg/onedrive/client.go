@@ -269,7 +269,7 @@ func (c *Client) GetMe(ctx context.Context) (User, error) {
 	if err != nil {
 		return user, err // Error from apiCall (network, auth, or API error).
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "user info")
 
 	if err := json.NewDecoder(res.Body).Decode(&user); err != nil {
 		return user, fmt.Errorf("%w: decoding user: %w", ErrDecodingFailed, err)
@@ -300,7 +300,7 @@ func (c *Client) GetSharedWithMe(ctx context.Context) (DriveItemList, error) {
 	if err != nil {
 		return items, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "shared items")
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
 		return items, fmt.Errorf("%w: decoding shared items: %w", ErrDecodingFailed, err)
@@ -331,7 +331,7 @@ func (c *Client) GetRecentItems(ctx context.Context) (DriveItemList, error) {
 	if err != nil {
 		return items, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "recent items")
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
 		return items, fmt.Errorf("%w: decoding recent items: %w", ErrDecodingFailed, err)
@@ -357,14 +357,10 @@ func (c *Client) GetSpecialFolder(ctx context.Context, folderName string) (Drive
 
 	// Endpoint for special folders, requires URL path escaping for the folder name.
 	url := customRootURL + "me/drive/special/" + url.PathEscape(folderName)
-	res, err := c.apiCall(ctx, "GET", url, "", nil)
+
+	err := c.makeAPICallAndDecode(ctx, "GET", url, "", nil, &item, fmt.Sprintf("special folder '%s'", folderName))
 	if err != nil {
 		return item, err
-	}
-	defer res.Body.Close()
-
-	if err := json.NewDecoder(res.Body).Decode(&item); err != nil {
-		return item, fmt.Errorf("%w: decoding special folder '%s': %w", ErrDecodingFailed, folderName, err)
 	}
 
 	return item, nil
@@ -405,7 +401,7 @@ func (c *Client) GetDelta(ctx context.Context, deltaToken string) (DeltaResponse
 	if err != nil {
 		return deltaResponse, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "delta response")
 
 	if err := json.NewDecoder(res.Body).Decode(&deltaResponse); err != nil {
 		return deltaResponse, fmt.Errorf("%w: decoding delta response: %w", ErrDecodingFailed, err)
@@ -444,7 +440,7 @@ func (c *Client) GetFileVersions(ctx context.Context, filePath string) (DriveIte
 	if err != nil {
 		return versions, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "file versions")
 
 	if err := json.NewDecoder(res.Body).Decode(&versions); err != nil {
 		return versions, fmt.Errorf("%w: decoding versions response for '%s': %w", ErrDecodingFailed, filePath, err)
@@ -558,49 +554,49 @@ func (c *Client) apiCall(ctx context.Context, method, url, contentType string, b
 
 		// Handle HTTP errors
 		switch res.StatusCode {
-		case 200, 201, 202, 204:
+		case StatusOK, StatusCreated, StatusAccepted, StatusNoContent:
 			// Success responses
 			return res, nil
-		case 400:
+		case StatusBadRequest:
 			// Bad Request - malformed request
-			res.Body.Close()
-			return nil, fmt.Errorf("%w: received 400 Bad Request from %s", ErrInvalidRequest, url)
-		case 401:
+			closeBodySafely(res.Body, c.logger, "bad request")
+			return nil, fmt.Errorf("%w: received %d Bad Request from %s", ErrInvalidRequest, StatusBadRequest, url)
+		case StatusUnauthorized:
 			// Unauthorized - token might be expired
-			c.logger.Debugf("Received 401 Unauthorized on attempt #%d. URL: %s", i+1, url)
-			res.Body.Close()
+			c.logger.Debugf("Received %d Unauthorized on attempt #%d. URL: %s", StatusUnauthorized, i+1, url)
+			closeBodySafely(res.Body, c.logger, "unauthorized")
 			if i < maxRetries-1 {
 				time.Sleep(retryDelay)
 				if body != nil {
-					body.Seek(0, 0) // Reset body for retry
+					logOnError(seekToStart(body), c.logger, "seek body for retry")
 				}
 				continue
 			}
-			c.logger.Debugf("Still received 401 after retry for URL: %s, failing.", url)
-			return nil, fmt.Errorf("%w: received 401 from %s", ErrReauthRequired, url)
-		case 403:
+			c.logger.Debugf("Still received %d after retry for URL: %s, failing.", StatusUnauthorized, url)
+			return nil, fmt.Errorf("%w: received %d from %s", ErrReauthRequired, StatusUnauthorized, url)
+		case StatusForbidden:
 			// Forbidden - access denied
-			res.Body.Close()
-			return nil, fmt.Errorf("%w: received 403 Forbidden from %s", ErrAccessDenied, url)
-		case 404:
+			closeBodySafely(res.Body, c.logger, "forbidden")
+			return nil, fmt.Errorf("%w: received %d Forbidden from %s", ErrAccessDenied, StatusForbidden, url)
+		case StatusNotFound:
 			// Not Found - resource doesn't exist
-			res.Body.Close()
-			return nil, fmt.Errorf("%w: received 404 Not Found from %s", ErrResourceNotFound, url)
-		case 409:
+			closeBodySafely(res.Body, c.logger, "not found")
+			return nil, fmt.Errorf("%w: received %d Not Found from %s", ErrResourceNotFound, StatusNotFound, url)
+		case StatusConflict:
 			// Conflict - resource conflict (e.g., name already exists)
-			res.Body.Close()
-			return nil, fmt.Errorf("%w: received 409 Conflict from %s", ErrConflict, url)
-		case 413:
+			closeBodySafely(res.Body, c.logger, "conflict")
+			return nil, fmt.Errorf("%w: received %d Conflict from %s", ErrConflict, StatusConflict, url)
+		case StatusPayloadTooLarge:
 			// Payload Too Large - quota exceeded
-			res.Body.Close()
-			return nil, fmt.Errorf("%w: received 413 Payload Too Large from %s", ErrQuotaExceeded, url)
-		case 507:
+			closeBodySafely(res.Body, c.logger, "payload too large")
+			return nil, fmt.Errorf("%w: received %d Payload Too Large from %s", ErrQuotaExceeded, StatusPayloadTooLarge, url)
+		case StatusInsufficientStorage:
 			// Insufficient Storage - quota exceeded
-			res.Body.Close()
-			return nil, fmt.Errorf("%w: received 507 Insufficient Storage from %s", ErrQuotaExceeded, url)
-		case 429:
+			closeBodySafely(res.Body, c.logger, "insufficient storage")
+			return nil, fmt.Errorf("%w: received %d Insufficient Storage from %s", ErrQuotaExceeded, StatusInsufficientStorage, url)
+		case StatusTooManyRequests:
 			// Rate limited - should retry with backoff
-			res.Body.Close()
+			closeBodySafely(res.Body, c.logger, "rate limited")
 			if i < maxRetries-1 {
 				// Exponential backoff with maximum delay cap
 				retryAfter := time.Duration(i+1) * retryDelay * 2
@@ -610,28 +606,28 @@ func (c *Client) apiCall(ctx context.Context, method, url, contentType string, b
 				time.Sleep(retryAfter)
 				c.logger.Debugf("Retrying request to URL: %s", url)
 				if body != nil {
-					body.Seek(0, 0) // Reset body for retry
+					logOnError(seekToStart(body), c.logger, "seek body for retry")
 				}
 				continue
 			}
 			return nil, fmt.Errorf("%w: rate limited after %d attempts from %s", ErrRetryLater, maxRetries, url)
-		case 503:
+		case StatusServiceUnavailable:
 			// Service Unavailable - temporary issue
-			res.Body.Close()
+			closeBodySafely(res.Body, c.logger, "service unavailable")
 			if i < maxRetries-1 {
 				time.Sleep(retryDelay)
 				c.logger.Debugf("Service unavailable, retrying request to URL: %s", url)
 				if body != nil {
-					body.Seek(0, 0) // Reset body for retry
+					logOnError(seekToStart(body), c.logger, "seek body for retry")
 				}
 				continue
 			}
 			return nil, fmt.Errorf("%w: service unavailable after %d attempts from %s", ErrRetryLater, maxRetries, url)
 		default:
 			// Other HTTP errors
-			errorBody, _ := io.ReadAll(res.Body)
-			res.Body.Close()
-			return nil, fmt.Errorf("HTTP %d from %s: %s", res.StatusCode, url, string(errorBody))
+			errorBody := readErrorBody(res.Body)
+			closeBodySafely(res.Body, c.logger, "unexpected status")
+			return nil, fmt.Errorf("HTTP %d from %s: %s", res.StatusCode, url, errorBody)
 		}
 	}
 

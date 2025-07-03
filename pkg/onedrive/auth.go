@@ -263,7 +263,11 @@ func InitiateDeviceCodeFlow(clientID string, debug bool) (*DeviceCodeResponse, e
 	if err != nil {
 		return nil, fmt.Errorf("requesting device code from %s: %w", customDeviceURL, err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			log.Printf("Warning: failed to close device code response body: %v", err)
+		}
+	}()
 
 	var deviceCodeResponse DeviceCodeResponse
 	if err := json.NewDecoder(res.Body).Decode(&deviceCodeResponse); err != nil {
@@ -314,7 +318,11 @@ func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*Token, e
 		// apiCallWithDebug already maps "authorization_pending", etc., to sentinel errors.
 		return nil, fmt.Errorf("polling token endpoint %s: %w", customTokenURL, err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			log.Printf("Warning: failed to close token response body: %v", err)
+		}
+	}()
 
 	// Read the response body once.
 	bodyBytes, err := io.ReadAll(res.Body)

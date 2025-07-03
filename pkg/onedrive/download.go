@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -53,7 +54,7 @@ func (c *Client) DownloadFile(ctx context.Context, remotePath, localPath string)
 	if err != nil {
 		return fmt.Errorf("initiating download for '%s' from content URL: %w", remotePath, err)
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "download file")
 
 	// If a 302 Found is received, get the pre-authenticated download URL from the Location header.
 	if res.StatusCode == http.StatusFound {
@@ -133,7 +134,7 @@ func (c *Client) downloadFromURL(ctx context.Context, downloadURL, localPath, so
 	if err != nil {
 		return fmt.Errorf("downloading '%s' from %s (%s): %w", localPath, sourceDescription, downloadURL, err)
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "download from URL")
 
 	if res.StatusCode != http.StatusOK {
 		errorBody, _ := io.ReadAll(res.Body)
@@ -150,7 +151,11 @@ func saveResponseToFile(res *http.Response, localPath, sourceDescription string)
 	if err != nil {
 		return fmt.Errorf("creating local file '%s' for content from %s: %w", localPath, sourceDescription, err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("Warning: failed to close file '%s': %v", localPath, err)
+		}
+	}()
 
 	_, err = io.Copy(file, res.Body)
 	if err != nil {
@@ -193,7 +198,7 @@ func (c *Client) DownloadFileChunk(ctx context.Context, downloadURL string, star
 
 	// For a successful range request, the server should respond with HTTP 206 Partial Content.
 	if res.StatusCode != http.StatusPartialContent {
-		defer res.Body.Close() // Ensure body is closed on error.
+		closeBodySafely(res.Body, c.logger, "download file chunk error")
 		errorBody, _ := io.ReadAll(res.Body)
 		return nil, fmt.Errorf("unexpected status code %d for chunk download from '%s' (range %d-%d): %s", res.StatusCode, downloadURL, startByte, endByte, string(errorBody))
 	}
@@ -234,7 +239,7 @@ func (c *Client) DownloadFileAsFormat(ctx context.Context, remotePath, localPath
 	if err != nil {
 		return fmt.Errorf("initiating download-as-format for '%s' (format %s): %w", remotePath, format, err)
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "download file as format")
 
 	if res.StatusCode == http.StatusFound {
 		actualDownloadURL := res.Header.Get("Location")

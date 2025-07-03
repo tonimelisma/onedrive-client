@@ -34,7 +34,7 @@ func (c *Client) SearchDriveItems(ctx context.Context, query string) (DriveItemL
 	if err != nil {
 		return items, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "search drive items")
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
 		return items, fmt.Errorf("%w: decoding search results for query '%s': %w", ErrDecodingFailed, query, err)

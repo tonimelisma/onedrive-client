@@ -30,22 +30,16 @@ func (c *Client) GetThumbnails(ctx context.Context, remotePath string) (Thumbnai
 	c.logger.Debugf("GetThumbnails called for remotePath: '%s'", remotePath)
 	var thumbnails ThumbnailSetList
 
-	// Get the DriveItem ID first.
-	item, err := c.GetDriveItemByPath(ctx, remotePath)
+	// Use helper to get item and build URL, reducing duplication.
+	apiURL, err := c.getItemAndBuildURL(ctx, remotePath, "/thumbnails")
 	if err != nil {
-		return thumbnails, fmt.Errorf("getting DriveItem ID for path '%s' to get thumbnails: %w", remotePath, err)
+		return thumbnails, fmt.Errorf("building thumbnails URL for path '%s': %w", remotePath, err)
 	}
 
-	// Endpoint for thumbnails is on the item's ID.
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/thumbnails"
-	res, err := c.apiCall(ctx, "GET", url, "", nil)
+	// Use helper for API call and decode, with proper error handling.
+	err = c.makeAPICallAndDecode(ctx, "GET", apiURL, "", nil, &thumbnails, "get thumbnails")
 	if err != nil {
 		return thumbnails, err
-	}
-	defer res.Body.Close()
-
-	if err := json.NewDecoder(res.Body).Decode(&thumbnails); err != nil {
-		return thumbnails, fmt.Errorf("%w: decoding thumbnails response for path '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return thumbnails, nil
@@ -81,7 +75,7 @@ func (c *Client) GetThumbnailBySize(ctx context.Context, remotePath, thumbID, si
 	if err != nil {
 		return thumbnail, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "get thumbnail by size")
 
 	if err := json.NewDecoder(res.Body).Decode(&thumbnail); err != nil {
 		return thumbnail, fmt.Errorf("%w: decoding thumbnail by size (ID: '%s', Size: '%s') for path '%s': %w", ErrDecodingFailed, thumbID, size, remotePath, err)
@@ -141,7 +135,7 @@ func (c *Client) PreviewItem(ctx context.Context, remotePath string, request Pre
 	if err != nil {
 		return preview, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "preview item")
 
 	if err := json.NewDecoder(res.Body).Decode(&preview); err != nil {
 		return preview, fmt.Errorf("%w: decoding preview response for path '%s': %w", ErrDecodingFailed, remotePath, err)

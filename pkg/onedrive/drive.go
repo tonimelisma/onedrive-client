@@ -32,7 +32,7 @@ func (c *Client) GetDrives(ctx context.Context) (DriveList, error) {
 	if err != nil {
 		return drives, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "drives list")
 
 	if err := json.NewDecoder(res.Body).Decode(&drives); err != nil {
 		return drives, fmt.Errorf("%w: decoding drives list: %w", ErrDecodingFailed, err)
@@ -60,7 +60,7 @@ func (c *Client) GetDefaultDrive(ctx context.Context) (Drive, error) {
 	if err != nil {
 		return drive, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "default drive")
 
 	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
 		return drive, fmt.Errorf("%w: decoding default drive info: %w", ErrDecodingFailed, err)
@@ -85,14 +85,10 @@ func (c *Client) GetDriveByID(ctx context.Context, driveID string) (Drive, error
 
 	// Endpoint to get a drive by its ID. The driveID needs to be URL-escaped.
 	url := customRootURL + "drives/" + url.PathEscape(driveID)
-	res, err := c.apiCall(ctx, "GET", url, "", nil)
+
+	err := c.makeAPICallAndDecode(ctx, "GET", url, "", nil, &drive, fmt.Sprintf("drive info for ID '%s'", driveID))
 	if err != nil {
 		return drive, err
-	}
-	defer res.Body.Close()
-
-	if err := json.NewDecoder(res.Body).Decode(&drive); err != nil {
-		return drive, fmt.Errorf("%w: decoding drive info for ID '%s': %w", ErrDecodingFailed, driveID, err)
 	}
 
 	return drive, nil
@@ -176,7 +172,7 @@ func (c *Client) GetRootDriveItems(ctx context.Context) (DriveItemList, error) {
 	if err != nil {
 		return items, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "get root drive items")
 
 	if err := json.NewDecoder(res.Body).Decode(&items); err != nil {
 		return items, fmt.Errorf("%w: decoding root drive items list: %w", ErrDecodingFailed, err)

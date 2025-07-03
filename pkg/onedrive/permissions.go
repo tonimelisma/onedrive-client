@@ -45,7 +45,7 @@ func (c *Client) CreateSharingLink(ctx context.Context, path, linkType, scope st
 	if err != nil {
 		return link, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "create sharing link")
 
 	if err := json.NewDecoder(res.Body).Decode(&link); err != nil {
 		return link, fmt.Errorf("%w: decoding sharing link response for path '%s': %w", ErrDecodingFailed, path, err)
@@ -96,7 +96,7 @@ func (c *Client) InviteUsers(ctx context.Context, remotePath string, request Inv
 	if err != nil {
 		return invite, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "invite users")
 
 	if err := json.NewDecoder(res.Body).Decode(&invite); err != nil {
 		return invite, fmt.Errorf("%w: decoding invite response for path '%s': %w", ErrDecodingFailed, remotePath, err)
@@ -121,22 +121,16 @@ func (c *Client) ListPermissions(ctx context.Context, remotePath string) (Permis
 	c.logger.Debugf("ListPermissions called for remotePath: '%s'", remotePath)
 	var permissions PermissionList
 
-	// Get the DriveItem ID.
-	item, err := c.GetDriveItemByPath(ctx, remotePath)
+	// Use helper to get item and build URL, reducing duplication.
+	apiURL, err := c.getItemAndBuildURL(ctx, remotePath, "/permissions")
 	if err != nil {
-		return permissions, fmt.Errorf("getting DriveItem ID for path '%s' to list permissions: %w", remotePath, err)
+		return permissions, fmt.Errorf("building permissions URL for path '%s': %w", remotePath, err)
 	}
 
-	// The permissions endpoint is on the item's ID.
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions"
-	res, err := c.apiCall(ctx, "GET", url, "", nil)
+	// Use helper for API call and decode, with proper error handling.
+	err = c.makeAPICallAndDecode(ctx, "GET", apiURL, "", nil, &permissions, "list permissions")
 	if err != nil {
 		return permissions, err
-	}
-	defer res.Body.Close()
-
-	if err := json.NewDecoder(res.Body).Decode(&permissions); err != nil {
-		return permissions, fmt.Errorf("%w: decoding permissions list for path '%s': %w", ErrDecodingFailed, remotePath, err)
 	}
 
 	return permissions, nil
@@ -168,7 +162,7 @@ func (c *Client) GetPermission(ctx context.Context, remotePath, permissionID str
 	if err != nil {
 		return permission, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "get permission")
 
 	if err := json.NewDecoder(res.Body).Decode(&permission); err != nil {
 		return permission, fmt.Errorf("%w: decoding permission details for ID '%s' on path '%s': %w", ErrDecodingFailed, permissionID, remotePath, err)
@@ -209,7 +203,7 @@ func (c *Client) UpdatePermission(ctx context.Context, remotePath, permissionID 
 	if err != nil {
 		return permission, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "update permission")
 
 	if err := json.NewDecoder(res.Body).Decode(&permission); err != nil {
 		// It's possible that on success, some APIs return 204 No Content or a minimal body.
@@ -251,7 +245,7 @@ func (c *Client) DeletePermission(ctx context.Context, remotePath, permissionID 
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "delete permission")
 
 	// Successful deletion usually returns HTTP 204 No Content.
 	// Some APIs might also return 200 OK (though less common for DELETE).

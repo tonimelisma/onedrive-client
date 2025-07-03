@@ -37,7 +37,7 @@ func (c *Client) CreateUploadSession(ctx context.Context, remotePath string) (Up
 	if err != nil {
 		return session, err
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "create upload session")
 
 	if err := json.NewDecoder(res.Body).Decode(&session); err != nil {
 		return session, fmt.Errorf("%w: decoding upload session response for '%s': %w", ErrDecodingFailed, remotePath, err)
@@ -95,7 +95,7 @@ func (c *Client) UploadChunk(ctx context.Context, uploadURL string, startByte, e
 	if err != nil {
 		return session, fmt.Errorf("uploading chunk to '%s' (range %d-%d): %w", uploadURL, startByte, endByte, err)
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "upload chunk")
 
 	// Successful chunk uploads return 202 Accepted (if more chunks expected) or
 	// 201 Created / 200 OK (if this was the final chunk and file creation is complete).
@@ -155,7 +155,7 @@ func (c *Client) GetUploadSessionStatus(ctx context.Context, uploadURL string) (
 	if err != nil {
 		return session, fmt.Errorf("getting upload session status from '%s': %w", uploadURL, err)
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "get upload session status")
 
 	if res.StatusCode != http.StatusOK {
 		errorBody, _ := io.ReadAll(res.Body)
@@ -195,7 +195,7 @@ func (c *Client) CancelUploadSession(ctx context.Context, uploadURL string) erro
 	if err != nil {
 		return fmt.Errorf("canceling upload session at '%s': %w", uploadURL, err)
 	}
-	defer res.Body.Close()
+	defer closeBodySafely(res.Body, c.logger, "cancel upload session")
 
 	// Successful cancellation should return HTTP 204 No Content.
 	if res.StatusCode != http.StatusNoContent {
