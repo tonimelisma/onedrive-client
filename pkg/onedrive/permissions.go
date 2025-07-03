@@ -150,22 +150,16 @@ func (c *Client) GetPermission(ctx context.Context, remotePath, permissionID str
 	c.logger.Debugf("GetPermission called for remotePath: '%s', permissionID: '%s'", remotePath, permissionID)
 	var permission Permission
 
-	// Get DriveItem ID.
-	item, err := c.GetDriveItemByPath(ctx, remotePath)
+	// Use helper to get item and build URL, reducing duplication.
+	apiURL, err := c.getItemAndBuildURL(ctx, remotePath, "/permissions/"+url.PathEscape(permissionID))
 	if err != nil {
-		return permission, fmt.Errorf("getting DriveItem ID for path '%s' to get permission '%s': %w", remotePath, permissionID, err)
+		return permission, fmt.Errorf("building permission URL for path '%s' and permission ID '%s': %w", remotePath, permissionID, err)
 	}
 
-	// Endpoint for a specific permission.
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
-	res, err := c.apiCall(ctx, "GET", url, "", nil)
+	// Use helper for API call and decode, with proper error handling.
+	err = c.makeAPICallAndDecode(ctx, "GET", apiURL, "", nil, &permission, "get permission")
 	if err != nil {
 		return permission, err
-	}
-	defer closeBodySafely(res.Body, c.logger, "get permission")
-
-	if err := json.NewDecoder(res.Body).Decode(&permission); err != nil {
-		return permission, fmt.Errorf("%w: decoding permission details for ID '%s' on path '%s': %w", ErrDecodingFailed, permissionID, remotePath, err)
 	}
 
 	return permission, nil
@@ -186,20 +180,18 @@ func (c *Client) UpdatePermission(ctx context.Context, remotePath, permissionID 
 	c.logger.Debugf("UpdatePermission called for remotePath: '%s', permissionID: '%s', request: %+v", remotePath, permissionID, request)
 	var permission Permission
 
-	// Get DriveItem ID.
-	item, err := c.GetDriveItemByPath(ctx, remotePath)
+	// Use helper to get item and build URL, reducing duplication.
+	apiURL, err := c.getItemAndBuildURL(ctx, remotePath, "/permissions/"+url.PathEscape(permissionID))
 	if err != nil {
-		return permission, fmt.Errorf("getting DriveItem ID for path '%s' to update permission '%s': %w", remotePath, permissionID, err)
+		return permission, fmt.Errorf("building permission URL for path '%s' and permission ID '%s': %w", remotePath, permissionID, err)
 	}
 
-	// Endpoint for updating a specific permission.
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
 	requestBody, err := json.Marshal(request)
 	if err != nil {
 		return permission, fmt.Errorf("marshaling UpdatePermissionRequest for permission '%s' on path '%s': %w", permissionID, remotePath, err)
 	}
 
-	res, err := c.apiCall(ctx, "PATCH", url, "application/json", bytes.NewReader(requestBody))
+	res, err := c.apiCall(ctx, "PATCH", apiURL, "application/json", bytes.NewReader(requestBody))
 	if err != nil {
 		return permission, err
 	}
@@ -233,15 +225,14 @@ func (c *Client) UpdatePermission(ctx context.Context, remotePath, permissionID 
 //	fmt.Println("Permission deleted successfully.")
 func (c *Client) DeletePermission(ctx context.Context, remotePath, permissionID string) error {
 	c.logger.Debugf("DeletePermission called for remotePath: '%s', permissionID: '%s'", remotePath, permissionID)
-	// Get DriveItem ID.
-	item, err := c.GetDriveItemByPath(ctx, remotePath)
+
+	// Use helper to get item and build URL, reducing duplication.
+	apiURL, err := c.getItemAndBuildURL(ctx, remotePath, "/permissions/"+url.PathEscape(permissionID))
 	if err != nil {
-		return fmt.Errorf("getting DriveItem ID for path '%s' to delete permission '%s': %w", remotePath, permissionID, err)
+		return fmt.Errorf("building permission URL for path '%s' and permission ID '%s': %w", remotePath, permissionID, err)
 	}
 
-	// Endpoint for deleting a specific permission.
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
-	res, err := c.apiCall(ctx, "DELETE", url, "", nil)
+	res, err := c.apiCall(ctx, "DELETE", apiURL, "", nil)
 	if err != nil {
 		return err
 	}

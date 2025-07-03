@@ -145,7 +145,7 @@ func filesListLogic(a *app.App, cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("listing items in '%s': %w", path, err)
 	}
-	ui.DisplayDriveItems(items) // Assumes DisplayDriveItems can handle general DriveItemList
+	ui.DisplayItems(items)
 	return nil
 }
 
@@ -181,7 +181,7 @@ func filesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("searching for '%s' in folder '%s': %w", query, folderPath, err)
 	}
 
-	ui.DisplaySearchResults(items, query)
+	ui.DisplaySearchResults(items)
 	ui.HandleNextPageInfo(nextLink, paging.FetchAll)
 	return nil
 }
@@ -210,8 +210,7 @@ func activitiesLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("getting activities for '%s': %w", remotePath, err)
 	}
 
-	// Pass the remotePath as a title for the display function.
-	ui.DisplayActivities(activities, remotePath)
+	ui.DisplayActivities(activities)
 	ui.HandleNextPageInfo(nextLink, paging.FetchAll)
 	return nil
 }

@@ -152,7 +152,11 @@ func (c *Client) UploadFile(ctx context.Context, localPath, remotePath string) (
 	if err != nil {
 		return item, fmt.Errorf("opening local file '%s': %w", localPath, err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			c.logger.Warnf("Failed to close file %s: %v", localPath, closeErr)
+		}
+	}()
 
 	// The target URL for content upload is "<item_path_url>:/content".
 	url := BuildPathURL(remotePath) + ":/content"

@@ -1,140 +1,141 @@
 package ui
 
 import (
-	"bytes"
-	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
 )
 
-func TestDisplayDriveItems(t *testing.T) {
-	// Capture stdout
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Create test items
+func TestDisplayItems(t *testing.T) {
+	// Test normal case with items
 	items := onedrive.DriveItemList{
 		Value: []onedrive.DriveItem{
 			{
-				Name: "test-file.txt",
-				Size: 1024,
-				File: &onedrive.FileFacet{}, // Indicates it's a file
+				Name:   "Test File 1.txt",
+				Size:   1024,
+				Folder: nil, // This is a file
 			},
 			{
-				Name:   "test-folder",
+				Name:   "Test Folder",
 				Size:   0,
-				Folder: &onedrive.FolderFacet{}, // Indicates it's a folder
+				Folder: &onedrive.FolderFacet{ChildCount: 5}, // This is a folder
 			},
 		},
 	}
 
-	// Call the function
-	DisplayDriveItems(items)
-
-	// Restore stdout and capture output
-	w.Close()
-	os.Stdout = old
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify default title is used
-	assert.Contains(t, output, "Items found:")
-	assert.Contains(t, output, "test-file.txt")
-	assert.Contains(t, output, "test-folder")
-	assert.Contains(t, output, "File")
-	assert.Contains(t, output, "Folder")
-}
-
-func TestDisplayDriveItemsWithTitle(t *testing.T) {
-	// Capture stdout
-	old := os.Stdout
+	// Capture stdout for testing
+	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// Create test items
+	DisplayItems(items)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+
+	// Check if output contains expected elements
+	if !strings.Contains(output, "Test File 1.txt") {
+		t.Error("Output should contain test file name")
+	}
+	if !strings.Contains(output, "Test Folder") {
+		t.Error("Output should contain test folder name")
+	}
+	if !strings.Contains(output, "File") {
+		t.Error("Output should contain 'File' type")
+	}
+	if !strings.Contains(output, "Folder") {
+		t.Error("Output should contain 'Folder' type")
+	}
+}
+
+func TestDisplayItemsEmpty(t *testing.T) {
+	// Test with empty list
 	items := onedrive.DriveItemList{
-		Value: []onedrive.DriveItem{
+		Value: []onedrive.DriveItem{},
+	}
+
+	// Capture stdout for testing
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	DisplayItems(items)
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+
+	// Check if output contains expected message for empty list
+	if !strings.Contains(output, "No items found") {
+		t.Error("Output should contain 'No items found' message")
+	}
+}
+
+func TestDisplayDrives(t *testing.T) {
+	// Test normal case with drives
+	drives := onedrive.DriveList{
+		Value: []onedrive.Drive{
 			{
-				Name: "document.pdf",
-				Size: 2048,
-				File: &onedrive.FileFacet{},
+				ID:        "drive1",
+				Name:      "OneDrive - Personal",
+				DriveType: "personal",
+				Owner: struct {
+					User *onedrive.Identity `json:"user,omitempty"`
+				}{
+					User: &onedrive.Identity{
+						DisplayName: "Test User",
+						ID:          "user123",
+					},
+				},
+				Quota: struct {
+					Total     int64  `json:"total"`
+					Used      int64  `json:"used"`
+					Remaining int64  `json:"remaining"`
+					State     string `json:"state"`
+				}{
+					Total:     1000000000,
+					Used:      500000000,
+					Remaining: 500000000,
+					State:     "normal",
+				},
 			},
 		},
 	}
 
-	// Call the function with custom title
-	customTitle := "Files in /Documents subfolder:"
-	DisplayDriveItemsWithTitle(items, customTitle)
-
-	// Restore stdout and capture output
-	w.Close()
-	os.Stdout = old
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Verify custom title is used
-	assert.Contains(t, output, customTitle)
-	assert.Contains(t, output, "document.pdf")
-	assert.Contains(t, output, "File")
-}
-
-func TestDisplayDriveItemsEmpty(t *testing.T) {
-	// Capture stdout
-	old := os.Stdout
+	// Capture stdout for testing
+	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	// Create empty items list
-	items := onedrive.DriveItemList{
-		Value: []onedrive.DriveItem{},
-	}
+	DisplayDrives(drives)
 
-	// Call the function
-	DisplayDriveItems(items)
-
-	// Restore stdout and capture output
 	w.Close()
-	os.Stdout = old
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
+	os.Stdout = oldStdout
 
-	// Verify empty message is shown
-	assert.Contains(t, output, "No items found in this location.")
-}
+	buf := make([]byte, 1024)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
 
-func TestDisplayDriveItemsWithTitleEmpty(t *testing.T) {
-	// Capture stdout
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Create empty items list
-	items := onedrive.DriveItemList{
-		Value: []onedrive.DriveItem{},
+	// Check if output contains expected elements
+	if !strings.Contains(output, "OneDrive - Personal") {
+		t.Error("Output should contain drive name")
 	}
-
-	// Call the function with custom title
-	customTitle := "Files in custom folder:"
-	DisplayDriveItemsWithTitle(items, customTitle)
-
-	// Restore stdout and capture output
-	w.Close()
-	os.Stdout = old
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	output := buf.String()
-
-	// Should show empty message regardless of custom title
-	assert.Contains(t, output, "No items found in this location.")
-	// Should not contain the custom title since list is empty
-	assert.NotContains(t, output, customTitle)
+	if !strings.Contains(output, "personal") {
+		t.Error("Output should contain drive type")
+	}
+	if !strings.Contains(output, "Test User") {
+		t.Error("Output should contain owner name")
+	}
 }
 
 func TestFormatBytes(t *testing.T) {

@@ -315,7 +315,8 @@ type Activity struct {
 		} `json:"version,omitempty"`
 	} `json:"action"`
 	Actor struct { // The user or application that performed the action.
-		User *Identity `json:"user,omitempty"`
+		User        *Identity `json:"user,omitempty"`
+		Application *Identity `json:"application,omitempty"`
 	} `json:"actor"`
 	Times struct { // Timestamps related to the activity.
 		RecordedTime time.Time `json:"recordedTime"` // When the activity was recorded by the service.

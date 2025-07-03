@@ -95,7 +95,7 @@ var drivesActivitiesCmd = &cobra.Command{
 		}
 
 		// Display the activities and any next page information.
-		ui.DisplayActivities(activities, "default drive") // Pass a descriptive title for the display.
+		ui.DisplayActivities(activities)
 		ui.HandleNextPageInfo(nextLink, paging.FetchAll)
 
 		return nil
@@ -238,7 +238,7 @@ func drivesRootLogic(a *app.App, cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("fetching root drive items: %w", err)
 	}
-	ui.DisplayDriveItems(items) // Assuming DisplayDriveItems can handle general DriveItemList
+	ui.DisplayItems(items)
 	return nil
 }
 
@@ -257,7 +257,7 @@ func drivesSearchLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("searching drive with query '%s': %w", query, err)
 	}
 
-	ui.DisplaySearchResults(items, query)
+	ui.DisplaySearchResults(items)
 	ui.HandleNextPageInfo(nextLink, paging.FetchAll)
 	return nil
 }
@@ -274,7 +274,7 @@ func drivesDeltaLogic(a *app.App, cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetching delta changes (token: '%s'): %w", deltaToken, err)
 	}
 
-	ui.DisplayDelta(delta)
+	ui.DisplayDeltaItems(delta)
 	return nil
 }
 

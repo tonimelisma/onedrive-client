@@ -49,8 +49,8 @@ func SanitizePath(path string) (string, error) {
 	}
 
 	// Additional security checks
-	if len(cleaned) > 400 { // OneDrive has path length limits
-		return "", fmt.Errorf("%w: path too long (max 400 characters)", ErrInvalidPath)
+	if len(cleaned) > MaxPathLength { // OneDrive has path length limits
+		return "", fmt.Errorf("%w: path too long (max %d characters)", ErrInvalidPath, MaxPathLength)
 	}
 
 	// Check for invalid characters in OneDrive paths

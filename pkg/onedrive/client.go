@@ -481,7 +481,11 @@ func (c *Client) collectAllPages(ctx context.Context, initialURL string, paging 
 		if err != nil {
 			return allItems, "", err
 		}
-		defer res.Body.Close()
+		defer func() {
+			if closeErr := res.Body.Close(); closeErr != nil {
+				c.logger.Warnf("Failed to close response body: %v", closeErr)
+			}
+		}()
 
 		// Parse the response into a generic structure to extract value and nextLink
 		var response struct {
@@ -552,86 +556,130 @@ func (c *Client) apiCall(ctx context.Context, method, url, contentType string, b
 			return nil, fmt.Errorf("%w: HTTP request failed after %d attempts: %w", ErrNetworkFailed, maxRetries, err)
 		}
 
-		// Handle HTTP errors
-		switch res.StatusCode {
-		case StatusOK, StatusCreated, StatusAccepted, StatusNoContent:
-			// Success responses
+		// Handle HTTP status code
+		switch {
+		case isSuccessStatus(res.StatusCode):
 			return res, nil
-		case StatusBadRequest:
-			// Bad Request - malformed request
-			closeBodySafely(res.Body, c.logger, "bad request")
-			return nil, fmt.Errorf("%w: received %d Bad Request from %s", ErrInvalidRequest, StatusBadRequest, url)
-		case StatusUnauthorized:
-			// Unauthorized - token might be expired
-			c.logger.Debugf("Received %d Unauthorized on attempt #%d. URL: %s", StatusUnauthorized, i+1, url)
-			closeBodySafely(res.Body, c.logger, "unauthorized")
-			if i < maxRetries-1 {
-				time.Sleep(retryDelay)
-				if body != nil {
-					logOnError(seekToStart(body), c.logger, "seek body for retry")
-				}
+		case isRetryableStatus(res.StatusCode):
+			if shouldRetry := c.handleRetryableStatus(res, i, maxRetries-1, url, body, retryDelay, maxRetryDelay); shouldRetry {
 				continue
 			}
-			c.logger.Debugf("Still received %d after retry for URL: %s, failing.", StatusUnauthorized, url)
-			return nil, fmt.Errorf("%w: received %d from %s", ErrReauthRequired, StatusUnauthorized, url)
-		case StatusForbidden:
-			// Forbidden - access denied
-			closeBodySafely(res.Body, c.logger, "forbidden")
-			return nil, fmt.Errorf("%w: received %d Forbidden from %s", ErrAccessDenied, StatusForbidden, url)
-		case StatusNotFound:
-			// Not Found - resource doesn't exist
-			closeBodySafely(res.Body, c.logger, "not found")
-			return nil, fmt.Errorf("%w: received %d Not Found from %s", ErrResourceNotFound, StatusNotFound, url)
-		case StatusConflict:
-			// Conflict - resource conflict (e.g., name already exists)
-			closeBodySafely(res.Body, c.logger, "conflict")
-			return nil, fmt.Errorf("%w: received %d Conflict from %s", ErrConflict, StatusConflict, url)
-		case StatusPayloadTooLarge:
-			// Payload Too Large - quota exceeded
-			closeBodySafely(res.Body, c.logger, "payload too large")
-			return nil, fmt.Errorf("%w: received %d Payload Too Large from %s", ErrQuotaExceeded, StatusPayloadTooLarge, url)
-		case StatusInsufficientStorage:
-			// Insufficient Storage - quota exceeded
-			closeBodySafely(res.Body, c.logger, "insufficient storage")
-			return nil, fmt.Errorf("%w: received %d Insufficient Storage from %s", ErrQuotaExceeded, StatusInsufficientStorage, url)
-		case StatusTooManyRequests:
-			// Rate limited - should retry with backoff
-			closeBodySafely(res.Body, c.logger, "rate limited")
-			if i < maxRetries-1 {
-				// Exponential backoff with maximum delay cap
-				retryAfter := time.Duration(i+1) * retryDelay * 2
-				if retryAfter > maxRetryDelay {
-					retryAfter = maxRetryDelay
-				}
-				time.Sleep(retryAfter)
-				c.logger.Debugf("Retrying request to URL: %s", url)
-				if body != nil {
-					logOnError(seekToStart(body), c.logger, "seek body for retry")
-				}
-				continue
-			}
-			return nil, fmt.Errorf("%w: rate limited after %d attempts from %s", ErrRetryLater, maxRetries, url)
-		case StatusServiceUnavailable:
-			// Service Unavailable - temporary issue
-			closeBodySafely(res.Body, c.logger, "service unavailable")
-			if i < maxRetries-1 {
-				time.Sleep(retryDelay)
-				c.logger.Debugf("Service unavailable, retrying request to URL: %s", url)
-				if body != nil {
-					logOnError(seekToStart(body), c.logger, "seek body for retry")
-				}
-				continue
-			}
-			return nil, fmt.Errorf("%w: service unavailable after %d attempts from %s", ErrRetryLater, maxRetries, url)
+			return nil, c.createRetryableError(res.StatusCode, url, maxRetries)
 		default:
-			// Other HTTP errors
-			errorBody := readErrorBody(res.Body)
-			closeBodySafely(res.Body, c.logger, "unexpected status")
-			return nil, fmt.Errorf("HTTP %d from %s: %s", res.StatusCode, url, errorBody)
+			return nil, c.handleNonRetryableStatus(res, url)
 		}
 	}
 
 	return res, nil
+}
+
+// isSuccessStatus checks if the HTTP status code indicates success
+func isSuccessStatus(statusCode int) bool {
+	return statusCode == StatusOK || statusCode == StatusCreated ||
+		statusCode == StatusAccepted || statusCode == StatusNoContent
+}
+
+// isRetryableStatus checks if the HTTP status code indicates a retryable error
+func isRetryableStatus(statusCode int) bool {
+	return statusCode == StatusUnauthorized || statusCode == StatusTooManyRequests ||
+		statusCode == StatusServiceUnavailable
+}
+
+// handleRetryableStatus handles retryable HTTP status codes and returns whether to retry
+func (c *Client) handleRetryableStatus(res *http.Response, currentAttempt, maxAttempts int, url string, body io.ReadSeeker, retryDelay, maxRetryDelay time.Duration) bool {
+	statusCode := res.StatusCode
+	closeBodySafely(res.Body, c.logger, getStatusDescription(statusCode))
+
+	if currentAttempt >= maxAttempts {
+		return false
+	}
+
+	switch statusCode {
+	case StatusUnauthorized:
+		c.logger.Debugf("Received %d Unauthorized on attempt #%d. URL: %s", StatusUnauthorized, currentAttempt+1, url)
+		time.Sleep(retryDelay)
+	case StatusTooManyRequests:
+		// Exponential backoff with maximum delay cap
+		retryAfter := time.Duration(currentAttempt+1) * retryDelay * 2
+		if retryAfter > maxRetryDelay {
+			retryAfter = maxRetryDelay
+		}
+		time.Sleep(retryAfter)
+		c.logger.Debugf("Retrying request to URL: %s", url)
+	case StatusServiceUnavailable:
+		time.Sleep(retryDelay)
+		c.logger.Debugf("Service unavailable, retrying request to URL: %s", url)
+	}
+
+	if body != nil {
+		logOnError(seekToStart(body), c.logger, "seek body for retry")
+	}
+	return true
+}
+
+// createRetryableError creates appropriate error for retryable status codes
+func (c *Client) createRetryableError(statusCode int, url string, maxRetries int) error {
+	switch statusCode {
+	case StatusUnauthorized:
+		c.logger.Debugf("Still received %d after retry for URL: %s, failing.", StatusUnauthorized, url)
+		return fmt.Errorf("%w: received %d from %s", ErrReauthRequired, StatusUnauthorized, url)
+	case StatusTooManyRequests:
+		return fmt.Errorf("%w: rate limited after %d attempts from %s", ErrRetryLater, maxRetries, url)
+	case StatusServiceUnavailable:
+		return fmt.Errorf("%w: service unavailable after %d attempts from %s", ErrRetryLater, maxRetries, url)
+	default:
+		return fmt.Errorf("unexpected retryable status %d after %d attempts from %s", statusCode, maxRetries, url)
+	}
+}
+
+// handleNonRetryableStatus handles non-retryable HTTP status codes
+func (c *Client) handleNonRetryableStatus(res *http.Response, url string) error {
+	statusCode := res.StatusCode
+	closeBodySafely(res.Body, c.logger, getStatusDescription(statusCode))
+
+	switch statusCode {
+	case StatusBadRequest:
+		return fmt.Errorf("%w: received %d Bad Request from %s", ErrInvalidRequest, StatusBadRequest, url)
+	case StatusForbidden:
+		return fmt.Errorf("%w: received %d Forbidden from %s", ErrAccessDenied, StatusForbidden, url)
+	case StatusNotFound:
+		return fmt.Errorf("%w: received %d Not Found from %s", ErrResourceNotFound, StatusNotFound, url)
+	case StatusConflict:
+		return fmt.Errorf("%w: received %d Conflict from %s", ErrConflict, StatusConflict, url)
+	case StatusPayloadTooLarge:
+		return fmt.Errorf("%w: received %d Payload Too Large from %s", ErrQuotaExceeded, StatusPayloadTooLarge, url)
+	case StatusInsufficientStorage:
+		return fmt.Errorf("%w: received %d Insufficient Storage from %s", ErrQuotaExceeded, StatusInsufficientStorage, url)
+	default:
+		errorBody := readErrorBody(res.Body)
+		return fmt.Errorf("HTTP %d from %s: %s", statusCode, url, errorBody)
+	}
+}
+
+// getStatusDescription returns a description string for HTTP status codes
+func getStatusDescription(statusCode int) string {
+	switch statusCode {
+	case StatusBadRequest:
+		return "bad request"
+	case StatusUnauthorized:
+		return "unauthorized"
+	case StatusForbidden:
+		return "forbidden"
+	case StatusNotFound:
+		return "not found"
+	case StatusConflict:
+		return "conflict"
+	case StatusPayloadTooLarge:
+		return "payload too large"
+	case StatusInsufficientStorage:
+		return "insufficient storage"
+	case StatusTooManyRequests:
+		return "rate limited"
+	case StatusServiceUnavailable:
+		return "service unavailable"
+	default:
+		return "unexpected status"
+	}
 }
 
 // Sentinel errors are predefined error values that can be checked by callers

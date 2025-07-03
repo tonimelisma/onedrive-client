@@ -239,7 +239,7 @@ func uploadFileInChunks(a *app.App, cmd *cobra.Command, mgr *session.Manager, lo
 
 	// Define chunk size (e.g., 5MB). Must be a multiple of 320 KiB (327,680 bytes).
 	// Graph API recommends chunks between 5-10 MiB.
-	const chunkSize = 5 * 320 * 1024 // 1.6 MiB, for faster testing. Use larger for production.
+	const chunkSize = 5 * onedrive.DefaultChunkSize // 1.6 MiB, for faster testing. Use larger for production.
 	currentByte := startFromByte
 
 	// Set up signal handling for graceful interruption (Ctrl+C).

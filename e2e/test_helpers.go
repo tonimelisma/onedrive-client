@@ -296,7 +296,11 @@ func (h *E2ETestHelper) CalculateFileHash(filePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("opening file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			fmt.Printf("Warning: Failed to close file %s: %v\n", filePath, closeErr)
+		}
+	}()
 
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, file); err != nil {

@@ -74,6 +74,7 @@ const (
 	MaxRolesDisplayLength = 23
 	MaxVersionIDLength    = 37
 	MaxActorNameLength    = 18
+	MaxShortPathLength    = 50
 )
 
 // File and Path Constants
@@ -85,4 +86,48 @@ const (
 // Authentication Constants
 const (
 	DefaultDeviceCodeExpiry = 60 // minutes
+)
+
+// Buffer and Chunk Size Constants
+const (
+	DefaultChunkSize        = 320 * 1024 * 4         // 1.25 MB chunks for uploads
+	DefaultBufferSize       = 1024                   // 1KB default buffer
+	MinFileSize             = 1024                   // 1KB minimum file size
+	LargeFileThreshold      = 4 * 1024 * 1024        // 4MB threshold for large files
+	DefaultProgressInterval = 100 * time.Millisecond // Progress update frequency
+)
+
+// Time Format Constants
+const (
+	StandardTimeFormat = "2006-01-02 15:04"
+	FullTimeFormat     = "2006-01-02 15:04:05"
+)
+
+// Table Display Constants
+const (
+	TableNameColumnWidth       = 50
+	TableSizeColumnWidth       = 12
+	TableTypeColumnWidth       = 10
+	TableDateColumnWidth       = 20
+	TablePermissionColumnWidth = 40
+	TableActorColumnWidth      = 20
+	TableActionColumnWidth     = 15
+	TableVersionColumnWidth    = 10
+)
+
+// Separator Line Constants
+const (
+	StandardSeparatorLength   = 70
+	MediumSeparatorLength     = 80
+	LongSeparatorLength       = 95
+	ExtraLongSeparatorLength  = 100
+	PermissionSeparatorLength = 120
+	ActivitySeparatorLength   = 90
+)
+
+// Content Formatting Constants
+const (
+	EllipsisMarker     = "..."
+	EllipsisLength     = 3
+	DefaultTableIndent = 4
 )

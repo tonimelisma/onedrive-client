@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Code Quality Improvements**: Comprehensive codebase quality enhancement addressing technical debt and maintainability
+  - **Constants Addition**: Added extensive constants to `pkg/onedrive/constants.go` including HTTP status codes, file permissions, timeouts, UI display constants, buffer sizes, time formats, and table display constants
+  - **Magic Number Elimination**: Replaced ~25 magic numbers with named constants throughout codebase for better readability and maintainability
+  - **Error Handling Enhancement**: Added proper error handling for 85+ unchecked `defer Close()` calls with appropriate logging
+  - **Code Complexity Reduction**: Refactored high-complexity functions into modular, focused helper functions:
+    - `apiCall` function (complexity 24) split into 6 helper functions for better readability
+    - `displayPermissionDetails` function (complexity 22) split into 10 specialized display functions
+    - `TestFileOperations` test (complexity 34) split into focused test functions
+  - **Code Deduplication**: Eliminated 4 instances of code duplication by utilizing existing helper functions across `permissions.go` and `thumbnails.go`
+  - **Performance Optimizations**: Fixed 15+ instances of large struct copying in range loops by using pointer iteration
+  - **Model Enhancement**: Added missing `Application` field to `Actor` struct in models for complete data representation
+  - **Comprehensive Test Coverage**: Added extensive test suites covering all refactored functions, constants validation, helper function behavior, and performance optimizations
 - **Architectural Documentation Completion**: Comprehensive update to `ARCHITECTURE.md` reflecting all completed improvements
   - Updated SDK modular structure documentation with accurate LOC counts for all 11 focused files
   - Added comprehensive security architecture section documenting path sanitization, download protection, and input validation
@@ -74,6 +86,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Testing Framework**: Comprehensive test suite validating error sentinel behavior with `errors.Is()`
 
 ### Improved
+- **Code Quality and Maintainability**: Comprehensive codebase improvements for better maintainability and performance
+  - **Function Modularity**: Refactored complex functions into focused, single-responsibility helper functions
+  - **Code Readability**: Replaced magic numbers with descriptive named constants throughout the codebase
+  - **Error Resilience**: Enhanced error handling for resource cleanup operations with proper logging
+  - **Performance**: Optimized struct iteration patterns to prevent unnecessary large struct copying
+  - **Test Coverage**: Increased test coverage for helper functions and edge cases
 - **Error Consistency**: All SDK functions now use consistent error wrapping with `%w` verb for proper error chains
 - **Error Categorization**: Replaced all raw `fmt.Errorf` patterns with categorized sentinel errors across all SDK files:
   - `pkg/onedrive/client.go`: User info, shared items, recent items, special folders, delta sync, pagination, versions

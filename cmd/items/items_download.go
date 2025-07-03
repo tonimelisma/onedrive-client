@@ -103,6 +103,6 @@ func filesListRootDeprecatedLogic(a *app.App, cmd *cobra.Command, args []string)
 	if err != nil {
 		return fmt.Errorf("fetching root drive items (deprecated method): %w", err)
 	}
-	ui.DisplayDriveItems(items)
+	ui.DisplayItems(items)
 	return nil
 }

@@ -94,7 +94,7 @@ func apiCallWithDebug(method, url, contentType string, body io.Reader, debug boo
 	}
 
 	// Handle HTTP errors from the OAuth server.
-	if res.StatusCode >= 400 {
+	if res.StatusCode >= StatusBadRequest {
 		defer func() {
 			if closeErr := res.Body.Close(); closeErr != nil {
 				log.Printf("Warning: Failed to close OAuth error response body: %v", closeErr)
@@ -343,7 +343,7 @@ func VerifyDeviceCode(clientID string, deviceCode string, debug bool) (*Token, e
 	}
 
 	// Check for HTTP errors not caught by apiCallWithDebug's specific OAuth error parsing.
-	// This is a safeguard, as apiCallWithDebug should handle most >= 400 errors.
+	// This is a safeguard, as apiCallWithDebug should handle most >= StatusBadRequest errors.
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%w: retrieving token via device code failed with status %s: %s", ErrOperationFailed, res.Status, string(bodyBytes))
 	}

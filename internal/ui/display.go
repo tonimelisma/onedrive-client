@@ -7,7 +7,6 @@ package ui
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -96,62 +95,66 @@ func PrintError(err error) {
 	log.Printf("ERROR: %v", err)
 }
 
-// DisplayDriveItems prints a table of DriveItem resources, showing name, size, and type.
+// DisplayItems prints a table of DriveItem resources, showing name, size, and type.
 // It indicates whether each item is a file or a folder.
 // The title parameter allows customizing the header message.
-func DisplayDriveItems(items onedrive.DriveItemList) {
-	DisplayDriveItemsWithTitle(items, "Items found:")
-}
-
-// DisplayDriveItemsWithTitle prints a table of DriveItem resources with a custom title.
-// This resolves the issue where the title might be misleading when listing subfolders.
-func DisplayDriveItemsWithTitle(items onedrive.DriveItemList, title string) {
+func DisplayItems(items onedrive.DriveItemList) {
 	if len(items.Value) == 0 {
-		fmt.Println("No items found in this location.")
+		fmt.Println("No items found in the specified location.")
 		return
 	}
 
-	fmt.Println(title)
-	fmt.Printf("%-50s %12s %s\n", "Name", "Size", "Type")
-	fmt.Println(strings.Repeat("-", 70)) // Adjust line length based on columns
-	for _, item := range items.Value {
+	fmt.Printf("Items in the specified location (%d item(s) found)\n\n", len(items.Value))
+	fmt.Printf("%-60.60s %12s %-10s %s\n", "Name", "Size", "Type", "Last Modified")
+	fmt.Println(strings.Repeat("-", onedrive.StandardSeparatorLength))
+	for i := range items.Value {
+		item := &items.Value[i] // Use pointer to avoid copying large struct
 		itemType := "File"
-		if item.Folder != nil { // Check if the Folder facet is present.
+		if item.Folder != nil {
 			itemType = "Folder"
 		}
-		// Use formatBytes for human-readable size.
-		fmt.Printf("%-50.50s %12s %s\n", item.Name, formatBytes(item.Size), itemType)
+
+		name := item.Name
+		if len(name) > onedrive.MaxNameDisplayLength {
+			name = name[:onedrive.MaxNameDisplayLength] + onedrive.EllipsisMarker
+		}
+
+		lastModified := item.LastModifiedDateTime.Local().Format(onedrive.StandardTimeFormat)
+
+		fmt.Printf("%-60.60s %12s %-10s %s\n", name, formatBytes(item.Size), itemType, lastModified)
 	}
 }
 
-// DisplayDrives prints a table of Drive resources, showing name, type, and owner.
+// DisplayDrives displays a list of drives with their names, types, and quota information.
 func DisplayDrives(drives onedrive.DriveList) {
 	if len(drives.Value) == 0 {
 		fmt.Println("No drives found for this account.")
 		return
 	}
 
-	fmt.Printf("%-35s %-20s %s\n", "Drive Name", "Drive Type", "Owner Display Name")
-	fmt.Println(strings.Repeat("-", 80))
-	for _, drive := range drives.Value {
-		ownerName := "N/A"
-		// Check if owner and user information is available.
+	fmt.Printf("Drives for this account (%d drive(s) found)\n\n", len(drives.Value))
+	fmt.Printf("%-40.40s %-15s %10s %10s %s\n", "Name", "Type", "Used", "Total", "Owner")
+	fmt.Println(strings.Repeat("-", onedrive.StandardSeparatorLength))
+	for i := range drives.Value {
+		drive := &drives.Value[i] // Use pointer to avoid copying large struct
+		owner := "N/A"
 		if drive.Owner.User != nil && drive.Owner.User.DisplayName != "" {
-			ownerName = drive.Owner.User.DisplayName
+			owner = drive.Owner.User.DisplayName
 		}
-		driveName := drive.Name
-		// Provide a default name if a personal drive has no explicit name.
-		if drive.DriveType == "personal" && driveName == "" {
-			driveName = "Personal OneDrive"
-		}
-		fmt.Printf("%-35.35s %-20s %s\n", driveName, drive.DriveType, ownerName)
+
+		fmt.Printf("%-40.40s %-15s %10s %10s %s\n",
+			drive.Name,
+			drive.DriveType,
+			formatBytes(drive.Quota.Used),
+			formatBytes(drive.Quota.Total),
+			owner)
 	}
 }
 
 // formatBytes converts a size in bytes (int64) to a human-readable string
 // using IEC units (KiB, MiB, GiB, etc.).
 func formatBytes(b int64) string {
-	const unit = 1024 // Use 1024 for KiB, MiB, etc.
+	const unit = onedrive.DefaultBufferSize // Use constant for consistency
 	if b < unit {
 		return fmt.Sprintf("%d B", b)
 	}
@@ -204,130 +207,115 @@ func DisplayDriveItem(item onedrive.DriveItem) {
 	// Add more fields as needed, e.g., item.CreatedBy.User.DisplayName
 }
 
-// NewProgressBar creates and returns a new progress bar configured for file transfers.
-// `maxBytes` is the total size of the transfer in bytes.
-// `description` is the text displayed next to the progress bar.
+// NewProgressBar creates and returns a new progress bar for file operations.
+// It uses standard formatting options for consistency across the application.
 func NewProgressBar(maxBytes int, description string) *progressbar.ProgressBar {
-	if description == "" {
-		description = "Processing..." // Default description
-	}
-	return progressbar.NewOptions(
-		maxBytes,
-		progressbar.OptionSetDescription(description),    // Use provided description
-		progressbar.OptionSetWriter(os.Stderr),           // Write to Stderr to not interfere with Stdout data
-		progressbar.OptionShowBytes(true),                // Display progress in bytes (e.g., 1.2MB/5MB)
-		progressbar.OptionSetWidth(40),                   // Width of the progress bar itself
-		progressbar.OptionThrottle(100*time.Millisecond), // Update frequency
-		progressbar.OptionShowCount(),                    // Show item count (useful if maxBytes is actually item count)
-		progressbar.OptionOnCompletion(func() {
-			fmt.Fprint(os.Stderr, "\n") // Newline after completion
-		}),
-		progressbar.OptionSpinnerType(14), // A common spinner type
-		// progressbar.OptionFullWidth(), // Makes the bar take the full terminal width; consider if desirable
-		progressbar.OptionClearOnFinish(), // Clears the progress bar on completion
+	return progressbar.NewOptions(maxBytes,
+		progressbar.OptionSetDescription(description),
+		progressbar.OptionShowIts(),                              // Show iteration rate (e.g., 1.2MB/s)
+		progressbar.OptionShowCount(),                            // Show current/total count
+		progressbar.OptionShowBytes(true),                        // Display progress in bytes (e.g., 1.2MB/5MB)
+		progressbar.OptionSetWidth(onedrive.ProgressBarWidth),    // Use constant
+		progressbar.OptionThrottle(onedrive.ProgressBarThrottle), // Use constant
 	)
 }
 
-// DisplaySearchResults prints search results in a table format, including the original query.
-func DisplaySearchResults(items onedrive.DriveItemList, query string) {
+// NewSpinner creates a simple spinner for operations without progress tracking.
+func NewSpinner() *progressbar.ProgressBar {
+	return progressbar.NewOptions(-1,
+		progressbar.OptionSpinnerType(onedrive.SpinnerType), // Use constant
+	)
+}
+
+// DisplaySearchResults displays search results with highlighting or context.
+func DisplaySearchResults(items onedrive.DriveItemList) {
 	if len(items.Value) == 0 {
-		fmt.Printf("No items found matching query: \"%s\"\n", query)
+		fmt.Println("No items matched your search criteria.")
 		return
 	}
 
-	fmt.Printf("Search results for \"%s\" (%d item(s)):\n", query, len(items.Value))
-	// Adjust column widths as needed for typical data.
-	fmt.Printf("%-60.60s %12s %-10s %s\n", "Name", "Size", "Type", "Last Modified")
-	fmt.Println(strings.Repeat("-", 100)) // Adjust separator length
-
-	for _, item := range items.Value {
+	fmt.Printf("Search results (%d item(s) found)\n\n", len(items.Value))
+	fmt.Printf("%-60.60s %12s %-10s %-20s %s\n", "Name", "Size", "Type", "Last Modified", "Path")
+	fmt.Println(strings.Repeat("-", onedrive.ExtraLongSeparatorLength))
+	for i := range items.Value {
+		item := &items.Value[i] // Use pointer to avoid copying large struct
 		itemType := "File"
 		if item.Folder != nil {
 			itemType = "Folder"
 		}
-		// Format timestamp for better readability.
-		modifiedTime := item.LastModifiedDateTime.Local().Format("2006-01-02 15:04")
 
 		name := item.Name
-		// Truncate long names to fit the column width.
-		if len(name) > 57 { // 60 (column width) - 3 (for "...")
-			name = name[:57] + "..."
+		if len(name) > onedrive.MaxShortNameLength {
+			name = name[:onedrive.MaxShortNameLength] + onedrive.EllipsisMarker
 		}
 
-		fmt.Printf("%-60.60s %12s %-10s %s\n", name, formatBytes(item.Size), itemType, modifiedTime)
+		path := item.ParentReference.Path
+		if len(path) > onedrive.MaxShortPathLength {
+			path = onedrive.EllipsisMarker + path[len(path)-onedrive.MaxShortPathLength+3:]
+		}
+
+		lastModified := item.LastModifiedDateTime.Local().Format(onedrive.StandardTimeFormat)
+
+		fmt.Printf("%-60.60s %12s %-10s %-20s %s\n", name, formatBytes(item.Size), itemType, lastModified, path)
 	}
 }
 
-// DisplaySharedItems prints items shared with the user.
-// It attempts to show the owner and approximate shared date.
+// DisplaySharedItems displays items that have been shared with the user.
 func DisplaySharedItems(items onedrive.DriveItemList) {
 	if len(items.Value) == 0 {
-		fmt.Println("No items have been shared with you.")
+		fmt.Println("No shared items found for this account.")
 		return
 	}
 
-	fmt.Printf("Items shared with you (%d item(s)):\n", len(items.Value))
+	fmt.Printf("Shared items for this account (%d item(s) found)\n\n", len(items.Value))
 	fmt.Printf("%-50.50s %12s %-10s %-20s %s\n", "Name", "Size", "Type", "Shared/Created Date", "Shared By/Owner")
-	fmt.Println(strings.Repeat("-", 110))
-
-	for _, item := range items.Value {
+	fmt.Println(strings.Repeat("-", onedrive.ExtraLongLineLength))
+	for i := range items.Value {
+		item := &items.Value[i] // Use pointer to avoid copying large struct
 		itemType := "File"
 		if item.Folder != nil {
 			itemType = "Folder"
 		}
 
 		name := item.Name
-		if len(name) > 47 {
-			name = name[:47] + "..."
+		if len(name) > onedrive.MaxShortNameLength {
+			name = name[:onedrive.MaxShortNameLength] + onedrive.EllipsisMarker
 		}
 
-		// For shared items, `item.CreatedDateTime` might reflect when the share was created or item created.
-		// `item.RemoteItem.Shared.SharedDateTime` would be ideal but might not always be populated directly in DriveItem.
-		// `item.Shared.SharedDateTime` if `item.Shared` facet is present.
-		// Using CreatedDateTime as a general proxy.
-		sharedDate := item.CreatedDateTime.Local().Format("2006-01-02 15:04")
-
 		owner := "N/A"
-		// Try to get owner information. For shared items, this might be in `item.Shared.Owner`
-		// or `item.CreatedBy` or `item.RemoteItem.CreatedBy`.
-		// Prioritize `item.Shared.Owner` if available, then `item.RemoteItem.CreatedBy` for remote items,
-		// then `item.CreatedBy` as a fallback.
 		if item.CreatedBy.User != nil && item.CreatedBy.User.DisplayName != "" {
 			owner = item.CreatedBy.User.DisplayName
 		}
-		// Note: RemoteItem does not contain CreatedBy information in the current model
-		// Using the primary item's CreatedBy information only
+
+		sharedDate := item.CreatedDateTime.Local().Format(onedrive.StandardTimeFormat)
 
 		fmt.Printf("%-50.50s %12s %-10s %-20s %s\n", name, formatBytes(item.Size), itemType, sharedDate, owner)
 	}
 }
 
-// DisplayRecentItems prints recently accessed or modified items.
+// DisplayRecentItems displays recently accessed items with timestamps.
 func DisplayRecentItems(items onedrive.DriveItemList) {
 	if len(items.Value) == 0 {
-		fmt.Println("No recent items found.")
+		fmt.Println("No recent items found for this account.")
 		return
 	}
 
-	fmt.Printf("Recently accessed/modified items (%d item(s)):\n", len(items.Value))
+	fmt.Printf("Recent items for this account (%d item(s) found)\n\n", len(items.Value))
 	fmt.Printf("%-60.60s %12s %-10s %s\n", "Name", "Size", "Type", "Last Modified/Accessed")
-	fmt.Println(strings.Repeat("-", 100))
-
-	for _, item := range items.Value {
+	fmt.Println(strings.Repeat("-", onedrive.ExtraLongSeparatorLength))
+	for i := range items.Value {
+		item := &items.Value[i] // Use pointer to avoid copying large struct
 		itemType := "File"
 		if item.Folder != nil {
 			itemType = "Folder"
 		}
 
 		name := item.Name
-		if len(name) > 57 {
-			name = name[:57] + "..."
+		if len(name) > onedrive.MaxNameDisplayLength {
+			name = name[:onedrive.MaxNameDisplayLength] + onedrive.EllipsisMarker
 		}
 
-		// Graph API's "recent" endpoint often sorts by LastModifiedDateTime.
-		// FileSystemInfo.LastAccessedDateTime is not standardly available for DriveItems.
-		// Using LastModifiedDateTime as the primary timestamp.
-		accessTime := item.LastModifiedDateTime.Local().Format("2006-01-02 15:04")
+		accessTime := item.LastModifiedDateTime.Local().Format(onedrive.StandardTimeFormat)
 
 		fmt.Printf("%-60.60s %12s %-10s %s\n", name, formatBytes(item.Size), itemType, accessTime)
 	}
@@ -373,37 +361,43 @@ func DisplaySharingLink(link onedrive.SharingLink) {
 	}
 }
 
-// DisplayDelta prints information about items returned from a delta query.
-// It also shows the next deltaLink or nextLink for pagination if available.
-func DisplayDelta(delta onedrive.DeltaResponse) {
+// DisplayDeltaItems displays items from a delta response, indicating what has changed.
+func DisplayDeltaItems(delta onedrive.DeltaResponse) {
 	if len(delta.Value) == 0 {
-		fmt.Println("No changes found since the last delta token (or no items in initial sync).")
-	} else {
-		fmt.Printf("Delta tracking results (%d item(s) changed or added):\n", len(delta.Value))
-		// Use a compact format for delta, focusing on name and if it was deleted.
-		fmt.Printf("%-60.60s %s\n", "Name", "Status")
-		fmt.Println(strings.Repeat("-", 80))
+		fmt.Println("No changes found since last sync.")
+		return
+	}
 
-		for _, item := range delta.Value {
-			name := item.Name
-			if len(name) > 57 {
-				name = name[:57] + "..."
-			}
-			status := "Changed/Added"
-			if item.Deleted != nil { // Check if the item has a 'deleted' facet.
-				status = "Deleted"
-			}
-			fmt.Printf("%-60.60s %s\n", name, status)
+	fmt.Printf("Delta changes (%d item(s) found)\n\n", len(delta.Value))
+	fmt.Printf("%-60.60s %12s %-10s %-20s %s\n", "Name", "Size", "Type", "Last Modified", "Status")
+	fmt.Println(strings.Repeat("-", onedrive.ExtraLongSeparatorLength))
+	for i := range delta.Value {
+		item := &delta.Value[i] // Use pointer to avoid copying large struct
+		itemType := "File"
+		if item.Folder != nil {
+			itemType = "Folder"
 		}
+
+		name := item.Name
+		if len(name) > onedrive.MaxNameDisplayLength {
+			name = name[:onedrive.MaxNameDisplayLength] + onedrive.EllipsisMarker
+		}
+
+		status := "Modified"
+		if item.Deleted != nil {
+			status = "Deleted"
+		}
+
+		lastModified := item.LastModifiedDateTime.Local().Format(onedrive.StandardTimeFormat)
+
+		fmt.Printf("%-60.60s %12s %-10s %-20s %s\n", name, formatBytes(item.Size), itemType, lastModified, status)
 	}
 
-	if delta.NextLink != "" {
-		// This indicates the current set of delta results is paged.
-		fmt.Printf("\nMore changes in this delta set. Use --next '%s' with the same delta token to continue.\n", delta.NextLink)
-	}
 	if delta.DeltaLink != "" {
-		// This is the link to use for the *next* delta query to get changes *after* this set.
-		fmt.Printf("\nDelta Link for next sync: %s\n(Save this token to get future changes)\n", delta.DeltaLink)
+		fmt.Printf("\nDelta link for next sync: %s\n", delta.DeltaLink)
+	}
+	if delta.NextLink != "" {
+		fmt.Printf("Next page available: %s\n", delta.NextLink)
 	}
 }
 
@@ -422,58 +416,57 @@ func DisplayDrive(drive onedrive.Drive) {
 	DisplayQuota(drive) // Re-use DisplayQuota for consistent formatting.
 }
 
-// DisplayFileVersions displays file version information in a formatted table.
+// DisplayFileVersions displays file version history with formatting.
 func DisplayFileVersions(versions onedrive.DriveItemVersionList, filePath string) {
 	if len(versions.Value) == 0 {
 		fmt.Printf("No versions found for file: %s\n", filePath)
 		return
 	}
 
-	fmt.Printf("File versions for: %s (%d version(s) found)\n\n", filePath, len(versions.Value))
+	fmt.Printf("Version history for file: %s (%d version(s) found)\n\n", filePath, len(versions.Value))
 	fmt.Printf("%-10s %-40.40s %12s %s\n", "Index", "Version ID", "Size", "Last Modified")
-	fmt.Println(strings.Repeat("-", 95)) // Adjusted separator length
-
-	// Display versions from newest to oldest (assuming API returns them that way, common pattern).
-	// If API returns oldest first, might need to reverse or indicate.
+	fmt.Println(strings.Repeat("-", onedrive.LongSeparatorLength)) // Use constant
 	for i, version := range versions.Value {
-		size := formatBytes(version.Size)
-		lastModified := version.LastModifiedDateTime.Local().Format("2006-01-02 15:04:05")
+		size := "N/A"
+		if version.Size > 0 {
+			size = formatBytes(version.Size)
+		}
+		lastModified := version.LastModifiedDateTime.Local().Format(onedrive.FullTimeFormat) // Use constant
 
 		versionID := version.ID
-		// Truncate long version IDs for display.
-		if len(versionID) > 37 {
-			versionID = versionID[:37] + "..."
+		if len(versionID) > onedrive.MaxVersionIDLength {
+			versionID = versionID[:onedrive.MaxVersionIDLength] + onedrive.EllipsisMarker
 		}
 
 		fmt.Printf("%-10d %-40.40s %12s %s\n", i+1, versionID, size, lastModified)
 	}
 }
 
-// DisplayActivities displays activity information in a formatted table.
-// `title` is a descriptive string for the context of the activities (e.g., item path or "drive").
-func DisplayActivities(activities onedrive.ActivityList, title string) {
+// DisplayActivities displays a list of activities with timestamps and actors.
+func DisplayActivities(activities onedrive.ActivityList) {
 	if len(activities.Value) == 0 {
-		fmt.Printf("No activities found for %s.\n", title)
+		fmt.Println("No activities found.")
 		return
 	}
 
-	fmt.Printf("Activities for: %s (%d activities found)\n\n", title, len(activities.Value))
-	fmt.Printf("%-20s %-20.20s %-15s %s\n", "Date/Time", "Actor", "Action Type", "Item Name (if applicable)")
-	fmt.Println(strings.Repeat("-", 90)) // Adjusted separator length
-
-	for _, activity := range activities.Value {
-		dateTime := activity.Times.RecordedTime.Local().Format("2006-01-02 15:04:05")
-
-		actor := "N/A"
+	fmt.Printf("Activities (%d found)\n\n", len(activities.Value))
+	fmt.Printf("%-20s %-18s %-30s %s\n", "Time", "Actor", "Action", "Item Name")
+	fmt.Println(strings.Repeat("-", onedrive.MediumSeparatorLength))
+	for i := range activities.Value {
+		activity := &activities.Value[i] // Use pointer to avoid copying large struct
+		actorName := "Unknown"
 		if activity.Actor.User != nil && activity.Actor.User.DisplayName != "" {
-			actor = activity.Actor.User.DisplayName
-		}
-		// Truncate long actor names.
-		if len(actor) > 18 {
-			actor = actor[:18] + "..."
+			actorName = activity.Actor.User.DisplayName
+			if len(actorName) > onedrive.MaxActorNameLength {
+				actorName = actorName[:onedrive.MaxActorNameLength] + onedrive.EllipsisMarker
+			}
+		} else if activity.Actor.Application != nil && activity.Actor.Application.DisplayName != "" {
+			actorName = activity.Actor.Application.DisplayName
+			if len(actorName) > onedrive.MaxActorNameLength {
+				actorName = actorName[:onedrive.MaxActorNameLength] + onedrive.EllipsisMarker
+			}
 		}
 
-		// Determine action type more robustly.
 		actionType := "Unknown"
 		if activity.Action.Create != nil {
 			actionType = "Create"
@@ -489,22 +482,22 @@ func DisplayActivities(activities onedrive.ActivityList, title string) {
 			actionType = "Share"
 		} else if activity.Action.Comment != nil {
 			actionType = "Comment"
-		} else if activity.Action.Version != nil {
-			actionType = "Version Create" // Distinguish from simple Edit
-		} else if activity.Action.Restore != nil {
-			actionType = "Restore"
 		} else if activity.Action.Mention != nil {
 			actionType = "Mention"
+		} else if activity.Action.Restore != nil {
+			actionType = "Restore"
+		} else if activity.Action.Version != nil {
+			actionType = "Version"
 		}
-		// Could add more details from action facets if needed, e.g., activity.Action.Rename.OldName
 
-		// Get item name if available in the activity.
 		itemName := "N/A"
 		if activity.DriveItem != nil && activity.DriveItem.Name != "" {
 			itemName = activity.DriveItem.Name
 		}
 
-		fmt.Printf("%-20s %-20.20s %-15s %s\n", dateTime, actor, actionType, itemName)
+		timeFormatted := activity.Times.RecordedTime.Local().Format(onedrive.StandardTimeFormat)
+
+		fmt.Printf("%-20s %-18s %-30s %s\n", timeFormatted, actorName, actionType, itemName)
 	}
 }
 
@@ -573,51 +566,18 @@ func DisplayInviteResponse(response onedrive.InviteResponse, remotePath string) 
 	}
 }
 
-// DisplayPermissions displays a list of permissions for a file or folder.
-func DisplayPermissions(permissions onedrive.PermissionList, remotePath string) {
+// DisplayPermissions displays a list of permissions for a DriveItem with details.
+func DisplayPermissions(permissions onedrive.PermissionList) {
 	if len(permissions.Value) == 0 {
-		fmt.Printf("No explicit permissions found for: %s (item may inherit permissions or have default access).\n", remotePath)
+		fmt.Println("No permissions found for this item.")
 		return
 	}
 
-	fmt.Printf("Permissions for: %s (%d permission(s) found)\n\n", remotePath, len(permissions.Value))
-	// Adjusting column widths for better readability
-	fmt.Printf("%-40.40s %-12s %-25.25s %s\n", "Permission ID", "Type", "Roles", "Granted To")
-	fmt.Println(strings.Repeat("-", 120)) // Adjusted separator length
-
-	for _, permission := range permissions.Value {
-		permID := permission.ID
-		if len(permID) > 38 { // Truncate long IDs
-			permID = permID[:37] + "..."
-		}
-
-		permType := "Direct" // Assume direct unless a link is present
-		if permission.Link != nil {
-			permType = "Link (" + permission.Link.Scope + ")"
-		}
-
-		roles := strings.Join(permission.Roles, ", ")
-		if len(roles) > 23 { // Truncate long role lists
-			roles = roles[:20] + "..."
-		}
-
-		grantedTo := "N/A"
-		if permission.GrantedToV2 != nil {
-			if permission.GrantedToV2.User != nil && permission.GrantedToV2.User.DisplayName != "" {
-				grantedTo = permission.GrantedToV2.User.DisplayName
-				if permission.GrantedToV2.User.ID != "" {
-					grantedTo += " [ID: " + permission.GrantedToV2.User.ID + "]"
-				}
-			} else if permission.GrantedToV2.SiteUser != nil && permission.GrantedToV2.SiteUser.DisplayName != "" { // Example for other identity types
-				grantedTo = "SiteUser: " + permission.GrantedToV2.SiteUser.DisplayName
-			}
-		} else if permission.Link != nil && permission.Link.Scope == "anonymous" {
-			grantedTo = "Anonymous (anyone with the link)"
-		} else if permission.Link != nil && permission.Link.Scope == "organization" {
-			grantedTo = "Organization (anyone in the org)"
-		}
-
-		fmt.Printf("%-40.40s %-12s %-25.25s %s\n", permID, permType, roles, grantedTo)
+	fmt.Printf("Permissions for this item (%d found)\n\n", len(permissions.Value))
+	for i := range permissions.Value {
+		permission := &permissions.Value[i] // Use pointer to avoid copying large struct
+		displayPermissionDetails(*permission)
+		fmt.Println(strings.Repeat("-", onedrive.StandardSeparatorLength))
 	}
 }
 
@@ -631,85 +591,132 @@ func DisplaySinglePermission(permission onedrive.Permission, remotePath, permiss
 // displayPermissionDetails is an unexported helper function to print the details of a single Permission object.
 // This promotes consistency in how permission details are displayed.
 func displayPermissionDetails(permission onedrive.Permission) {
+	displayBasicPermissionInfo(permission)
+	displayPermissionLink(permission)
+	displayGrantedToInfo(permission)
+	displayInheritedFromInfo(permission)
+	displayInvitationInfo(permission)
+}
+
+// displayBasicPermissionInfo displays basic permission information
+func displayBasicPermissionInfo(permission onedrive.Permission) {
 	fmt.Printf("  ID:                 %s\n", permission.ID)
 	fmt.Printf("  Roles:              %s\n", strings.Join(permission.Roles, ", "))
 
 	if permission.ShareID != "" {
 		fmt.Printf("  Share ID:           %s\n", permission.ShareID)
 	}
-	if permission.ExpirationDateTime != "" {
-		expTime, err := time.Parse(time.RFC3339Nano, permission.ExpirationDateTime)
-		if err == nil {
-			fmt.Printf("  Expires:            %s\n", expTime.Local().Format(time.RFC1123))
-		} else {
-			fmt.Printf("  Expires (raw):      %s\n", permission.ExpirationDateTime)
-		}
-	}
+
+	displayExpirationTime(permission.ExpirationDateTime)
+
 	if permission.HasPassword {
 		fmt.Printf("  Password Protected: Yes\n")
 	}
+}
 
-	// Display link information if this permission is for a sharing link.
-	if permission.Link != nil {
-		fmt.Printf("  Link Details:\n")
-		fmt.Printf("    Type:             %s\n", permission.Link.Type)
-		fmt.Printf("    Scope:            %s\n", permission.Link.Scope)
-		fmt.Printf("    Web URL:          %s\n", permission.Link.WebURL)
-		if permission.Link.WebHTML != "" {
-			fmt.Printf("    Embed HTML:       %s\n", permission.Link.WebHTML)
-		}
-		if permission.Link.PreventsDownload {
-			fmt.Printf("    Prevents Download:Yes\n")
-		}
-		if permission.Link.Application != nil && permission.Link.Application.DisplayName != "" {
-			fmt.Printf("    Creating App:     %s (ID: %s)\n", permission.Link.Application.DisplayName, permission.Link.Application.ID)
-		}
+// displayExpirationTime formats and displays permission expiration time
+func displayExpirationTime(expirationDateTime string) {
+	if expirationDateTime == "" {
+		return
 	}
 
-	// Display "Granted To" information for direct permissions.
+	expTime, err := time.Parse(time.RFC3339Nano, expirationDateTime)
+	if err == nil {
+		fmt.Printf("  Expires:            %s\n", expTime.Local().Format(time.RFC1123))
+	} else {
+		fmt.Printf("  Expires (raw):      %s\n", expirationDateTime)
+	}
+}
+
+// displayPermissionLink displays sharing link information if present
+func displayPermissionLink(permission onedrive.Permission) {
+	if permission.Link == nil {
+		return
+	}
+
+	fmt.Printf("  Link Details:\n")
+	fmt.Printf("    Type:             %s\n", permission.Link.Type)
+	fmt.Printf("    Scope:            %s\n", permission.Link.Scope)
+	fmt.Printf("    Web URL:          %s\n", permission.Link.WebURL)
+
+	if permission.Link.WebHTML != "" {
+		fmt.Printf("    Embed HTML:       %s\n", permission.Link.WebHTML)
+	}
+	if permission.Link.PreventsDownload {
+		fmt.Printf("    Prevents Download:Yes\n")
+	}
+	if permission.Link.Application != nil && permission.Link.Application.DisplayName != "" {
+		fmt.Printf("    Creating App:     %s (ID: %s)\n", permission.Link.Application.DisplayName, permission.Link.Application.ID)
+	}
+}
+
+// displayGrantedToInfo displays information about who the permission is granted to
+func displayGrantedToInfo(permission onedrive.Permission) {
 	if len(permission.GrantedToIdentitiesV2) > 0 {
-		fmt.Printf("  Granted To Identities (%d):\n", len(permission.GrantedToIdentitiesV2))
-		for i, identity := range permission.GrantedToIdentitiesV2 {
-			fmt.Printf("    %d. ", i+1)
-			if identity.User != nil {
-				fmt.Printf("User: %s", identity.User.DisplayName)
-				fmt.Printf(" [ID: %s]\n", identity.User.ID)
-			} else if identity.SiteUser != nil { // Example for SharePoint site users
-				fmt.Printf("Site User: %s", identity.SiteUser.DisplayName)
-				fmt.Printf(" [ID: %s]\n", identity.SiteUser.ID)
-			} else {
-				fmt.Println("Unknown identity type")
-			}
-		}
-	} else if permission.GrantedToV2 != nil { // Fallback for single GrantedToV2 if GrantedToIdentitiesV2 is empty
-		fmt.Printf("  Granted To (V2):\n")
-		if permission.GrantedToV2.User != nil {
-			fmt.Printf("    User: %s", permission.GrantedToV2.User.DisplayName)
-			fmt.Printf(" [ID: %s]\n", permission.GrantedToV2.User.ID)
-		}
-		if permission.GrantedToV2.SiteUser != nil {
-			fmt.Printf("    Site User: %s", permission.GrantedToV2.SiteUser.DisplayName)
-			fmt.Printf(" [ID: %s]\n", permission.GrantedToV2.SiteUser.ID)
-		}
+		displayGrantedToIdentities(permission.GrantedToIdentitiesV2)
+	} else if permission.GrantedToV2 != nil {
+		displayGrantedToV2(permission.GrantedToV2)
+	}
+}
+
+// displayGrantedToIdentities displays multiple granted identities
+func displayGrantedToIdentities(identities []struct {
+	User     *onedrive.Identity `json:"user,omitempty"`
+	SiteUser *onedrive.Identity `json:"siteUser,omitempty"`
+}) {
+	fmt.Printf("  Granted To Identities (%d):\n", len(identities))
+	for i, identity := range identities {
+		fmt.Printf("    %d. ", i+1)
+		displayIdentityInfo(identity.User, identity.SiteUser)
+	}
+}
+
+// displayGrantedToV2 displays single granted identity (V2 format)
+func displayGrantedToV2(grantedTo *struct {
+	User     *onedrive.Identity `json:"user,omitempty"`
+	SiteUser *onedrive.Identity `json:"siteUser,omitempty"`
+}) {
+	fmt.Printf("  Granted To (V2):\n")
+	displayIdentityInfo(grantedTo.User, grantedTo.SiteUser)
+}
+
+// displayIdentityInfo displays user or site user identity information
+func displayIdentityInfo(user, siteUser *onedrive.Identity) {
+	if user != nil {
+		fmt.Printf("User: %s", user.DisplayName)
+		fmt.Printf(" [ID: %s]\n", user.ID)
+	} else if siteUser != nil {
+		fmt.Printf("Site User: %s", siteUser.DisplayName)
+		fmt.Printf(" [ID: %s]\n", siteUser.ID)
+	} else {
+		fmt.Println("Unknown identity type")
+	}
+}
+
+// displayInheritedFromInfo displays inheritance information if present
+func displayInheritedFromInfo(permission onedrive.Permission) {
+	if permission.InheritedFrom == nil {
+		return
 	}
 
-	// Display "Inherited From" information if the permission is inherited.
-	if permission.InheritedFrom != nil {
-		fmt.Printf("  Inherited From (Item ID: %s):\n", permission.InheritedFrom.ID)
-		if permission.InheritedFrom.DriveID != "" {
-			fmt.Printf("    Drive ID: %s\n", permission.InheritedFrom.DriveID)
-		}
-		if permission.InheritedFrom.Path != "" { // Path is often like "/drive/root:"
-			fmt.Printf("    Path:     %s\n", permission.InheritedFrom.Path)
-		}
+	fmt.Printf("  Inherited From (Item ID: %s):\n", permission.InheritedFrom.ID)
+	if permission.InheritedFrom.DriveID != "" {
+		fmt.Printf("    Drive ID: %s\n", permission.InheritedFrom.DriveID)
+	}
+	if permission.InheritedFrom.Path != "" {
+		fmt.Printf("    Path:     %s\n", permission.InheritedFrom.Path)
+	}
+}
+
+// displayInvitationInfo displays invitation details if present
+func displayInvitationInfo(permission onedrive.Permission) {
+	if permission.Invitation == nil {
+		return
 	}
 
-	// Display invitation details if present
-	if permission.Invitation != nil {
-		fmt.Printf("  Invitation Details:\n")
-		if permission.Invitation.Email != "" {
-			fmt.Printf("    Invited Email: %s\n", permission.Invitation.Email)
-		}
-		fmt.Printf("    Sign-in Required: %t\n", permission.Invitation.SignInRequired)
+	fmt.Printf("  Invitation Details:\n")
+	if permission.Invitation.Email != "" {
+		fmt.Printf("    Invited Email: %s\n", permission.Invitation.Email)
 	}
+	fmt.Printf("    Sign-in Required: %t\n", permission.Invitation.SignInRequired)
 }

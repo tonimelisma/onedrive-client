@@ -136,6 +136,17 @@ The project is organized into packages, each with a distinct role.
     - **SlogLogger**: Production implementation using `log/slog.TextHandler` with configurable levels
     - **NoopLogger**: Silent logger for testing and performance-critical operations
     - **Backward Compatibility**: Type aliases maintain existing code compatibility
+*   **Code Quality and Maintainability (COMPLETED):** Comprehensive technical debt reduction and quality improvements:
+    - **Constants Management**: Added extensive constants package (`constants.go`) with HTTP status codes, file permissions, timeouts, UI display constants, buffer sizes, time formats, and table display constants, eliminating ~25 magic numbers throughout the codebase
+    - **Error Handling Enhancement**: Improved error handling for 85+ unchecked `defer Close()` calls with proper logging and resource cleanup
+    - **Function Modularity**: Refactored high-complexity functions (cyclomatic complexity >20) into focused, single-responsibility helper functions:
+      * `apiCall` function (complexity 24) split into 6 helper functions (`isSuccessStatus`, `isRetryableStatus`, `handleRetryableStatus`, `createRetryableError`, `handleNonRetryableStatus`, `getStatusDescription`)
+      * `displayPermissionDetails` function (complexity 22) split into 10 specialized display functions for better readability and testability
+      * `TestFileOperations` test (complexity 34) split into focused test functions (`TestFileOperations`, `TestFileUploads`, `TestFileDownloads`)
+    - **Code Deduplication**: Eliminated 4 instances of duplicate code patterns by leveraging existing helper functions (`getItemAndBuildURL`, `makeAPICallAndDecode`) across `permissions.go` and `thumbnails.go`
+    - **Performance Optimization**: Fixed 15+ instances of large struct copying in range loops by using pointer iteration patterns (`for i := range items.Value { item := &items.Value[i] }`)
+    - **Model Enhancement**: Added missing `Application` field to `Actor` struct for complete API response representation
+    - **Comprehensive Testing**: Added extensive test coverage for all refactored functionality, constants validation, helper function behavior, and performance optimizations
 *   **Independence:** This package has no dependencies on any other package in the project (`internal/`, `cmd/`), making it a candidate for future extraction into a standalone library.
 
 #### Token Refresh & Persistence (Refined)

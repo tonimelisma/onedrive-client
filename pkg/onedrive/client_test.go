@@ -367,3 +367,299 @@ func TestAllErrorSentinels(t *testing.T) {
 		assert.True(t, errors.Is(wrappedErr, sentinel))
 	}
 }
+
+// Tests for the new helper functions from apiCall refactoring
+func TestIsSuccessStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		expected bool
+	}{
+		{"200 OK", 200, true},
+		{"201 Created", 201, true},
+		{"202 Accepted", 202, true},
+		{"204 No Content", 204, true},
+		{"400 Bad Request", 400, false},
+		{"401 Unauthorized", 401, false},
+		{"404 Not Found", 404, false},
+		{"500 Internal Server Error", 500, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isSuccessStatus(tt.status)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsRetryableStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		expected bool
+	}{
+		{"429 Too Many Requests", 429, true},
+		{"401 Unauthorized", 401, true},
+		{"503 Service Unavailable", 503, true},
+		{"500 Internal Server Error", 500, false},
+		{"502 Bad Gateway", 502, false},
+		{"504 Gateway Timeout", 504, false},
+		{"400 Bad Request", 400, false},
+		{"403 Forbidden", 403, false},
+		{"404 Not Found", 404, false},
+		{"409 Conflict", 409, false},
+		{"200 OK", 200, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isRetryableStatus(tt.status)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetStatusDescription(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		expected string
+	}{
+		{"200 OK", 200, "unexpected status"},
+		{"201 Created", 201, "unexpected status"},
+		{"400 Bad Request", 400, "bad request"},
+		{"401 Unauthorized", 401, "unauthorized"},
+		{"403 Forbidden", 403, "forbidden"},
+		{"404 Not Found", 404, "not found"},
+		{"409 Conflict", 409, "conflict"},
+		{"413 Payload Too Large", 413, "payload too large"},
+		{"429 Too Many Requests", 429, "rate limited"},
+		{"500 Internal Server Error", 500, "unexpected status"},
+		{"502 Bad Gateway", 502, "unexpected status"},
+		{"503 Service Unavailable", 503, "service unavailable"},
+		{"504 Gateway Timeout", 504, "unexpected status"},
+		{"507 Insufficient Storage", 507, "insufficient storage"},
+		{"999 Unknown Status", 999, "unexpected status"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getStatusDescription(tt.status)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestHandleRetryableStatus(t *testing.T) {
+	ctx := context.Background()
+	token := &Token{AccessToken: "test-token"}
+	client := NewClient(ctx, token, "test-client-id", nil, &logger.NoopLogger{})
+
+	// Create mock response for testing
+	mockResponse := &http.Response{
+		StatusCode: 429,
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader(`{"error": {"code": "TooManyRequests"}}`)),
+	}
+
+	// Test with 429 Too Many Requests - should return true (retry)
+	result := client.handleRetryableStatus(mockResponse, 1, 3, "https://test.com", nil, time.Microsecond, time.Millisecond)
+	assert.True(t, result)
+
+	// Test with 401 Unauthorized - should return true (retry)
+	mockResponse.StatusCode = 401
+	mockResponse.Body = io.NopCloser(strings.NewReader(`{"error": {"code": "Unauthorized"}}`))
+	result = client.handleRetryableStatus(mockResponse, 1, 3, "https://test.com", nil, time.Microsecond, time.Millisecond)
+	assert.True(t, result)
+
+	// Test with 503 Service Unavailable - should return true (retry)
+	mockResponse.StatusCode = 503
+	mockResponse.Body = io.NopCloser(strings.NewReader(`{"error": {"code": "ServiceUnavailable"}}`))
+	result = client.handleRetryableStatus(mockResponse, 1, 3, "https://test.com", nil, time.Microsecond, time.Millisecond)
+	assert.True(t, result)
+
+	// Test at max attempts - should return false (no more retries)
+	mockResponse.StatusCode = 429
+	mockResponse.Body = io.NopCloser(strings.NewReader(`{"error": {"code": "TooManyRequests"}}`))
+	result = client.handleRetryableStatus(mockResponse, 3, 3, "https://test.com", nil, time.Microsecond, time.Millisecond)
+	assert.False(t, result)
+}
+
+func TestCreateRetryableError(t *testing.T) {
+	ctx := context.Background()
+	token := &Token{AccessToken: "test-token"}
+	client := NewClient(ctx, token, "test-client-id", nil, &logger.NoopLogger{})
+
+	// Test with 429 Too Many Requests
+	err := client.createRetryableError(429, "https://test.com", 3)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "rate limited")
+	assert.Contains(t, err.Error(), "https://test.com")
+	assert.ErrorIs(t, err, ErrRetryLater)
+
+	// Test with 401 Unauthorized
+	err = client.createRetryableError(401, "https://test.com", 3)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "401")
+	assert.Contains(t, err.Error(), "https://test.com")
+	assert.ErrorIs(t, err, ErrReauthRequired)
+
+	// Test with 503 Service Unavailable
+	err = client.createRetryableError(503, "https://test.com", 3)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "service unavailable")
+	assert.Contains(t, err.Error(), "https://test.com")
+	assert.ErrorIs(t, err, ErrRetryLater)
+}
+
+func TestHandleNonRetryableStatus(t *testing.T) {
+	ctx := context.Background()
+	token := &Token{AccessToken: "test-token"}
+	client := NewClient(ctx, token, "test-client-id", nil, &logger.NoopLogger{})
+
+	tests := []struct {
+		name          string
+		status        int
+		expectedError error
+		shouldContain string
+	}{
+		{
+			name:          "403 Forbidden",
+			status:        403,
+			expectedError: ErrAccessDenied,
+			shouldContain: "403",
+		},
+		{
+			name:          "404 Not Found",
+			status:        404,
+			expectedError: ErrResourceNotFound,
+			shouldContain: "404",
+		},
+		{
+			name:          "409 Conflict",
+			status:        409,
+			expectedError: ErrConflict,
+			shouldContain: "409",
+		},
+		{
+			name:          "507 Insufficient Storage",
+			status:        507,
+			expectedError: ErrQuotaExceeded,
+			shouldContain: "507",
+		},
+		{
+			name:          "400 Bad Request",
+			status:        400,
+			expectedError: ErrInvalidRequest,
+			shouldContain: "400",
+		},
+		{
+			name:          "413 Payload Too Large",
+			status:        413,
+			expectedError: ErrQuotaExceeded,
+			shouldContain: "413",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock response for testing
+			mockResponse := &http.Response{
+				StatusCode: tt.status,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"error": {"code": "TestError", "message": "test message"}}`)),
+			}
+
+			err := client.handleNonRetryableStatus(mockResponse, "https://test.com")
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, tt.expectedError)
+			assert.Contains(t, err.Error(), tt.shouldContain)
+		})
+	}
+}
+
+func TestAPICallRefactoredFunctions(t *testing.T) {
+	// Test that the refactored apiCall function still works correctly
+	// by testing the integration of all helper functions
+
+	// Test successful status
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"value": "success"}`))
+	}))
+	defer server.Close()
+
+	ctx := context.Background()
+	token := &Token{AccessToken: "test-token"}
+	client := NewClient(ctx, token, "test-client-id", nil, &logger.NoopLogger{})
+	client.httpClient = &http.Client{}
+
+	response, err := client.apiCall(ctx, "GET", server.URL+"/test", "application/json", nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+
+	// Test retryable status
+	retryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(429)
+		w.Write([]byte(`{"error": {"code": "TooManyRequests", "message": "Rate limit exceeded"}}`))
+	}))
+	defer retryServer.Close()
+
+	_, err = client.apiCall(ctx, "GET", retryServer.URL+"/test", "application/json", nil)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrRetryLater)
+
+	// Test non-retryable status
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		w.Write([]byte(`{"error": {"code": "ItemNotFound", "message": "Item not found"}}`))
+	}))
+	defer errorServer.Close()
+
+	_, err = client.apiCall(ctx, "GET", errorServer.URL+"/test", "application/json", nil)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrResourceNotFound)
+}
+
+func TestErrorHandlingRefactoring(t *testing.T) {
+	// Test the error handling improvements by creating scenarios
+	// that test different error conditions
+
+	tests := []struct {
+		name          string
+		statusCode    int
+		expectedError error
+	}{
+		{"Unauthorized", 401, ErrReauthRequired},
+		{"Forbidden", 403, ErrAccessDenied},
+		{"Not Found", 404, ErrResourceNotFound},
+		{"Conflict", 409, ErrConflict},
+		{"Too Many Requests", 429, ErrRetryLater},
+		{"Quota Exceeded", 507, ErrQuotaExceeded},
+		{"Bad Request", 400, ErrInvalidRequest},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.statusCode)
+				w.Write([]byte(`{"error": {"code": "TestError", "message": "Test error message"}}`))
+			}))
+			defer server.Close()
+
+			ctx := context.Background()
+			token := &Token{AccessToken: "test-token"}
+			client := NewClient(ctx, token, "test-client-id", nil, &logger.NoopLogger{})
+			client.httpClient = &http.Client{}
+
+			_, err := client.apiCall(ctx, "GET", server.URL+"/test", "application/json", nil)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, tt.expectedError)
+		})
+	}
+}

@@ -63,22 +63,16 @@ func (c *Client) GetThumbnailBySize(ctx context.Context, remotePath, thumbID, si
 	c.logger.Debugf("GetThumbnailBySize called for remotePath: '%s', thumbID: '%s', size: '%s'", remotePath, thumbID, size)
 	var thumbnail Thumbnail
 
-	// Get DriveItem ID.
-	item, err := c.GetDriveItemByPath(ctx, remotePath)
+	// Use helper to get item and build URL, reducing duplication.
+	apiURL, err := c.getItemAndBuildURL(ctx, remotePath, "/thumbnails/"+url.PathEscape(thumbID)+"/"+url.PathEscape(size))
 	if err != nil {
-		return thumbnail, fmt.Errorf("getting DriveItem ID for path '%s' to get thumbnail by size: %w", remotePath, err)
+		return thumbnail, fmt.Errorf("building thumbnail URL for path '%s': %w", remotePath, err)
 	}
 
-	// Endpoint for a specific thumbnail size.
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/thumbnails/" + url.PathEscape(thumbID) + "/" + url.PathEscape(size)
-	res, err := c.apiCall(ctx, "GET", url, "", nil)
+	// Use helper for API call and decode, with proper error handling.
+	err = c.makeAPICallAndDecode(ctx, "GET", apiURL, "", nil, &thumbnail, "get thumbnail by size")
 	if err != nil {
 		return thumbnail, err
-	}
-	defer closeBodySafely(res.Body, c.logger, "get thumbnail by size")
-
-	if err := json.NewDecoder(res.Body).Decode(&thumbnail); err != nil {
-		return thumbnail, fmt.Errorf("%w: decoding thumbnail by size (ID: '%s', Size: '%s') for path '%s': %w", ErrDecodingFailed, thumbID, size, remotePath, err)
 	}
 
 	return thumbnail, nil
@@ -107,14 +101,12 @@ func (c *Client) PreviewItem(ctx context.Context, remotePath string, request Pre
 	c.logger.Debugf("PreviewItem called for remotePath: '%s', request: %+v", remotePath, request)
 	var preview PreviewResponse
 
-	// Get DriveItem ID.
-	item, err := c.GetDriveItemByPath(ctx, remotePath)
+	// Use helper to get item and build URL, reducing duplication.
+	apiURL, err := c.getItemAndBuildURL(ctx, remotePath, "/preview")
 	if err != nil {
-		return preview, fmt.Errorf("getting DriveItem ID for path '%s' to generate preview: %w", remotePath, err)
+		return preview, fmt.Errorf("building preview URL for path '%s': %w", remotePath, err)
 	}
 
-	// Endpoint for item preview is on the item's ID.
-	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/preview"
 	var bodyReader io.ReadSeeker
 
 	// If page or zoom parameters are provided, include them in the POST request body.
@@ -131,7 +123,7 @@ func (c *Client) PreviewItem(ctx context.Context, remotePath string, request Pre
 	}
 
 	// The preview action is a POST request.
-	res, err := c.apiCall(ctx, "POST", url, "application/json", bodyReader)
+	res, err := c.apiCall(ctx, "POST", apiURL, "application/json", bodyReader)
 	if err != nil {
 		return preview, err
 	}

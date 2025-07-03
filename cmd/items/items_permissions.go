@@ -223,7 +223,7 @@ func filesPermissionsListLogic(a *app.App, cmd *cobra.Command, args []string) er
 		return fmt.Errorf("listing permissions for '%s': %w", remotePath, err)
 	}
 
-	ui.DisplayPermissions(permissions, remotePath)
+	ui.DisplayPermissions(permissions)
 	return nil
 }
 
