@@ -158,12 +158,15 @@ func (m *MockSDK) PreviewItem(ctx context.Context, remotePath string, request on
 func (m *MockSDK) GetDrives(ctx context.Context) (onedrive.DriveList, error) {
 	return onedrive.DriveList{}, nil
 }
+
 func (m *MockSDK) GetDefaultDrive(ctx context.Context) (onedrive.Drive, error) {
 	return onedrive.Drive{}, nil
 }
+
 func (m *MockSDK) GetDriveByID(ctx context.Context, driveID string) (onedrive.Drive, error) {
 	return onedrive.Drive{}, nil
 }
+
 func (m *MockSDK) GetDriveActivities(ctx context.Context, paging onedrive.Paging) (onedrive.ActivityList, string, error) {
 	return onedrive.ActivityList{}, "", nil
 }
@@ -171,9 +174,11 @@ func (m *MockSDK) GetMe(ctx context.Context) (onedrive.User, error) { return one
 func (m *MockSDK) CreateUploadSession(ctx context.Context, remotePath string) (onedrive.UploadSession, error) {
 	return onedrive.UploadSession{}, nil
 }
+
 func (m *MockSDK) UploadChunk(ctx context.Context, uploadURL string, startByte, endByte, totalSize int64, chunkData io.Reader) (onedrive.UploadSession, error) {
 	return onedrive.UploadSession{}, nil
 }
+
 func (m *MockSDK) GetUploadSessionStatus(ctx context.Context, uploadURL string) (onedrive.UploadSession, error) {
 	return onedrive.UploadSession{}, nil
 }
@@ -185,39 +190,51 @@ func (m *MockSDK) DownloadFile(ctx context.Context, remotePath, localPath string
 func (m *MockSDK) DownloadFileAsFormat(ctx context.Context, remotePath, localPath, format string) error {
 	return nil
 }
+
 func (m *MockSDK) DownloadFileChunk(ctx context.Context, url string, startByte, endByte int64) (io.ReadCloser, error) {
 	return nil, nil
 }
+
 func (m *MockSDK) SearchDriveItems(ctx context.Context, query string) (onedrive.DriveItemList, error) {
 	return onedrive.DriveItemList{}, nil
 }
+
 func (m *MockSDK) SearchDriveItemsWithPaging(ctx context.Context, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error) {
 	return onedrive.DriveItemList{}, "", nil
 }
+
 func (m *MockSDK) GetSharedWithMe(ctx context.Context) (onedrive.DriveItemList, error) {
 	return onedrive.DriveItemList{}, nil
 }
+
 func (m *MockSDK) GetRecentItems(ctx context.Context) (onedrive.DriveItemList, error) {
 	return onedrive.DriveItemList{}, nil
 }
+
 func (m *MockSDK) GetSpecialFolder(ctx context.Context, folderName string) (onedrive.DriveItem, error) {
 	return onedrive.DriveItem{}, nil
 }
+
 func (m *MockSDK) GetDelta(ctx context.Context, deltaToken string) (onedrive.DeltaResponse, error) {
 	return onedrive.DeltaResponse{}, nil
 }
+
 func (m *MockSDK) GetThumbnailBySize(ctx context.Context, remotePath, thumbID, size string) (onedrive.Thumbnail, error) {
 	return onedrive.Thumbnail{}, nil
 }
+
 func (m *MockSDK) InviteUsers(ctx context.Context, remotePath string, request onedrive.InviteRequest) (onedrive.InviteResponse, error) {
 	return onedrive.InviteResponse{}, nil
 }
+
 func (m *MockSDK) GetPermission(ctx context.Context, remotePath, permissionID string) (onedrive.Permission, error) {
 	return onedrive.Permission{}, nil
 }
+
 func (m *MockSDK) UpdatePermission(ctx context.Context, remotePath, permissionID string, request onedrive.UpdatePermissionRequest) (onedrive.Permission, error) {
 	return onedrive.Permission{}, nil
 }
+
 func (m *MockSDK) DeletePermission(ctx context.Context, remotePath, permissionID string) error {
 	return nil
 }

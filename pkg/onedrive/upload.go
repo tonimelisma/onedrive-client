@@ -180,7 +180,7 @@ func (c *Client) GetUploadSessionStatus(ctx context.Context, uploadURL string) (
 //
 //	err := client.CancelUploadSession(context.Background(), uploadURLToCancel)
 //	if err != nil { log.Fatal(err) }
-//	fmt.Println("Upload session cancelled.")
+//	fmt.Println("Upload session canceled.")
 func (c *Client) CancelUploadSession(ctx context.Context, uploadURL string) error {
 	c.logger.Debugf("CancelUploadSession called for uploadURL: '%s'", uploadURL)
 	// Use a configured HTTP client for consistent timeout behavior.

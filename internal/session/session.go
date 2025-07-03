@@ -21,12 +21,12 @@ import (
 // State represents the persisted state of a resumable operation (e.g., upload or download).
 // It includes necessary URLs, paths, and progress information.
 type State struct {
-	DownloadURL        string    `json:"downloadUrl,omitempty"`        // URL for downloading (if a download session).
-	UploadURL          string    `json:"uploadUrl,omitempty"`          // URL for uploading chunks (if an upload session).
-	ExpirationDateTime time.Time `json:"expirationDateTime"`           // When the session URL (upload/download) expires.
-	LocalPath          string    `json:"localPath"`                    // Path to the local file.
-	RemotePath         string    `json:"remotePath"`                   // Path to the remote file on OneDrive.
-	CompletedBytes     int64     `json:"completedBytes"`               // Number of bytes successfully transferred.
+	DownloadURL        string    `json:"downloadUrl,omitempty"` // URL for downloading (if a download session).
+	UploadURL          string    `json:"uploadUrl,omitempty"`   // URL for uploading chunks (if an upload session).
+	ExpirationDateTime time.Time `json:"expirationDateTime"`    // When the session URL (upload/download) expires.
+	LocalPath          string    `json:"localPath"`             // Path to the local file.
+	RemotePath         string    `json:"remotePath"`            // Path to the remote file on OneDrive.
+	CompletedBytes     int64     `json:"completedBytes"`        // Number of bytes successfully transferred.
 	// TotalSize can be added if needed for progress calculation, though often derived from local file info.
 	// TotalSize          int64     `json:"totalSize,omitempty"`
 }
@@ -82,7 +82,7 @@ func (m *Manager) GetSessionFilePath(localPath, remotePath string) string {
 	// This ensures that the session file is specific to this particular file transfer pair
 	// and is deterministic (same paths will always produce the same session filename).
 	hash := sha256.New()
-	hash.Write([]byte(localPath + ":" + remotePath)) // Simple concatenation for hashing.
+	hash.Write([]byte(localPath + ":" + remotePath))        // Simple concatenation for hashing.
 	filename := hex.EncodeToString(hash.Sum(nil)) + ".json" // e.g., "abcdef123456....json"
 
 	return filepath.Join(sessionDir, filename)
@@ -92,7 +92,7 @@ func (m *Manager) GetSessionFilePath(localPath, remotePath string) string {
 // It ensures the session directory exists and uses file locking for safe concurrent access.
 func (m *Manager) Save(state *State) error {
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0755); err != nil { // 0755: rwxr-xr-x
+	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: rwx------ (user only for session security)
 		return fmt.Errorf("creating session directory '%s' for save: %w", sessionDir, err)
 	}
 
@@ -111,11 +111,11 @@ func (m *Manager) Save(state *State) error {
 
 	data, err := json.MarshalIndent(state, "", "  ") // Pretty-print JSON.
 	if err != nil {
-		return fmt.Errorf("marshalling session state for '%s': %w", filePath, err)
+		return fmt.Errorf("marshaling session state for '%s': %w", filePath, err)
 	}
 
 	// Write with 0600 permissions (user read/write only).
-	return os.WriteFile(filePath, data, 0600)
+	return os.WriteFile(filePath, data, 0o600)
 }
 
 // Load retrieves a session State from its file, identified by local and remote paths.
@@ -126,7 +126,7 @@ func (m *Manager) Load(localPath, remotePath string) (*State, error) {
 
 	// Ensure session directory exists before attempting to lock/read.
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for session data
 		return nil, fmt.Errorf("creating session directory '%s' for load: %w", sessionDir, err)
 	}
 
@@ -152,7 +152,7 @@ func (m *Manager) Load(localPath, remotePath string) (*State, error) {
 	var state State
 	if err := json.Unmarshal(data, &state); err != nil {
 		// Corrupted session file.
-		return nil, fmt.Errorf("unmarshalling session state from '%s': %w", filePath, err)
+		return nil, fmt.Errorf("unmarshaling session state from '%s': %w", filePath, err)
 	}
 
 	// Check if the loaded session has expired.
@@ -176,7 +176,7 @@ func (m *Manager) Delete(localPath, remotePath string) error {
 
 	// Ensure session directory exists before attempting to lock/delete.
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for session data
 		return fmt.Errorf("creating session directory '%s' for delete: %w", sessionDir, err)
 	}
 

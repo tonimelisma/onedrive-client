@@ -340,7 +340,7 @@ func filesCancelUploadLogic(a *app.App, cmd *cobra.Command, args []string) error
 	if err != nil {
 		return fmt.Errorf("canceling upload session '%s': %w", uploadURL, err)
 	}
-	log.Printf("Upload session '%s' cancelled successfully.", uploadURL)
+	log.Printf("Upload session '%s' canceled successfully.", uploadURL)
 	return nil
 }
 

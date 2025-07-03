@@ -128,7 +128,7 @@ func (c *Client) PreviewItem(ctx context.Context, remotePath string, request Pre
 	if request.Page != "" || request.Zoom != 0 { // Check if zoom is non-default (0 is often default for "not set")
 		requestBody, err := json.Marshal(request)
 		if err != nil {
-			return preview, fmt.Errorf("marshalling PreviewRequest for path '%s': %w", remotePath, err)
+			return preview, fmt.Errorf("marshaling PreviewRequest for path '%s': %w", remotePath, err)
 		}
 		bodyReader = bytes.NewReader(requestBody)
 		c.logger.Debugf("PreviewItem request body: %s", string(requestBody))

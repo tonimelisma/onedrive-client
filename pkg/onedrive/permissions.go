@@ -36,7 +36,7 @@ func (c *Client) CreateSharingLink(ctx context.Context, path, linkType, scope st
 
 	data, err := json.Marshal(requestBody)
 	if err != nil {
-		return link, fmt.Errorf("marshalling CreateSharingLink request for path '%s': %w", path, err)
+		return link, fmt.Errorf("marshaling CreateSharingLink request for path '%s': %w", path, err)
 	}
 
 	// The createLink action is performed on the DriveItem's path.
@@ -87,7 +87,7 @@ func (c *Client) InviteUsers(ctx context.Context, remotePath string, request Inv
 
 	data, err := json.Marshal(request)
 	if err != nil {
-		return invite, fmt.Errorf("marshalling InviteRequest for path '%s': %w", remotePath, err)
+		return invite, fmt.Errorf("marshaling InviteRequest for path '%s': %w", remotePath, err)
 	}
 
 	// The invite action is performed on the item's ID.
@@ -202,7 +202,7 @@ func (c *Client) UpdatePermission(ctx context.Context, remotePath, permissionID 
 	url := customRootURL + "me/drive/items/" + url.PathEscape(item.ID) + "/permissions/" + url.PathEscape(permissionID)
 	requestBody, err := json.Marshal(request)
 	if err != nil {
-		return permission, fmt.Errorf("marshalling UpdatePermissionRequest for permission '%s' on path '%s': %w", permissionID, remotePath, err)
+		return permission, fmt.Errorf("marshaling UpdatePermissionRequest for permission '%s' on path '%s': %w", permissionID, remotePath, err)
 	}
 
 	res, err := c.apiCall(ctx, "PATCH", url, "application/json", bytes.NewReader(requestBody))

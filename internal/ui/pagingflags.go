@@ -22,9 +22,10 @@ const (
 
 // AddPagingFlags adds a standardized set of pagination flags to a Cobra command.
 // These flags are:
-//   --top <int>:  Maximum number of items to return per page (0 means API default).
-//   --all <bool>: If true, fetch all items across all available pages, ignoring --top.
-//   --next <string>: A specific @odata.nextLink URL to resume pagination from.
+//
+//	--top <int>:  Maximum number of items to return per page (0 means API default).
+//	--all <bool>: If true, fetch all items across all available pages, ignoring --top.
+//	--next <string>: A specific @odata.nextLink URL to resume pagination from.
 //
 // This ensures consistency in how users interact with pagination across different commands.
 func AddPagingFlags(cmd *cobra.Command) {

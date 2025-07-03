@@ -95,7 +95,8 @@ func SanitizeLocalPath(path string) (string, error) {
 
 // ValidateDownloadPath checks if a download destination is safe and handles overwrite protection.
 // It returns an error if the file exists and overwrite is false, or if the path is unsafe.
-func ValidateDownloadPath(localPath string, allowOverwrite bool) error {
+// Uses configurable permissions for creating parent directories.
+func ValidateDownloadPath(localPath string, allowOverwrite bool, dirPermissions os.FileMode) error {
 	// Sanitize the local path
 	sanitized, err := SanitizeLocalPath(localPath)
 	if err != nil {
@@ -112,20 +113,20 @@ func ValidateDownloadPath(localPath string, allowOverwrite bool) error {
 		return fmt.Errorf("checking file existence: %w", err)
 	}
 
-	// Ensure the parent directory exists or can be created
+	// Ensure the parent directory exists or can be created with configurable permissions
 	dir := filepath.Dir(sanitized)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, dirPermissions); err != nil {
 		return fmt.Errorf("creating parent directory: %w", err)
 	}
 
 	return nil
 }
 
-// SecureCreateFile creates a file with secure permissions and overwrite protection.
+// SecureCreateFile creates a file with configurable permissions and overwrite protection.
 // Returns the file handle or an error if creation fails or file exists.
-func SecureCreateFile(localPath string, allowOverwrite bool) (*os.File, error) {
+func SecureCreateFile(localPath string, allowOverwrite bool, filePermissions, dirPermissions os.FileMode) (*os.File, error) {
 	// Validate the download path first
-	if err := ValidateDownloadPath(localPath, allowOverwrite); err != nil {
+	if err := ValidateDownloadPath(localPath, allowOverwrite, dirPermissions); err != nil {
 		return nil, err
 	}
 
@@ -135,8 +136,8 @@ func SecureCreateFile(localPath string, allowOverwrite bool) (*os.File, error) {
 		flags |= os.O_EXCL // Fail if file exists
 	}
 
-	// Create the file with secure permissions (rw-r--r--)
-	file, err := os.OpenFile(localPath, flags, 0644)
+	// Create the file with configurable permissions
+	file, err := os.OpenFile(localPath, flags, filePermissions)
 	if err != nil {
 		if os.IsExist(err) && !allowOverwrite {
 			return nil, fmt.Errorf("%w: %s", ErrFileExists, localPath)

@@ -107,7 +107,7 @@ func (c *Client) CreateFolder(ctx context.Context, parentPath string, folderName
 
 	data, err := json.Marshal(createFolderRequest)
 	if err != nil {
-		return item, fmt.Errorf("marshalling create folder request for '%s': %w", folderName, err)
+		return item, fmt.Errorf("marshaling create folder request for '%s': %w", folderName, err)
 	}
 
 	var url string
@@ -241,7 +241,7 @@ func (c *Client) CopyDriveItem(ctx context.Context, sourcePath, destinationParen
 
 	bodyBytes, err := json.Marshal(copyRequest)
 	if err != nil {
-		return "", fmt.Errorf("marshalling copy request for '%s': %w", sourcePath, err)
+		return "", fmt.Errorf("marshaling copy request for '%s': %w", sourcePath, err)
 	}
 
 	// The copy endpoint is on the source item: "/items/{source-item-id}/copy".
@@ -345,7 +345,7 @@ func (c *Client) MoveDriveItem(ctx context.Context, sourcePath, destinationParen
 
 	bodyBytes, err := json.Marshal(moveRequest)
 	if err != nil {
-		return item, fmt.Errorf("marshalling move request for '%s': %w", sourcePath, err)
+		return item, fmt.Errorf("marshaling move request for '%s': %w", sourcePath, err)
 	}
 
 	// The PATCH request is made to the source item's URL.
@@ -389,7 +389,7 @@ func (c *Client) UpdateDriveItem(ctx context.Context, path, newName string) (Dri
 
 	bodyBytes, err := json.Marshal(updateRequest)
 	if err != nil {
-		return item, fmt.Errorf("marshalling rename request for '%s': %w", path, err)
+		return item, fmt.Errorf("marshaling rename request for '%s': %w", path, err)
 	}
 
 	// The PATCH request is made to the item's URL.

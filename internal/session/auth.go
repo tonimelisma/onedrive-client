@@ -40,8 +40,8 @@ func (m *Manager) getAuthSessionFilePath() string {
 // concurrent writes, which could corrupt the session file or lead to race conditions.
 func (m *Manager) SaveAuthState(state *AuthState) error {
 	sessionDir := m.getSessionDir()
-	// Ensure the directory for session files exists.
-	if err := os.MkdirAll(sessionDir, 0755); err != nil { // 0755: rwxr-xr-x
+	// Ensure the directory for session files exists with secure permissions.
+	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: rwx------ (user only for auth security)
 		return fmt.Errorf("creating session directory '%s' for auth state: %w", sessionDir, err)
 	}
 
@@ -64,11 +64,11 @@ func (m *Manager) SaveAuthState(state *AuthState) error {
 
 	data, err := json.MarshalIndent(state, "", "  ") // Pretty-print for readability if opened manually.
 	if err != nil {
-		return fmt.Errorf("marshalling auth session state: %w", err)
+		return fmt.Errorf("marshaling auth session state: %w", err)
 	}
 
 	// Write with 0600 permissions (user read/write only) for security.
-	return os.WriteFile(filePath, data, 0600)
+	return os.WriteFile(filePath, data, 0o600)
 }
 
 // LoadAuthState retrieves the pending authentication state from a file.
@@ -81,7 +81,7 @@ func (m *Manager) LoadAuthState() (*AuthState, error) {
 	// Ensure the session directory exists before trying to create lock files,
 	// as flock might attempt to create the lock file in a non-existent directory.
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for auth data
 		return nil, fmt.Errorf("creating session directory '%s' for loading auth state: %w", sessionDir, err)
 	}
 
@@ -111,7 +111,7 @@ func (m *Manager) LoadAuthState() (*AuthState, error) {
 	var state AuthState
 	if err := json.Unmarshal(data, &state); err != nil {
 		// If the file is corrupted or not valid JSON.
-		return nil, fmt.Errorf("unmarshalling auth session state from '%s': %w", filePath, err)
+		return nil, fmt.Errorf("unmarshaling auth session state from '%s': %w", filePath, err)
 	}
 
 	return &state, nil
@@ -119,13 +119,13 @@ func (m *Manager) LoadAuthState() (*AuthState, error) {
 
 // DeleteAuthState removes the authentication session state file.
 // This is typically called after authentication is successfully completed or if
-// a pending authentication needs to be cancelled (e.g., during logout).
+// a pending authentication needs to be canceled (e.g., during logout).
 // File locking is used to coordinate with other potential operations.
 func (m *Manager) DeleteAuthState() error {
 	filePath := m.getAuthSessionFilePath()
 
 	sessionDir := m.getSessionDir()
-	if err := os.MkdirAll(sessionDir, 0755); err != nil {
+	if err := os.MkdirAll(sessionDir, 0o700); err != nil { // 0700: secure permissions for auth data
 		// If directory creation fails, we might not be able to acquire lock or delete.
 		return fmt.Errorf("creating session directory '%s' for deleting auth state: %w", sessionDir, err)
 	}

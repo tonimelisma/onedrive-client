@@ -60,7 +60,7 @@ type SDK interface {
 	SearchDriveItemsInFolder(ctx context.Context, folderPath, query string, paging onedrive.Paging) (onedrive.DriveItemList, string, error)
 
 	// Activity and Versioning
-	GetDriveActivities(ctx context.Context, paging onedrive.Paging) (onedrive.ActivityList, string, error) // Drive-level activities.
+	GetDriveActivities(ctx context.Context, paging onedrive.Paging) (onedrive.ActivityList, string, error)                   // Drive-level activities.
 	GetItemActivities(ctx context.Context, remotePath string, paging onedrive.Paging) (onedrive.ActivityList, string, error) // Item-specific activities.
 	GetFileVersions(ctx context.Context, filePath string) (onedrive.DriveItemVersionList, error)
 	GetDelta(ctx context.Context, deltaToken string) (onedrive.DeltaResponse, error) // For tracking changes.

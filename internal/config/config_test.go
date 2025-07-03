@@ -64,7 +64,7 @@ func TestLoadOrCreateBackwardCompatibility(t *testing.T) {
 	configData, err := json.MarshalIndent(oldConfig, "", "  ")
 	require.NoError(t, err)
 
-	err = os.WriteFile(tempConfigFile, configData, 0600)
+	err = os.WriteFile(tempConfigFile, configData, 0o600)
 	require.NoError(t, err)
 
 	t.Setenv("ONEDRIVE_CONFIG_PATH", tempConfigFile)

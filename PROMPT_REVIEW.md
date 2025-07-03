@@ -1,6 +1,6 @@
-Our intern attempted implementing parts of the @PRD.md with @ARCHITECTURE.md. Work is in @CHANGELOG.md 
+Our intern attempted implementing parts of the @PRD.md with @ARCHITECTURE.md.
 
-Your job is to do a comprehensive code review and set things back on track. Look at both the detailed implementation as well as the big picture. Architecturally are we on the right track? Be tough but fair.
+Your job is to do a comprehensive code review and set things back on track. Look at both the detailed implementation as well as the big picture. Architecturally are we on the right track? Compare the work to golang best practices. Be tough but fair.
 
 0. What criteria will you use to evaluate the code? What does a senior mobile engineer do in a code review?
 1. Don't trust the markdown documents. Read the code as it is today on disk to understand its state and reason about it.

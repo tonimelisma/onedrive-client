@@ -168,7 +168,7 @@ func TestValidateDownloadPath(t *testing.T) {
 	// Create a temporary directory for testing
 	tempDir := t.TempDir()
 	existingFile := filepath.Join(tempDir, "existing.txt")
-	if err := os.WriteFile(existingFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(existingFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -205,7 +205,7 @@ func TestValidateDownloadPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDownloadPath(tt.path, false) // allowOverwrite = false
+			err := ValidateDownloadPath(tt.path, false, 0o755) // allowOverwrite = false, dirPermissions = 0755
 
 			if tt.wantErr {
 				if err == nil {
@@ -248,7 +248,7 @@ func TestSecureCreateFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			file, err := SecureCreateFile(tt.path, false) // allowOverwrite = false
+			file, err := SecureCreateFile(tt.path, false, 0o644, 0o755) // allowOverwrite = false, filePermissions = 0644, dirPermissions = 0755
 
 			if tt.wantErr {
 				if err == nil {
@@ -277,7 +277,7 @@ func TestSecureCreateFile(t *testing.T) {
 					t.Errorf("Failed to stat created file: %v", err)
 				} else {
 					mode := info.Mode()
-					expected := os.FileMode(0644) // From actual implementation
+					expected := os.FileMode(0o644) // From test parameters
 					if mode.Perm() != expected {
 						t.Errorf("SecureCreateFile() file permissions = %v, want %v", mode.Perm(), expected)
 					}

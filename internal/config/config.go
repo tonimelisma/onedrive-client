@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/tonimelisma/onedrive-client/pkg/onedrive"
@@ -30,6 +31,32 @@ const ClientID = "57caa7f2-c679-440c-8de2-f8ec86510722"
 
 // ErrConfigNotFound is returned by Load when the configuration file does not exist.
 var ErrConfigNotFound = errors.New("configuration file not found")
+
+// DownloadConfig holds configuration for download file and directory permissions
+type DownloadConfig struct {
+	FilePermissions      os.FileMode `json:"file_permissions"`      // Permissions for downloaded files
+	DirectoryPermissions os.FileMode `json:"directory_permissions"` // Permissions for download directories
+	UseUmask             bool        `json:"use_umask"`             // Whether to calculate permissions based on umask
+}
+
+// DefaultDownloadConfig returns sensible default download configuration values
+// It calculates permissions based on the current umask if UseUmask is true
+func DefaultDownloadConfig() DownloadConfig {
+	config := DownloadConfig{
+		UseUmask: true,
+	}
+
+	// Calculate default permissions based on umask
+	currentUmask := syscall.Umask(0)
+	syscall.Umask(currentUmask) // Restore umask
+
+	// Default base permissions: 0666 for files, 0777 for directories
+	// These will be masked by umask to respect user preferences
+	config.FilePermissions = os.FileMode(0o666) &^ os.FileMode(currentUmask)
+	config.DirectoryPermissions = os.FileMode(0o777) &^ os.FileMode(currentUmask)
+
+	return config
+}
 
 // HTTPConfig holds HTTP client configuration settings
 type HTTPConfig struct {
@@ -71,11 +98,12 @@ func DefaultPollingConfig() PollingConfig {
 // It includes the OAuth token for accessing OneDrive and a flag for enabling debug mode.
 // A RWMutex is used to ensure thread-safe access and modification, especially during Save.
 type Configuration struct {
-	Token   onedrive.Token `json:"token"`   // OAuth2 token (access, refresh, expiry).
-	Debug   bool           `json:"debug"`   // Flag to enable debug logging throughout the application.
-	HTTP    HTTPConfig     `json:"http"`    // HTTP client configuration
-	Polling PollingConfig  `json:"polling"` // Polling configuration for async operations
-	mu      sync.RWMutex   // Protects concurrent access to the Configuration struct, particularly for Save.
+	Token    onedrive.Token `json:"token"`    // OAuth2 token (access, refresh, expiry).
+	Debug    bool           `json:"debug"`    // Flag to enable debug logging throughout the application.
+	HTTP     HTTPConfig     `json:"http"`     // HTTP client configuration
+	Polling  PollingConfig  `json:"polling"`  // Polling configuration for async operations
+	Download DownloadConfig `json:"download"` // Download file permissions configuration
+	mu       sync.RWMutex   // Protects concurrent access to the Configuration struct, particularly for Save.
 }
 
 // DebugPrintln prints a debug message if Debug mode is enabled in the configuration.
@@ -159,7 +187,7 @@ func (c *Configuration) saveUnlocked() error {
 	c.DebugPrintln("Attempting to save configuration...")
 	jsonData, err := json.MarshalIndent(c, "", "  ") // Pretty-print JSON.
 	if err != nil {
-		return fmt.Errorf("marshalling configuration to JSON: %w", err)
+		return fmt.Errorf("marshaling configuration to JSON: %w", err)
 	}
 
 	configFilePath, err := getConfigPath()
@@ -173,7 +201,7 @@ func (c *Configuration) saveUnlocked() error {
 	configDirPath := filepath.Dir(configFilePath) // Get directory from the full file path.
 	if _, err := os.Stat(configDirPath); os.IsNotExist(err) {
 		c.DebugPrintf("Configuration directory '%s' does not exist, creating...", configDirPath)
-		if err := os.MkdirAll(configDirPath, 0700); err != nil { // 0700: User rwx, no group/other.
+		if err := os.MkdirAll(configDirPath, 0o700); err != nil { // 0700: User rwx, no group/other.
 			return fmt.Errorf("creating config directory '%s': %w", configDirPath, err)
 		}
 	}
@@ -181,7 +209,7 @@ func (c *Configuration) saveUnlocked() error {
 	// Atomic save: Write to a temporary file first, then rename.
 	// This prevents a corrupted config file if the process is interrupted during write.
 	tmpPath := configFilePath + ".tmp"
-	if err := os.WriteFile(tmpPath, jsonData, 0600); err != nil { // 0600: User rw, no group/other.
+	if err := os.WriteFile(tmpPath, jsonData, 0o600); err != nil { // 0600: User rw, no group/other.
 		return fmt.Errorf("writing temporary configuration file '%s': %w", tmpPath, err)
 	}
 	if err := os.Rename(tmpPath, configFilePath); err != nil {
@@ -214,7 +242,7 @@ func Load() (*Configuration, error) {
 
 	// Unmarshal the JSON data into the Configuration struct.
 	if err = json.Unmarshal(fileData, cfg); err != nil {
-		return nil, fmt.Errorf("unmarshalling configuration JSON from '%s': %w", configPath, err)
+		return nil, fmt.Errorf("unmarshaling configuration JSON from '%s': %w", configPath, err)
 	}
 	log.Printf("Debug: Configuration loaded successfully. Debug mode: %v", cfg.Debug)
 	return cfg, nil
@@ -233,8 +261,9 @@ func LoadOrCreate() (*Configuration, error) {
 		if errors.Is(err, ErrConfigNotFound) {
 			log.Println("Debug: No existing configuration file found. Creating new default configuration.")
 			return &Configuration{
-				HTTP:    DefaultHTTPConfig(),
-				Polling: DefaultPollingConfig(),
+				HTTP:     DefaultHTTPConfig(),
+				Polling:  DefaultPollingConfig(),
+				Download: DefaultDownloadConfig(),
 			}, nil
 		}
 		// For any other error during Load, propagate it.
@@ -248,6 +277,9 @@ func LoadOrCreate() (*Configuration, error) {
 	}
 	if cfg.Polling.InitialInterval == 0 {
 		cfg.Polling = DefaultPollingConfig()
+	}
+	if cfg.Download.FilePermissions == 0 {
+		cfg.Download = DefaultDownloadConfig()
 	}
 
 	// Configuration loaded successfully.

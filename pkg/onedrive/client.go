@@ -458,7 +458,7 @@ func (c *Client) GetFileVersions(ctx context.Context, filePath string) (DriveIte
 // If `paging.FetchAll` is true, it follows all `@odata.nextLink`s until all items are retrieved.
 // Otherwise, it fetches only the current page specified by `initialURL` or `paging.NextLink`.
 // It returns a slice of raw JSON messages (one per item) and the nextLink for further pagination, if any.
-// Using json.RawMessage helps in deferring the unmarshalling of individual items, which can be
+// Using json.RawMessage helps in deferring the unmarshaling of individual items, which can be
 // memory-efficient if the caller processes items one by one or needs different parts of the JSON.
 func (c *Client) collectAllPages(ctx context.Context, initialURL string, paging Paging) ([]json.RawMessage, string, error) {
 	var allItems []json.RawMessage

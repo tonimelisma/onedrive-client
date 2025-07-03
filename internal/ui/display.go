@@ -457,7 +457,7 @@ func DisplayActivities(activities onedrive.ActivityList, title string) {
 		return
 	}
 
-	fmt.Printf("Activities for: %s (%d activit(ies) found)\n\n", title, len(activities.Value))
+	fmt.Printf("Activities for: %s (%d activities found)\n\n", title, len(activities.Value))
 	fmt.Printf("%-20s %-20.20s %-15s %s\n", "Date/Time", "Actor", "Action Type", "Item Name (if applicable)")
 	fmt.Println(strings.Repeat("-", 90)) // Adjusted separator length
 

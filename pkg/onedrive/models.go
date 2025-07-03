@@ -9,7 +9,7 @@ import "time"
 // DriveItemList represents a collection of DriveItem resources.
 // It's commonly used in responses for listing children of a folder or search results.
 type DriveItemList struct {
-	Value    []DriveItem `json:"value"`              // The array of DriveItem resources.
+	Value    []DriveItem `json:"value"`                     // The array of DriveItem resources.
 	NextLink string      `json:"@odata.nextLink,omitempty"` // URL to the next page of results, if any.
 }
 
@@ -51,14 +51,14 @@ type DriveItem struct {
 		CreatedDateTime      time.Time `json:"createdDateTime"`      // Timestamp from the file system when the item was created.
 		LastModifiedDateTime time.Time `json:"lastModifiedDateTime"` // Timestamp from the file system when the item was last modified.
 	} `json:"fileSystemInfo"`
-	Folder *FolderFacet `json:"folder,omitempty"` // If the item is a folder, this contains folder-specific metadata.
-	File   *FileFacet   `json:"file,omitempty"`   // If the item is a file, this contains file-specific metadata.
-	Image  *ImageFacet  `json:"image,omitempty"`  // If the item is an image, this contains image-specific metadata.
-	Video  *VideoFacet  `json:"video,omitempty"`  // If the item is a video, this contains video-specific metadata.
-	Audio  *AudioFacet  `json:"audio,omitempty"`  // If the item is an audio file, this contains audio-specific metadata.
-	Photo  *PhotoFacet  `json:"photo,omitempty"`  // If the item is a photo, this contains photo-specific metadata.
-	Package *PackageFacet `json:"package,omitempty"` // If the item is a package (e.g., OneNote notebook).
-	SpecialFolder *struct { // If the item is a special folder (e.g., Documents, Photos).
+	Folder        *FolderFacet  `json:"folder,omitempty"`  // If the item is a folder, this contains folder-specific metadata.
+	File          *FileFacet    `json:"file,omitempty"`    // If the item is a file, this contains file-specific metadata.
+	Image         *ImageFacet   `json:"image,omitempty"`   // If the item is an image, this contains image-specific metadata.
+	Video         *VideoFacet   `json:"video,omitempty"`   // If the item is a video, this contains video-specific metadata.
+	Audio         *AudioFacet   `json:"audio,omitempty"`   // If the item is an audio file, this contains audio-specific metadata.
+	Photo         *PhotoFacet   `json:"photo,omitempty"`   // If the item is a photo, this contains photo-specific metadata.
+	Package       *PackageFacet `json:"package,omitempty"` // If the item is a package (e.g., OneNote notebook).
+	SpecialFolder *struct {     // If the item is a special folder (e.g., Documents, Photos).
 		Name string `json:"name"` // Name of the special folder (e.g., "documents").
 	} `json:"specialFolder,omitempty"`
 	RemoteItem *RemoteItemFacet `json:"remoteItem,omitempty"` // If the item is a link to an item on another drive.
@@ -73,7 +73,7 @@ type Identity struct {
 
 // FolderFacet provides metadata specific to items that are folders.
 type FolderFacet struct {
-	ChildCount int `json:"childCount"` // Number of children items directly under this folder.
+	ChildCount int       `json:"childCount"` // Number of children items directly under this folder.
 	View       *struct { // Optional: View preferences for the folder.
 		ViewType  string `json:"viewType"`  // Type of view (e.g., "thumbnails", "details").
 		SortBy    string `json:"sortBy"`    // Field to sort by (e.g., "name", "lastModifiedDateTime").
@@ -83,7 +83,7 @@ type FolderFacet struct {
 
 // FileFacet provides metadata specific to items that are files.
 type FileFacet struct {
-	MimeType string `json:"mimeType"` // The MIME type for the file.
+	MimeType string    `json:"mimeType"` // The MIME type for the file.
 	Hashes   *struct { // Hashes of the file content.
 		Sha1Hash   string `json:"sha1Hash,omitempty"`   // SHA1 hash for the contents of the file (if available).
 		Sha256Hash string `json:"sha256Hash,omitempty"` // SHA256 hash for the contents of the file (if available).
@@ -99,37 +99,37 @@ type ImageFacet struct {
 
 // VideoFacet provides metadata specific to items that are videos.
 type VideoFacet struct {
-	Bitrate    int   `json:"bitrate"`    // Video bitrate in bits per second.
-	Duration   int64 `json:"duration"`   // Duration of the video in milliseconds.
-	Height     int   `json:"height"`     // Video height in pixels.
-	Width      int   `json:"width"`      // Video width in pixels.
+	Bitrate    int    `json:"bitrate"`              // Video bitrate in bits per second.
+	Duration   int64  `json:"duration"`             // Duration of the video in milliseconds.
+	Height     int    `json:"height"`               // Video height in pixels.
+	Width      int    `json:"width"`                // Video width in pixels.
 	AudioCodec string `json:"audioCodec,omitempty"` // Audio codec used in the video.
 	VideoCodec string `json:"videoCodec,omitempty"` // Video codec used.
 }
 
 // AudioFacet provides metadata specific to items that are audio files.
 type AudioFacet struct {
-	Album        string `json:"album,omitempty"`        // Album name.
-	Artist       string `json:"artist,omitempty"`       // Artist name.
-	Bitrate      int    `json:"bitrate,omitempty"`      // Bitrate in bits per second.
-	Duration     int64  `json:"duration,omitempty"`     // Duration in milliseconds.
-	Genre        string `json:"genre,omitempty"`        // Genre.
-	Title        string `json:"title,omitempty"`        // Title of the audio track.
-	Track        int    `json:"track,omitempty"`        // Track number.
-	Year         int    `json:"year,omitempty"`         // Year of recording.
-	IsVariableBitrate bool `json:"isVariableBitrate,omitempty"` // Whether the audio is variable bitrate.
+	Album             string `json:"album,omitempty"`             // Album name.
+	Artist            string `json:"artist,omitempty"`            // Artist name.
+	Bitrate           int    `json:"bitrate,omitempty"`           // Bitrate in bits per second.
+	Duration          int64  `json:"duration,omitempty"`          // Duration in milliseconds.
+	Genre             string `json:"genre,omitempty"`             // Genre.
+	Title             string `json:"title,omitempty"`             // Title of the audio track.
+	Track             int    `json:"track,omitempty"`             // Track number.
+	Year              int    `json:"year,omitempty"`              // Year of recording.
+	IsVariableBitrate bool   `json:"isVariableBitrate,omitempty"` // Whether the audio is variable bitrate.
 }
 
 // PhotoFacet provides EXIF metadata specific to items that are photos.
 type PhotoFacet struct {
-	TakenDateTime   time.Time `json:"takenDateTime,omitempty"`   // Timestamp when the photo was taken.
-	CameraMake      string    `json:"cameraMake,omitempty"`      // Make of the camera used.
-	CameraModel     string    `json:"cameraModel,omitempty"`     // Model of the camera used.
-	FNumber         float64   `json:"fNumber,omitempty"`         // F-number (aperture).
-	ExposureNumerator int     `json:"exposureNumerator,omitempty"` // Exposure time numerator.
-	ExposureDenominator int   `json:"exposureDenominator,omitempty"` // Exposure time denominator.
-	FocalLength     float64   `json:"focalLength,omitempty"`     // Focal length.
-	Iso             int       `json:"iso,omitempty"`             // ISO speed.
+	TakenDateTime       time.Time `json:"takenDateTime,omitempty"`       // Timestamp when the photo was taken.
+	CameraMake          string    `json:"cameraMake,omitempty"`          // Make of the camera used.
+	CameraModel         string    `json:"cameraModel,omitempty"`         // Model of the camera used.
+	FNumber             float64   `json:"fNumber,omitempty"`             // F-number (aperture).
+	ExposureNumerator   int       `json:"exposureNumerator,omitempty"`   // Exposure time numerator.
+	ExposureDenominator int       `json:"exposureDenominator,omitempty"` // Exposure time denominator.
+	FocalLength         float64   `json:"focalLength,omitempty"`         // Focal length.
+	Iso                 int       `json:"iso,omitempty"`                 // ISO speed.
 }
 
 // PackageFacet indicates that a DriveItem is a package, an alternate data stream used by some applications.
@@ -139,10 +139,10 @@ type PackageFacet struct {
 
 // RemoteItemFacet indicates that a DriveItem is a link to an item on another drive.
 type RemoteItemFacet struct {
-	ID             string `json:"id"`       // ID of the remote item.
-	Name           string `json:"name"`     // Name of the remote item.
-	Size           int64  `json:"size"`     // Size of the remote item.
-	WebURL         string `json:"webUrl"`   // URL to access the remote item.
+	ID             string    `json:"id"`     // ID of the remote item.
+	Name           string    `json:"name"`   // Name of the remote item.
+	Size           int64     `json:"size"`   // Size of the remote item.
+	WebURL         string    `json:"webUrl"` // URL to access the remote item.
 	FileSystemInfo *struct { // File system info of the remote item.
 		CreatedDateTime      time.Time `json:"createdDateTime"`
 		LastModifiedDateTime time.Time `json:"lastModifiedDateTime"`
@@ -156,27 +156,26 @@ type DeletedFacet struct {
 	State string `json:"state"` // State of the deletion (e.g., "itemDeleted").
 }
 
-
 // UploadSession represents the response from creating an upload session for large files.
 // It contains the URL to which chunks should be uploaded and session expiry information.
 type UploadSession struct {
-	UploadURL          string   `json:"uploadUrl"`               // The URL to upload file chunks to.
-	ExpirationDateTime string   `json:"expirationDateTime"`      // Timestamp when the upload session expires (ISO 8601 format).
+	UploadURL          string   `json:"uploadUrl"`                    // The URL to upload file chunks to.
+	ExpirationDateTime string   `json:"expirationDateTime"`           // Timestamp when the upload session expires (ISO 8601 format).
 	NextExpectedRanges []string `json:"nextExpectedRanges,omitempty"` // Byte ranges the server expects next (for resuming).
 }
 
 // DriveList represents a collection of Drive resources.
 type DriveList struct {
-	Value    []Drive `json:"value"`              // The array of Drive resources.
+	Value    []Drive `json:"value"`                     // The array of Drive resources.
 	NextLink string  `json:"@odata.nextLink,omitempty"` // URL to the next page of results, if any.
 }
 
 // Drive represents a OneDrive drive resource. A drive can be a user's personal OneDrive,
 // a OneDrive for Business drive, or a SharePoint document library.
 type Drive struct {
-	ID        string `json:"id"`        // The unique identifier of the Drive.
-	Name      string `json:"name"`      // The name of the Drive.
-	DriveType string `json:"driveType"` // Type of the drive (e.g., "personal", "business", "documentLibrary").
+	ID        string   `json:"id"`        // The unique identifier of the Drive.
+	Name      string   `json:"name"`      // The name of the Drive.
+	DriveType string   `json:"driveType"` // Type of the drive (e.g., "personal", "business", "documentLibrary").
 	Owner     struct { // Information about the owner of the Drive.
 		User *Identity `json:"user,omitempty"`
 	} `json:"owner"`
@@ -210,9 +209,9 @@ type User struct {
 // CopyOperationStatus represents the status of an asynchronous copy operation for a DriveItem.
 // This is polled using the monitor URL returned when a copy is initiated.
 type CopyOperationStatus struct {
-	Status             string `json:"status"`             // Current status: "notStarted", "inProgress", "completed", "failed", "waiting".
-	PercentageComplete int    `json:"percentageComplete"` // Estimated percentage of completion (0-100).
-	StatusDescription  string `json:"statusDescription"`  // Human-readable description of the status.
+	Status             string    `json:"status"`             // Current status: "notStarted", "inProgress", "completed", "failed", "waiting".
+	PercentageComplete int       `json:"percentageComplete"` // Estimated percentage of completion (0-100).
+	StatusDescription  string    `json:"statusDescription"`  // Human-readable description of the status.
 	Error              *struct { // Details if the operation failed.
 		Code    string `json:"code"`    // Error code (e.g., "itemNotFound").
 		Message string `json:"message"` // Error message.
@@ -237,10 +236,10 @@ type SharingLink struct {
 	ShareId     string   `json:"shareId,omitempty"`     // Unique ID of the share action.
 	HasPassword bool     `json:"hasPassword,omitempty"` // True if the link is password protected.
 	Link        struct { // Details about the link itself.
-		Type        string `json:"type"`              // "view", "edit", or "embed".
-		Scope       string `json:"scope"`             // "anonymous" or "organization".
-		WebUrl      string `json:"webUrl"`            // The actual sharing URL.
-		WebHtml     string `json:"webHtml,omitempty"` // For "embed" links, the HTML snippet.
+		Type        string    `json:"type"`              // "view", "edit", or "embed".
+		Scope       string    `json:"scope"`             // "anonymous" or "organization".
+		WebUrl      string    `json:"webUrl"`            // The actual sharing URL.
+		WebHtml     string    `json:"webHtml,omitempty"` // For "embed" links, the HTML snippet.
 		Application *struct { // Application that created the link, if applicable.
 			Id          string `json:"id"`
 			DisplayName string `json:"displayName"`
@@ -252,9 +251,9 @@ type SharingLink struct {
 // DeltaResponse represents the response from a delta query on a drive.
 // It contains a list of changed items and links for pagination or continuing the delta sync.
 type DeltaResponse struct {
-	Value     []DriveItem `json:"value"`                        // Items that have changed since the last delta token.
-	DeltaLink string      `json:"@odata.deltaLink,omitempty"`   // URL to get changes since this response (contains the next delta token).
-	NextLink  string      `json:"@odata.nextLink,omitempty"`    // URL to get the next page of current changes, if the result is paged.
+	Value     []DriveItem `json:"value"`                      // Items that have changed since the last delta token.
+	DeltaLink string      `json:"@odata.deltaLink,omitempty"` // URL to get changes since this response (contains the next delta token).
+	NextLink  string      `json:"@odata.nextLink,omitempty"`  // URL to get the next page of current changes, if the result is paged.
 }
 
 // DriveItemVersion represents a specific version of a file in OneDrive.
@@ -262,7 +261,7 @@ type DriveItemVersion struct {
 	ID                   string    `json:"id"`                   // The unique identifier of the version.
 	LastModifiedDateTime time.Time `json:"lastModifiedDateTime"` // Timestamp when this version was created.
 	Size                 int64     `json:"size"`                 // Size of this version in bytes.
-	LastModifiedBy       struct { // User or application that created this version.
+	LastModifiedBy       struct {  // User or application that created this version.
 		User *Identity `json:"user,omitempty"`
 	} `json:"lastModifiedBy"`
 	// Content              io.ReadCloser `json:"content,omitempty"` // Not typically part of metadata; content is fetched separately.
@@ -270,7 +269,7 @@ type DriveItemVersion struct {
 
 // DriveItemVersionList represents a collection of DriveItemVersion resources.
 type DriveItemVersionList struct {
-	Value    []DriveItemVersion `json:"value"`              // The array of file versions.
+	Value    []DriveItemVersion `json:"value"`                     // The array of file versions.
 	NextLink string             `json:"@odata.nextLink,omitempty"` // URL to the next page of versions, if any.
 }
 
@@ -292,7 +291,7 @@ type Paging struct {
 // Activity represents an action or event that occurred on a DriveItem or within a container (like a drive).
 // It provides details about the action, the actor, and the time of occurrence.
 type Activity struct {
-	ID     string `json:"id"` // Unique ID of the activity.
+	ID     string   `json:"id"` // Unique ID of the activity.
 	Action struct { // Describes the type of action. Only one of these fields will typically be non-nil.
 		Comment *struct{} `json:"comment,omitempty"` // A comment was added.
 		Create  *struct{} `json:"create,omitempty"`  // An item was created.
@@ -326,7 +325,7 @@ type Activity struct {
 
 // ActivityList represents a collection of Activity resources, typically with pagination information.
 type ActivityList struct {
-	Value    []Activity `json:"value"`              // The array of activities.
+	Value    []Activity `json:"value"`                     // The array of activities.
 	NextLink string     `json:"@odata.nextLink,omitempty"` // URL to the next page of activities, if any.
 }
 
@@ -350,7 +349,7 @@ type ThumbnailSet struct {
 // ThumbnailSetList represents a collection of ThumbnailSet resources.
 // Typically, a DriveItem has one ThumbnailSet (ID "0") containing various sizes.
 type ThumbnailSetList struct {
-	Value    []ThumbnailSet `json:"value"`              // The array of thumbnail sets.
+	Value    []ThumbnailSet `json:"value"`                     // The array of thumbnail sets.
 	NextLink string         `json:"@odata.nextLink,omitempty"` // URL to the next page, if applicable (rare for thumbnails).
 }
 
@@ -372,11 +371,11 @@ type PreviewResponse struct {
 // Permission represents a sharing permission granted on a DriveItem.
 // It details who has access, what type of access, and how it was granted (e.g., direct or via a link).
 type Permission struct {
-	ID            string   `json:"id"`                      // Unique ID of the permission.
-	Roles         []string `json:"roles"`                   // Roles granted (e.g., "read", "write", "owner").
-	ShareID       string   `json:"shareId,omitempty"`       // ID of the share action, if this permission is for a sharing link.
-	ExpirationDateTime string `json:"expirationDateTime,omitempty"` // ISO 8601 timestamp when the permission expires.
-	HasPassword   bool     `json:"hasPassword,omitempty"`   // True if the permission (usually a link) is password-protected.
+	ID                 string   `json:"id"`                           // Unique ID of the permission.
+	Roles              []string `json:"roles"`                        // Roles granted (e.g., "read", "write", "owner").
+	ShareID            string   `json:"shareId,omitempty"`            // ID of the share action, if this permission is for a sharing link.
+	ExpirationDateTime string   `json:"expirationDateTime,omitempty"` // ISO 8601 timestamp when the permission expires.
+	HasPassword        bool     `json:"hasPassword,omitempty"`        // True if the permission (usually a link) is password-protected.
 	// PermissionScope string   `json:"scope,omitempty"` // Deprecated: Use Link.Scope or GrantedToV2 for user scope.
 	GrantedToV2 *struct { // Information about the user or group granted this permission directly.
 		User     *Identity `json:"user,omitempty"`
@@ -391,10 +390,10 @@ type Permission struct {
 		// Application *Identity `json:"application,omitempty"`
 	} `json:"grantedToIdentitiesV2,omitempty"`
 	Link *struct { // If this permission is for a sharing link, this contains link details.
-		Type        string `json:"type"`              // "view", "edit", "embed".
-		Scope       string `json:"scope"`             // "anonymous", "organization", "users" (for specific users link).
-		WebURL      string `json:"webUrl"`            // The sharing URL.
-		WebHTML     string `json:"webHtml,omitempty"` // HTML for embedding (for "embed" type).
+		Type        string    `json:"type"`              // "view", "edit", "embed".
+		Scope       string    `json:"scope"`             // "anonymous", "organization", "users" (for specific users link).
+		WebURL      string    `json:"webUrl"`            // The sharing URL.
+		WebHTML     string    `json:"webHtml,omitempty"` // HTML for embedding (for "embed" type).
 		Application *struct { // Application that created the link.
 			ID          string `json:"id"`
 			DisplayName string `json:"displayName"`
@@ -407,21 +406,21 @@ type Permission struct {
 		Path    string `json:"path"`    // Path of the item from which permission is inherited.
 	} `json:"inheritedFrom,omitempty"`
 	Invitation *struct { // If this permission was granted via an invitation.
-		SignInRequired bool   `json:"signInRequired"`        // True if the invited user must sign in.
-		Email          string `json:"email,omitempty"`         // Email address of the invited user.
+		SignInRequired bool   `json:"signInRequired"`  // True if the invited user must sign in.
+		Email          string `json:"email,omitempty"` // Email address of the invited user.
 	} `json:"invitation,omitempty"`
 }
 
 // PermissionList represents a collection of Permission resources for a DriveItem.
 type PermissionList struct {
-	Value    []Permission `json:"value"`              // The array of permissions.
+	Value    []Permission `json:"value"`                     // The array of permissions.
 	NextLink string       `json:"@odata.nextLink,omitempty"` // URL to the next page of permissions, if any.
 }
 
 // InviteRequest represents the request body for inviting users to access a DriveItem.
 type InviteRequest struct {
 	Recipients []struct { // List of recipients to invite.
-		Email  string `json:"email,omitempty"`  // Email address of the recipient.
+		Email    string `json:"email,omitempty"`    // Email address of the recipient.
 		ObjectID string `json:"objectId,omitempty"` // Azure AD object ID of the recipient (user or group).
 	} `json:"recipients"`
 	Message              string   `json:"message,omitempty"`              // Optional custom message for the invitation email.
